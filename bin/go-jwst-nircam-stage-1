@@ -34,6 +34,7 @@ done
 # Check user input
 
 
-# Prepare stage "asdf" file
+# Run Python script
+python $script_dir/go-jwst-nircam-stage-1-task-1.py
 
 
