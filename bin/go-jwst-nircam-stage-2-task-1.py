@@ -271,65 +271,68 @@ if __name__ == '__main__':
         
     
     # also prepare association file to process all rate files into one single output file
-    # 
-    # The Stage 2 pipeline can be called on a single fits file, or a collection of fits files. 
-    # When calling on multiple files, the input is a json-formatted file called an "association" 
-    # file that lists each of the fits files to be processed.
-    asn_dict = OrderedDict()
-    asn_dict['asn_type'] = 'None'
-    asn_dict['asn_rule'] = 'DMSLevel2bBase'
-    asn_dict['version_id'] = None
-    asn_dict['code_version'] = '0.17.1'
-    asn_dict['degraded_status'] = 'No known degraded exposures in association.'
-    asn_dict['program'] = 'noprogram'
-    asn_dict['constraints'] = 'No constraints'
-    asn_dict['asn_id'] = 'a3001'
-    asn_dict['asn_pool'] = 'none'
-    asn_dict['products'] = []
-    for input_file, output_file in list(zip(input_files, output_files)):
-        input_filepath = os.path.join(input_dir, input_file)
-        product_dict = OrderedDict()
-        product_dict['name'] = input_file.replace(f"{input_suffix}.fits", "")
-        product_dict['members'] = [
-                {'expname': input_filepath,
-                 'exptype': 'science'}
-            ]
-        asn_dict['products'].append(product_dict)
-    
-    combined_name = 'level2_combined'
-    if re.match(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', input_files[0]):
-        combined_name = re.sub(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', r'\1_\2_\4_combined', input_files[0])
-    
-    asn_file = os.path.join(output_dir, f'{combined_name}_asn.json')
-    
-    if os.path.isfile(asn_file):
-        shutil.move(asn_file, asn_file+'.backup')
-    
-    with open(asn_file, 'w') as fp:
-        json.dump(asn_dict, fp, indent=4)
-    
-    # prepare a single output file 
-    output_file = f"{combined_name}_cal.fits"
-    output_filepath = os.path.join(output_dir, output_file)
-    
-    logger.info("Processing {} -> {}".format(input_files, output_filepath))
-    
-    # prepare to run
-    pipeline_object = calwebb_image2.Image2Pipeline()
-    pipeline_object.output_dir = output_dir
-    pipeline_object.save_results = True
-    #pipeline_object.resample.skip = True # turn off the ResampleStep, comment out to produce the individual rectified *_i2d.fits for quick-look checks
-    pipeline_object.resample.pixfrac = 1.0 # default
-    pipeline_object.bkg_subtract.sigma = 3.0 # default
-    
-    # run
-    run_output = pipeline_object.run(input_filepath)
-    
-    # check
-    assert os.path.isfile(output_filepath)
-    
-    # log
-    logger.info("Processed {} -> {}".format(input_files, output_filepath))
+    if len(input_files) > 1:
+        # 
+        # The Stage 2 pipeline can be called on a single fits file, or a collection of fits files. 
+        # When calling on multiple files, the input is a json-formatted file called an "association" 
+        # file that lists each of the fits files to be processed.
+        asn_dict = OrderedDict()
+        asn_dict['asn_type'] = 'None'
+        asn_dict['asn_rule'] = 'DMSLevel2bBase'
+        asn_dict['version_id'] = None
+        asn_dict['code_version'] = '0.17.1'
+        asn_dict['degraded_status'] = 'No known degraded exposures in association.'
+        asn_dict['program'] = 'noprogram'
+        asn_dict['constraints'] = 'No constraints'
+        asn_dict['asn_id'] = 'a3001'
+        asn_dict['asn_pool'] = 'none'
+        asn_dict['products'] = []
+        for input_file, output_file in list(zip(input_files, output_files)):
+            input_filepath = os.path.join(input_dir, input_file)
+            product_dict = OrderedDict()
+            product_dict['name'] = input_file.replace(f"{input_suffix}.fits", "")
+            product_dict['members'] = [
+                    {'expname': input_filepath,
+                     'exptype': 'science'}
+                ]
+            asn_dict['products'].append(product_dict)
+        
+        combined_name = 'level2_combined'
+        if re.match(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', input_files[0]):
+            combined_name = re.sub(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', r'\1_\2_\4_combined', input_files[0])
+        
+        asn_file = os.path.join(output_dir, f'{combined_name}_asn.json')
+        
+        if os.path.isfile(asn_file):
+            shutil.move(asn_file, asn_file+'.backup')
+        
+        with open(asn_file, 'w') as fp:
+            json.dump(asn_dict, fp, indent=4)
+        
+        # prepare a single output file 
+        output_file = f"{combined_name}_cal.fits"
+        output_filepath = os.path.join(output_dir, output_file)
+        
+        logger.info("Processing {} -> {}".format(input_files, output_filepath))
+        
+        # prepare to run
+        pipeline_object = calwebb_image2.Image2Pipeline()
+        pipeline_object.output_dir = output_dir
+        pipeline_object.output_file = os.path.splitext(output_file)[0]
+        pipeline_object.output_ext = ".fits"
+        pipeline_object.save_results = True
+        #pipeline_object.resample.skip = True # turn off the ResampleStep, comment out to produce the individual rectified *_i2d.fits for quick-look checks
+        pipeline_object.resample.pixfrac = 1.0 # default
+        pipeline_object.bkg_subtract.sigma = 3.0 # default
+        
+        # run
+        run_output = pipeline_object.run(input_filepath)
+        
+        # check
+        assert os.path.isfile(output_filepath)
+        
+        # log
+        logger.info("Processed {} -> {}".format(input_files, output_filepath))
     
     
     
