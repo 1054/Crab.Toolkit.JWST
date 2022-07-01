@@ -207,8 +207,11 @@ if __name__ == '__main__':
         # additionally, following CEERS, 
         # apply a custom flat to the NRCA5 detector
         # -- see ceers_nircam_reduction.ipynb
-        from applyflat import apply_custom_flat
-        apply_custom_flat(output_filepath)
+        try:
+            from applyflat import apply_custom_flat
+            apply_custom_flat(output_filepath)
+        except:
+            logger.warning("Warning! Failed to run apply_custom_flat(\"{}\")".format(output_filepath))
         
         # additionally, following CEERS, 
         # do sky subtraction, 
