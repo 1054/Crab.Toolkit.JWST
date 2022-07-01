@@ -244,7 +244,7 @@ if __name__ == '__main__':
             shutil.move(asn_file, asn_file+'.backup')
         
         with open(asn_file, 'w') as fp:
-            json.dump(fp, asn_dict, indent=4)
+            json.dump(asn_dict, fp, indent=4)
         
         skymatch = SkyMatchStep()
         skymatch.save_results = True
@@ -302,7 +302,7 @@ if __name__ == '__main__':
         shutil.move(asn_file, asn_file+'.backup')
     
     with open(asn_file, 'w') as fp:
-        json.dump(fp, asn_dict, indent=4)
+        json.dump(asn_dict, fp, indent=4)
     
     # prepare a single output file 
     output_file = f"{combined_name}_cal.fits"
