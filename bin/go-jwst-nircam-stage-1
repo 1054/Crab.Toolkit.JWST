@@ -1,0 +1,39 @@
+#!/bin/bash
+# 
+set -e
+
+# Set necessary system variables
+if [[ -z "$CRDS_PATH" ]]; then
+    export CRDS_PATH=$HOME/jwst_crds_cache
+fi
+if [[ -z "$CRDS_SERVER_URL" ]]; then
+    export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
+fi
+
+# Get script_dir
+script_dir=$(dirname "${BASH_SOURCE[0]}")
+
+
+# Read user input
+iarg=1
+argmode=""
+argstr=""
+while [[ $iarg -le $# ]]; do
+    argstr="${!iarg}"
+    if [[ "$argstr"x == "--abc"x ]]; then
+        argmode="abs"
+        continue
+    fi
+    if [[ "$argmode"x == "abc"x ]]; then
+        abc="argstr"
+    fi
+    continue
+done
+
+
+# Check user input
+
+
+# Prepare stage "asdf" file
+
+
