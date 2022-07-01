@@ -74,7 +74,7 @@ def get_script_dir():
 
 def get_script_name():
     """Get current script file name without the suffix and replaced some characters to underscores."""
-    return re.sub(r'^[a-zA-Z0-9_]', r'_', os.splitext(os.path.basename(__file__))[0])
+    return re.sub(r'^[a-zA-Z0-9_]', r'_', os.path.splitext(os.path.basename(__file__))[0])
 
 def setup_logger():
     logger_streamhandler = logging.StreamHandler()
