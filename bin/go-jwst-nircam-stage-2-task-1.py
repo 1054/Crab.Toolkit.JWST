@@ -298,7 +298,7 @@ if __name__ == '__main__':
     
     combined_name = 'level2_combined'
     if re.match(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', input_files[0]):
-        combined_name = re.sub(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', r'\1_\2_\4_combined')
+        combined_name = re.sub(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', r'\1_\2_\4_combined', input_files[0])
     
     asn_file = os.path.join(output_dir, f'{combined_name}_asn.json')
     
