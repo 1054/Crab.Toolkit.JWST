@@ -199,7 +199,7 @@ if __name__ == '__main__':
         pipeline_object.resample.skip = True # turn off the ResampleStep, comment out to produce the  individual rectified *_i2d.fits for quick-look checks
         
         # run
-        run_output = pipeline_object.run(input_file)
+        run_output = pipeline_object.run(input_filepath)
         
         # check
         assert os.path.isfile(output_filepath)

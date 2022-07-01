@@ -185,7 +185,7 @@ if __name__ == '__main__':
             pipeline_object.ramp_fit.override_gain = override_gain_file
         
         # run
-        run_output = pipeline_object.run(input_file)
+        run_output = pipeline_object.run(input_filepath)
         
         # check
         assert os.path.isfile(output_filepath)
