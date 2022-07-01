@@ -99,7 +99,7 @@ def get_script_dir():
 
 def get_script_name():
     """Get current script file name without the suffix and replaced some characters to underscores."""
-    return re.sub(r'^[a-zA-Z0-9_]', r'_', os.path.splitext(os.path.basename(__file__))[0])
+    return re.sub(r'[^a-zA-Z0-9_]', r'_', os.path.splitext(os.path.basename(__file__))[0])
 
 def setup_logger():
     logger_streamhandler = logging.StreamHandler()
@@ -322,6 +322,13 @@ if __name__ == '__main__':
     pipeline_object.resample.pixfrac = 1.0 # default
     pipeline_object.bkg_subtract.sigma = 3.0 # default
     
+    # run
+    run_output = pipeline_object.run(input_filepath)
+    
+    # check
+    assert os.path.isfile(output_filepath)
+    
+    # log
     logger.info("Processed {} -> {}".format(input_files, output_filepath))
     
     
