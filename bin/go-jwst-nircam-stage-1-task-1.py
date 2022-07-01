@@ -159,6 +159,9 @@ if __name__ == '__main__':
     
     # find files to process
     input_files = [t for t in os.listdir(input_dir) if t.endswith(f"{input_suffix}.fits")]
+    if (len(input_files) == 0):
+        logger.error("Error! No input file \"{}/*{}\" is found!".format(input_dir, f"{input_suffix}.fits"))
+        sys.exit(-1)
     input_files = sorted(input_files)
     output_files = [t.replace(f"{input_suffix}.fits", f"{output_suffix}.fits") for t in input_files]
     
