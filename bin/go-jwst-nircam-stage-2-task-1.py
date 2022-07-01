@@ -250,9 +250,10 @@ if __name__ == '__main__':
         skymatch.save_results = True
         skymatch.output_dir = output_dir
         skymatch.output_file = f"{input_filename}_bkgsub" # SkyMatchStep will append 'skymatchstep' to the input filename
+        skymatch.output_ext = ".fits"
 
         # sky statistics parameters
-        skymatch.skymethod = 'local' # the default is global+match, doesn't matter as we're processing files individually
+        skymatch.skymethod = "local" # the default is global+match, doesn't matter as we're processing files individually
         skymatch.lsigma = 2.0
         skymatch.usigma = 2.0
         skymatch.nclip = 10
@@ -260,7 +261,10 @@ if __name__ == '__main__':
         # set the 'subtract' parameter so the calculated sky value is removed from the image
         # (subtracting the calculated sky value from the image is off by default)
         skymatch.subtract = True 
-        sky = skymatch.run(asn_file)
+        try:
+            sky = skymatch.run(asn_file)
+        except:
+            logger.warning("Warning! Failed to run skymatch.run(\"{}\")".format(asn_file))
         
         # log
         logger.info("Processed {} -> {}".format(input_filepath, output_filepath))
