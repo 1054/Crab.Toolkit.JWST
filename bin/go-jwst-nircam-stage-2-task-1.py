@@ -233,12 +233,12 @@ if __name__ == '__main__':
         product_dict = OrderedDict()
         product_dict['name'] = input_file.replace(f"{input_suffix}.fits", "")
         product_dict['members'] = [
-                {'expname': input_filepath,
+                {'expname': input_file,  # not abs file path
                  'exptype': 'science'}
             ]
         asn_dict['products'].append(product_dict)
         
-        asn_file = os.path.join(output_dir, f"{input_file}_bkgsub_asn.json")
+        asn_file = os.path.join(output_dir, f"{input_filename}_bkgsub_asn.json")
         
         if os.path.isfile(asn_file):
             shutil.move(asn_file, asn_file+'.backup')
