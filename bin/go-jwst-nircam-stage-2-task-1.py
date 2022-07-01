@@ -108,7 +108,7 @@ def setup_logger():
     logger_streamhandler.setLevel(logging.DEBUG)
 
     log_file = get_script_name()
-    log_time = datetime.datetime.now().strfprint("%Y%m%d_%Hh%Mm%Ss")
+    log_time = datetime.datetime.now().strftime("%Y%m%d_%Hh%Mm%Ss")
     logger_filehandler = logging.FileHandler(f"log_{log_file}_{log_time}.txt", mode='a')
     logger_filehandler_formatter = logging.Formatter("[%(asctime)-15s] %(message)s", "%Y-%m-%d %H:%M:%S")
     logger_filehandler.setFormatter(logger_filehandler_formatter)
