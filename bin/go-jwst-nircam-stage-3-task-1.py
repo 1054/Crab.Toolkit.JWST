@@ -1,45 +1,43 @@
 #!/usr/bin/env python
 #
 """
-Process JWST rate data under "calibrated/" and named as "jw*_rate.fits"
-into calibrated FITS data under "calibrated/" and named as "jw*_cal.fits". 
+Process JWST rate data under "calibrated/" and named as "jw*_cal.fits"
+into calibrated FITS data under "calibrated/" and named as "jw*_i2d.fits". 
 
-The calwebb_image2 pipeline: Calibrated Slope Images
+calwebb_image3 - Ensemble Calibrations
 
-    The Stage 2 calwebb_image2 pipeline applies instrumental corrections and calibrations 
-    to the slope images output from Stage 1. This includes background subtraction, the 
-    creation of a full World Coordinate System (WCS) for the data, application of the 
-    flat field, and flux calibration. In most cases the final output is an image in 
-    units of surface brightness. Whereas the input files had suffixes of *_rate.fits*, 
-    the output files have suffixes of *_cal.fits*.
+    The Stage 3 calwebb_image3 pipeline takes one or more calibrated slope images 
+    (*_cal.fits files) and combines them into a final mosaic image. It then creates 
+    a source catalog from this mosaic. Several steps are performed in order to prepare 
+    the data for the mosaic creation. These steps largely mirror what is done by 
+    DrizzlePac software when working with HST data.
 
-    In addition to the steps above, by default the Stage 2 pipeline will also run the 
-    Resample step on the calibrated images, in order to remove the effects of instrument 
-    distortion. This step outputs files with the suffix *_i2d.fits* that contain "rectified" 
-    images. However, these files are meant only for user examination of the data. It is 
-    the *_cal.fits* files that are passed on to Stage 3 of the pipeline.
+    First, using common sources found across the input images, the WCS of each image is 
+    refined. Background levels are then matched across the inputs. Spurious sources 
+    (e.g. cosmic rays that were not flagged in the Jump step during Stage 1 processing) 
+    are removed by comparing each individual input image to a median image. The indivudal 
+    images are combined into a single mosaic image. A source catalog is created based on 
+    the mosaic image. And finally, the individual exposures are updated using the 
+    information from the preceding steps. New versions of the individual calibrated slope 
+    images are produced that contain matched backgrounds, flagged spurious sources, and 
+    improved WCS objects.
 
     All JWST imaging mode data, regardless of instrument, are processed through the 
-    calwebb_image2 pipeline. The steps and the order in which they are performed is the 
-    same for all data. See Figure 1 on the calwebb_image2 algorithm page for a map of the 
-    steps are performed on the input data.
+    calwebb_image3 pipeline. The steps and the order in which they are performed is 
+    the same for all data. The pipeline is a wrapper which will string together all 
+    of the appropriate steps in the proper order. See Figure 1 on the calwebb_image3 
+    algorithm page for a map of the steps that are performed on the input data.
 
 Inputs
 
-    A 2D countrate image (*_rate.fits) in units of DN/sec. The user can input a single 
-    image file or an association file listing several files, in which case the processing 
-    steps will be applied to each input exposure, one at a time.
+    2D calibrated images (*_cal.fits), organized in an ASN file
+
 Outputs
 
-    A 2D calibrated, but unrectified, exposure (*_cal.fits) in units of MJy/sr
-    A 2D resampled, or rectified, image (*_i2d.fits) in units of MJy/sr
-    Note: At this stage, the resampled *_i2d.fits images are intended for quick-look use 
-    only, while the *_cal.fits files are passed through for Stage 3 processing. We have 
-    chosen to skip ResampleStep of calwebb_image2 to save on both processing time and disk 
-    space. If you wish to perform this step to inspect the outputs, change the skip: true 
-    in the jwst.resample.resample_step.ResampleStep dictionary of the image2_edited.asdf 
-    parameter file (line 136) to skip: false. Alternatively comment out the line 
-    image2.resample.skip = True in the cell using the run() method.
+    2D cosmic-ray flagged images (*_crf.fits), created during the OutlierDetection step
+    2D resampled, combined mosaic image (*_i2d.fits) including all exposures in the association, created during the Resample step
+    2D segmentation map (*_segm.fits) based on the *_i2d.fits image, created by the SourceCatalog step
+    Catalog of photometry (*_cat.escv) saved as an ASCII file in ecsv format, created by the SourceCatalog step
     
 From ceers_nircam_reduction.ipynb
 
@@ -72,19 +70,18 @@ mpl.rcParams['figure.dpi'] = 80
 # List of possible data quality flags
 from jwst.datamodels import dqflags
 
-# The entire calwebb_image2 pipeline
-from jwst.pipeline import calwebb_image2
+# The entire calwebb_image3 pipeline
+from jwst.pipeline import calwebb_image3
 
-# Individual steps that make up calwebb_image2
-from jwst.background import BackgroundStep
-from jwst.assign_wcs import AssignWcsStep
-from jwst.flatfield import FlatFieldStep
-from jwst.photom import PhotomStep
-from jwst.resample import ResampleStep
-from jwst import datamodels
-
-# importing an individual pipeline step
+# Individual steps that make up calwebb_image3
+from jwst.tweakreg import TweakRegStep
 from jwst.skymatch import SkyMatchStep
+from jwst.outlier_detection import OutlierDetectionStep
+from jwst.resample import ResampleStep
+from jwst.source_catalog import SourceCatalogStep
+from jwst import datamodels
+from jwst.associations import asn_from_list
+from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
 
 # Import jwst package itself
 import jwst
@@ -186,91 +183,7 @@ if __name__ == '__main__':
     output_files = [t.replace(f"{input_suffix}.fits", f"{output_suffix}.fits") for t in input_files]
     
     
-    # loop individual files
-    for input_file, output_file in list(zip(input_files, output_files)):
-        input_filepath = os.path.join(input_dir, input_file)
-        output_filepath = os.path.join(output_dir, output_file)
-        logger.info("Processing {} -> {}".format(input_filepath, output_filepath))
-        
-        # prepare to run
-        pipeline_object = calwebb_image2.Image2Pipeline()
-        pipeline_object.output_dir = output_dir
-        pipeline_object.save_results = True
-        pipeline_object.resample.skip = True # turn off the ResampleStep, comment out to produce the  individual rectified *_i2d.fits for quick-look checks
-        
-        # run
-        run_output = pipeline_object.run(input_filepath)
-        
-        # check
-        assert os.path.isfile(output_filepath)
-    
-        # additionally, following CEERS, 
-        # apply a custom flat to the NRCA5 detector
-        # -- see ceers_nircam_reduction.ipynb
-        try:
-            from applyflat import apply_custom_flat
-            apply_custom_flat(output_filepath)
-        except:
-            logger.warning("Warning! Failed to run apply_custom_flat(\"{}\")".format(output_filepath))
-        
-        # additionally, following CEERS, 
-        # do sky subtraction, 
-        # this needs an association file
-        input_filename = os.path.splitext(input_file)[0]
-        
-        asn_dict = OrderedDict()
-        asn_dict['asn_type'] = 'None'
-        asn_dict['asn_rule'] = 'DMS_Level3_Base'
-        asn_dict['version_id'] = None
-        asn_dict['code_version'] = '1.3.3'
-        asn_dict['degraded_status'] = 'No known degraded exposures in association.'
-        asn_dict['program'] = 'noprogram'
-        asn_dict['constraints'] = 'No constraints'
-        asn_dict['asn_id'] = 'a3001'
-        asn_dict['target'] = 'none'
-        asn_dict['asn_pool'] = 'none'
-        asn_dict['products'] = []
-        product_dict = OrderedDict()
-        product_dict['name'] = input_file.replace(f"{input_suffix}.fits", "")
-        product_dict['members'] = [
-                {'expname': input_file,  # not abs file path
-                 'exptype': 'science'}
-            ]
-        asn_dict['products'].append(product_dict)
-        
-        asn_file = os.path.join(output_dir, f"{input_filename}_bkgsub_asn.json")
-        
-        if os.path.isfile(asn_file):
-            shutil.move(asn_file, asn_file+'.backup')
-        
-        with open(asn_file, 'w') as fp:
-            json.dump(asn_dict, fp, indent=4)
-        
-        skymatch = SkyMatchStep()
-        skymatch.save_results = True
-        skymatch.output_dir = output_dir
-        skymatch.output_file = f"{input_filename}_bkgsub" # SkyMatchStep will append 'skymatchstep' to the input filename
-        skymatch.output_ext = ".fits"
-
-        # sky statistics parameters
-        skymatch.skymethod = "local" # the default is global+match, doesn't matter as we're processing files individually
-        skymatch.lsigma = 2.0
-        skymatch.usigma = 2.0
-        skymatch.nclip = 10
-        skymatch.upper = 1.0
-        # set the 'subtract' parameter so the calculated sky value is removed from the image
-        # (subtracting the calculated sky value from the image is off by default)
-        skymatch.subtract = True 
-        try:
-            sky = skymatch.run(asn_file)
-        except:
-            logger.warning("Warning! Failed to run skymatch.run(\"{}\")".format(asn_file))
-        
-        # log
-        logger.info("Processed {} -> {}".format(input_filepath, output_filepath))
-        
-    
-    # also prepare association file to process all rate files into one single output file
+    # prepare association file to process all rate files into one single output file
     if len(input_files) > 1:
         # 
         # TODO: Need to find groups
@@ -300,7 +213,7 @@ if __name__ == '__main__':
                 ]
             asn_dict['products'].append(product_dict)
         
-        combined_name = 'level2_combined'
+        combined_name = 'level3_combined'
         if re.match(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', input_files[0]):
             combined_name = re.sub(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', r'\1_\2_\4_combined', input_files[0])
         
@@ -319,17 +232,25 @@ if __name__ == '__main__':
         logger.info("Processing {} -> {}".format(input_files, output_filepath))
         
         # prepare to run
-        pipeline_object = calwebb_image2.Image2Pipeline()
+        pipeline_object = calwebb_image3.Image3Pipeline()
+
+        # Set some parameters that pertain to the entire pipeline
         pipeline_object.output_dir = output_dir
         pipeline_object.output_file = os.path.splitext(output_file)[0]
         pipeline_object.output_ext = ".fits"
         pipeline_object.save_results = True
-        #pipeline_object.resample.skip = True # turn off the ResampleStep, comment out to produce the individual rectified *_i2d.fits for quick-look checks
-        pipeline_object.resample.pixfrac = 1.0 # default
-        pipeline_object.bkg_subtract.sigma = 3.0 # default
-        
+
+        # Set some parameters that pertain to some of the individual steps
+        # Turn off TweakRegStep
+        pipeline_object.tweakreg.skip = True  
+        # Turn off SkyMatchStep
+        pipeline_object.skymatch.skip = True
+        # Set the ratio of input to output pixels to create an output mosaic 
+        # on a 0.015"/pixel scale
+        pipeline_object.resample.pixel_scale_ratio = 0.48
+
         # run
-        run_output = pipeline_object.run(input_filepath)
+        pipeline_object.run(asn_file)
         
         # check
         assert os.path.isfile(output_filepath)
