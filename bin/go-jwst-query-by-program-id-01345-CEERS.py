@@ -8,7 +8,7 @@ Query astroquery.MAST by program id.
 from astroquery.mast import Observations
 
 #calib_level = []
-calib_level = [1,2,3] # [2,3]
+calib_level = [-1,2,3] # [2,3]
 
 download = True
 
