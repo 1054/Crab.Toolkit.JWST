@@ -17,6 +17,11 @@ from astroquery.mast import Observations
 @click.option('--extension', type=str, default=None) # e.g., "fits"
 @click.option('--download', type=bool, default=True) # e.g., "fits"
 def main(proposal_id, calib_level, extension, download):
+    calib_level_raw = calib_level
+    calib_level = []
+    for calib_level_item in calib_level_raw:
+        if re.match('^[0-9]+$', str(calib_level_item)):
+            calib_level.append(int(calib_level_item))
     print('------'*6)
     print('proposal_id: {}'.format(proposal_id))
     print('calib_level: {}'.format(calib_level))
