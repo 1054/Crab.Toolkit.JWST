@@ -5,7 +5,7 @@ Query astroquery.MAST by program id.
 
 """
 
-import click
+import os, sys, re, click
 from astroquery.mast import Observations
 
 #calib_level = []
