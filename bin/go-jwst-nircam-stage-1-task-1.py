@@ -115,7 +115,7 @@ if __name__ == '__main__':
     # Define input and output dirs for this stage
     input_dir = "uncals"
     input_suffix = "_uncal"
-    output_dir = "calibrated"
+    output_dir = "calibrated1_rates"
     output_suffix = "_rate"
     if not os.path.isdir(input_dir):
         logger.error("Error! Input directory \"{}\" does not exist!".format(input_dir))
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     
     # check override_gain_file
     override_gain_file = ""
-    override_gain_file = "gains_v2.1.0/jwst_nircam_gain_nrca1.fits" # TODO
+    #override_gain_file = "gains_v2.1.0/jwst_nircam_gain_nrca1.fits" # TODO
 
     # check CRDS 
     try:

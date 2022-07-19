@@ -137,9 +137,9 @@ if __name__ == '__main__':
     logger.info('JWST pipeline version: {}'.format(jwst.__version__))
 
     # Define input and output dirs for this stage
-    input_dir = "calibrated"
+    input_dir = "calibrated1_rates"
     input_suffix = "_rate"
-    output_dir = "calibrated"
+    output_dir = "calibrated2_cals"
     output_suffix = "_cal"
     if not os.path.isdir(input_dir):
         logger.error("Error! Input directory \"{}\" does not exist!".format(input_dir))
@@ -224,9 +224,9 @@ if __name__ == '__main__':
         asn_dict['version_id'] = None
         asn_dict['code_version'] = '1.3.3'
         asn_dict['degraded_status'] = 'No known degraded exposures in association.'
-        asn_dict['program'] = 'noprogram'
-        asn_dict['constraints'] = 'No constraints'
-        asn_dict['asn_id'] = 'a3001'
+        asn_dict['program'] = 'noprogram' # TODO
+        asn_dict['constraints'] = 'No constraints' # TODO
+        asn_dict['asn_id'] = 'a3001' # TODO
         asn_dict['target'] = 'none'
         asn_dict['asn_pool'] = 'none'
         asn_dict['products'] = []

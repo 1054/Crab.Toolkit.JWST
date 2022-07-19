@@ -8,9 +8,11 @@ Query astroquery.MAST by program id.
 from astroquery.mast import Observations
 
 #calib_level = []
-calib_level = [2,3] # [-1,2,3]
+calib_level = [3] # [-1,2,3]
 
 download = True
+
+extension = "fits" # None if calib_level 1 2
 
 obs_list = Observations.query_criteria(obs_collection="JWST",
                                        proposal_id="01345")
@@ -21,7 +23,7 @@ for obs in obs_list:
         if len(calib_level) > 0:
             products = Observations.filter_products(product_list,
                                                     calib_level=calib_level,
-                                                    extension="fits")
+                                                    extension=extension)
             if len(products) > 0 and download:
                 manifest = Observations.download_products(products)
         elif download:

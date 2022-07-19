@@ -41,6 +41,7 @@ def main(proposal_id, calib_level, extension, download):
                 # see -- https://astroquery.readthedocs.io/en/latest/mast/mast.html
                 # productType=["SCIENCE", "PREVIEW"],
                 # productSubGroupDescription='DRZ', 
+                # see -- https://masttest.stsci.edu/api/v0/_productsfields.html
                 # 
                 if len(products) > 0 and download:
                     manifest = Observations.download_products(products)
