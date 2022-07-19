@@ -6,6 +6,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.modeling import models as apy_models
 from astropy.modeling import fitting as apy_fitting
+from astropy.convolution import convolve as apy_convolve
+from astropy.convolution import Gaussian2DKernel
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 mpl.rcParams['savefig.dpi'] = 300
@@ -71,24 +73,30 @@ def make_seed_image_for_rate_image(fits_image, check_rate_image = True, overwrit
     header['PIXMEAN'] = pixval_mean_fitted
     header['PIXSTD'] = pixval_stddev_fitted
     header['PIX3SIG'] = pixval_3sigma
+    conv_kern = 1
+    header['CONVKERN'] = (conv_kern, 'Gaussian2DKernel stddev in pixel')
     
     # add model fitting line into the plot
     ax.plot(bin_centers, hist_fitted, ls='solid', color='C3')
+    
+    # save figure
+    fig.savefig(output_histogram_figure)
+    print('Output to "{}"'.format(output_histogram_figure))
     
     # get reduced chisq
     chisq_fitted = (hist_fitted - hist) / np.max(hist) / nbin
     
     # mask sources by 3-sigma
     mask = (image > pixval_3sigma)
+    arr = mask.astype(int).astype(float)
+    kernel = Gaussian2DKernel(x_stddev=conv_kern) # 1 pixel stddev kernel
+    arr = apy_convolve(arr, kernel)
+    arr[arr<1e-6] = 0.0
     
     # save fits file
-    hdu = fits.PrimaryHDU(data=mask.astype(int), header=header)
+    hdu = fits.PrimaryHDU(data=arr, header=header)
     hdu.writeto(output_fits_image)
     print('Output to "{}"'.format(output_fits_image))
-    
-    # save figure
-    fig.savefig(output_histogram_figure)
-    print('Output to "{}"'.format(output_histogram_figure))
 
 
 

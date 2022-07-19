@@ -47,10 +47,23 @@ fi
 
 # Run
 for (( i = 0; i < ${#input_files[@]}; i++ )); do
+    
     input_file="${input_files[i]}"
     output_dir=$(dirname "$input_file")
+    
+    # CEERS team's "remstriping.py" script needs a galaxy seed image, i.e., indicating where galaxy emissions are.
+    # I have a script "util_make_seed_image_for_rate_image.py" to detect galaxy emission and make such a seed image. 
+    interm_file=$(echo "$input_file" | perl -p -e 's/_rate.fits$//g')
+    interm_files=($(find "$output_dir" -maxdepth 1 -mindepth 1 -name "${interm_file}_*_galaxy_seed_image.fits"))
+    if [[ ${#interm_files[@]} -eq 0 ]]; then
+        echo "python $script_dir/util_make_seed_image_for_rate_image.py \"$input_file\""
+        python $script_dir/util_make_seed_image_for_rate_image.py "$input_file"
+    fi
+    
+    # run CEERS team's "remstriping.py" scripts
     echo "python $script_dir/remstriping.py --runone \"$input_file\" --output_dir \"$output_dir\""
     python $script_dir/remstriping.py --runone "$input_file" --output_dir "$output_dir"
+    
 done
 
 

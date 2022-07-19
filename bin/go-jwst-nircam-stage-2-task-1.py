@@ -207,16 +207,21 @@ if __name__ == '__main__':
         # additionally, following CEERS, 
         # apply a custom flat to the NRCA5 detector
         # -- see ceers_nircam_reduction.ipynb
-        try:
-            from applyflat import apply_custom_flat
-            apply_custom_flat(output_filepath)
-        except:
-            logger.warning("Warning! Failed to run apply_custom_flat(\"{}\")".format(output_filepath))
+        #try:
+        #    from applyflat import apply_custom_flat
+        #    apply_custom_flat(output_filepath)
+        #except:
+        #    logger.warning("Warning! Failed to run apply_custom_flat(\"{}\")".format(output_filepath))
+        
         
         # additionally, following CEERS, 
         # do sky subtraction, 
         # this needs an association file
         input_filename = os.path.splitext(input_file)[0]
+        
+        header = fits.getheader(input_file, 0)
+        obs_id = header['OBSERVTN'].strip()
+        target_name = header['TARGPROP'].strip()
         
         asn_dict = OrderedDict()
         asn_dict['asn_type'] = 'None'
@@ -226,8 +231,8 @@ if __name__ == '__main__':
         asn_dict['degraded_status'] = 'No known degraded exposures in association.'
         asn_dict['program'] = 'noprogram' # TODO
         asn_dict['constraints'] = 'No constraints' # TODO
-        asn_dict['asn_id'] = 'a3001' # TODO
-        asn_dict['target'] = 'none'
+        asn_dict['asn_id'] = obs_id # TODO
+        asn_dict['target'] = target_name
         asn_dict['asn_pool'] = 'none'
         asn_dict['products'] = []
         product_dict = OrderedDict()
@@ -271,7 +276,7 @@ if __name__ == '__main__':
         
     
     # also prepare association file to process all rate files into one single output file
-    if len(input_files) > 1:
+    if len(input_files) > 1 and False:
         # 
         # TODO: Need to find groups
         #     "jw<sci>_<group>_<scan>_<instr>_(uncal|rate|cal).fits"
@@ -287,7 +292,7 @@ if __name__ == '__main__':
         asn_dict['degraded_status'] = 'No known degraded exposures in association.'
         asn_dict['program'] = 'noprogram'
         asn_dict['constraints'] = 'No constraints'
-        asn_dict['asn_id'] = 'a3001'
+        asn_dict['asn_id'] = obs_id
         asn_dict['asn_pool'] = 'none'
         asn_dict['products'] = []
         for input_file, output_file in list(zip(input_files, output_files)):
