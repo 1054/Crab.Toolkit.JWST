@@ -283,7 +283,7 @@ if __name__ == '__main__':
         skymatch = SkyMatchStep()
         skymatch.save_results = True
         skymatch.output_dir = output_dir
-        skymatch.output_file = bkgsub_output_filename # SkyMatchStep will append 'skymatchstep' to the input filename if output_file is undefined.
+        #skymatch.output_file = bkgsub_output_filename # SkyMatchStep will append 'skymatchstep' to the input filename if output_file is undefined.
         skymatch.output_ext = ".fits"
 
         # sky statistics parameters
