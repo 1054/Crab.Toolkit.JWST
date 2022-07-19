@@ -18,17 +18,24 @@ script_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Read user input
 iarg=1
-argmode=""
+argmode="none"
 argstr=""
+test=0
+input_files=()
 while [[ $iarg -le $# ]]; do
     argstr="${!iarg}"
-    if [[ "$argstr"x == "--abc"x ]]; then
-        argmode="abs"
+    if [[ "$argstr"x == "--test"x ]]; then
+        argmode="test"
+        iarg=$((iarg+1))
         continue
     fi
-    if [[ "$argmode"x == "abc"x ]]; then
-        abc="argstr"
+    if [[ "$argmode"x == "test"x ]]; then
+        test="${!iarg}"
+        argmode="none"
+    elif [[ "$argmode"x == "none"x ]]; then
+        input_files+=("${!iarg}")
     fi
+    iarg=$((iarg+1))
     continue
 done
 
