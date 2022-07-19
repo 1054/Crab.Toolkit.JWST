@@ -2,7 +2,7 @@
 #
 """
 Process JWST uncalibrated FITS data under "uncals/" and named as "jw*_uncal.fits"
-into calibrated FITS data under "calibrated/" and named as "jw*_rate.fits". 
+into calibrated FITS data under "calibrated1_rates/" and named as "jw*_rate.fits". 
 
 The calwebb_detector1 pipeline: Ramps to Slopes
 
@@ -177,7 +177,8 @@ if __name__ == '__main__':
         pipeline_object.output_dir = output_dir
         pipeline_object.save_results = True
         pipeline_object.ipc.skip = False # turn on IPCStep
-        pipeline_object.persistence.skip = True # turn off PersistenceStep
+        pipeline_object.persistence.skip = False # turn on PersistenceStep
+        pipeline_object.save_calibrated_ramp = True #<dzliu>#
         # Specify the name of the gain file that will override 
         # the existing gain reference file used for the jump and ramp_fit steps
         if override_gain_file is not None and override_gain_file != "":

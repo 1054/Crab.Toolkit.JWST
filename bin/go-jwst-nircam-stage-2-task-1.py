@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 #
 """
-Process JWST rate data under "calibrated/" and named as "jw*_rate.fits"
-into calibrated FITS data under "calibrated/" and named as "jw*_cal.fits". 
+Process JWST rate data under "calibrated1_rates/" and named as "jw*_rate.fits"
+into calibrated FITS data under "calibrated2_cals/" and named as "jw*_cal.fits". 
 
 The calwebb_image2 pipeline: Calibrated Slope Images
 
