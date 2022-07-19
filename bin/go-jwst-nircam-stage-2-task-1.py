@@ -234,15 +234,22 @@ if __name__ == '__main__':
         # additionally, following CEERS, 
         # do sky subtraction at stage 2, 
         # this needs an association file
+        
+        # backup "_cal.fits" as "_cal_before_bkgsub.fits"
+        backup_output_filepath = output_filepath.replace(f"{output_suffix}.fits", f"{output_suffix}_before_bkgsub.fits")
+        if os.path.isfile(backup_output_filepath):
+            shutil.move(backup_output_filepath, backup_output_filepath+'.backup')
+        shutil.copy2(output_filepath, backup_output_filepath)
+        
         output_filename = os.path.splitext(output_file)[0] # no .fits suffix, has _cal suffix.
-        bkgsub_input_file = output_filename+'_before_bkgsub.fits' # _cal_before_bkgsub.fits
-        bkgsub_input_filepath = os.path.join(output_dir, bkgsub_input_file)
-        if os.path.isfile(bkgsub_input_filepath):
-            shutil.move(bkgsub_input_filepath, bkgsub_input_filepath+'.backup')
-        shutil.move(output_filepath, bkgsub_input_filepath)
-        bkgsub_output_file = output_file
-        bkgsub_output_filename = os.path.splitext(bkgsub_output_file)[0] # no .fits suffix, has _cal suffix.
-        bkgsub_output_filepath = os.path.join(output_dir, bkgsub_output_file)
+        #bkgsub_input_file = output_filename+'.fits' # "_cal.fits"
+        #bkgsub_input_filepath = os.path.join(output_dir, bkgsub_input_file)
+        #if os.path.isfile(bkgsub_input_filepath):
+        #    shutil.move(bkgsub_input_filepath, bkgsub_input_filepath+'.backup')
+        #shutil.copy2(output_filepath, bkgsub_input_filepath)
+        #bkgsub_output_file = output_file
+        #bkgsub_output_filename = os.path.splitext(bkgsub_output_file)[0] # no .fits suffix, has _cal suffix.
+        #bkgsub_output_filepath = os.path.join(output_dir, bkgsub_output_file)
         
         header = fits.getheader(input_filepath, 0)
         program = header['PROGRAM'].strip()
@@ -265,14 +272,14 @@ if __name__ == '__main__':
         asn_dict['asn_pool'] = 'none'
         asn_dict['products'] = []
         product_dict = OrderedDict()
-        product_dict['name'] = bkgsub_output_file.replace(f"{output_suffix}.fits", "")
+        product_dict['name'] = output_filename # bkgsub_output_file.replace(f"{output_suffix}.fits", "")
         product_dict['members'] = [
-                {'expname': bkgsub_input_file,  # not abs file path
+                {'expname': output_file, # bkgsub_input_file,  # not abs file path
                  'exptype': 'science'}
             ]
         asn_dict['products'].append(product_dict)
         
-        asn_filepath = os.path.join(output_dir, f"{bkgsub_output_filename}_bkgsub_asn.json")
+        asn_filepath = os.path.join(output_dir, f"{output_filename}_bkgsub_asn.json")
         
         if os.path.isfile(asn_filepath):
             shutil.move(asn_filepath, asn_filepath+'.backup')
@@ -283,7 +290,7 @@ if __name__ == '__main__':
         skymatch = SkyMatchStep()
         skymatch.save_results = True
         skymatch.output_dir = output_dir
-        #skymatch.output_file = bkgsub_output_filename # SkyMatchStep will append 'skymatchstep' to the input filename if output_file is undefined.
+        skymatch.output_file = output_filename # SkyMatchStep will append 'skymatchstep' to the input filename if output_file is undefined.
         skymatch.output_ext = ".fits"
 
         # sky statistics parameters
@@ -302,7 +309,8 @@ if __name__ == '__main__':
         #    logger.warning("Warning! Failed to run skymatch.run(\"{}\")".format(asn_filepath))
         
         # log
-        logger.info("Processed {} -> {} -> {}".format(input_filepath, bkgsub_input_filepath, bkgsub_output_filepath))
+        #logger.info("Processed {} -> {} -> {}".format(input_filepath, bkgsub_input_filepath, bkgsub_output_filepath))
+        logger.info("Processed {} -> {} -> {}".format(input_filepath, backup_output_filepath, output_filepath))
         
     
     

@@ -1,48 +1,20 @@
 #!/usr/bin/env python
 #
 """
-Process JWST rate data under "calibrated1_rates/" and named as "jw*_rate.fits"
-into calibrated FITS data under "calibrated2_cals/" and named as "jw*_cal.fits". 
+Run background subtraction for each group of associated "calibrated2_cals/jw*_cal.fits" 
+using `jwst.skymatch.SkyMatchStep`.
 
-The calwebb_image2 pipeline: Calibrated Slope Images
-
-    The Stage 2 calwebb_image2 pipeline applies instrumental corrections and calibrations 
-    to the slope images output from Stage 1. This includes background subtraction, the 
-    creation of a full World Coordinate System (WCS) for the data, application of the 
-    flat field, and flux calibration. In most cases the final output is an image in 
-    units of surface brightness. Whereas the input files had suffixes of *_rate.fits*, 
-    the output files have suffixes of *_cal.fits*.
-
-    In addition to the steps above, by default the Stage 2 pipeline will also run the 
-    Resample step on the calibrated images, in order to remove the effects of instrument 
-    distortion. This step outputs files with the suffix *_i2d.fits* that contain "rectified" 
-    images. However, these files are meant only for user examination of the data. It is 
-    the *_cal.fits* files that are passed on to Stage 3 of the pipeline.
-
-    All JWST imaging mode data, regardless of instrument, are processed through the 
-    calwebb_image2 pipeline. The steps and the order in which they are performed is the 
-    same for all data. See Figure 1 on the calwebb_image2 algorithm page for a map of the 
-    steps are performed on the input data.
+This is used by the CEERS team's script.
 
 Inputs
 
-    A 2D countrate image (*_rate.fits) in units of DN/sec. The user can input a single 
-    image file or an association file listing several files, in which case the processing 
-    steps will be applied to each input exposure, one at a time.
+    A group of associated "calibrated2_cals/jw*_cal.fits".
+
 Outputs
 
-    A 2D calibrated, but unrectified, exposure (*_cal.fits) in units of MJy/sr
-    A 2D resampled, or rectified, image (*_i2d.fits) in units of MJy/sr
-    Note: At this stage, the resampled *_i2d.fits images are intended for quick-look use 
-    only, while the *_cal.fits files are passed through for Stage 3 processing. We have 
-    chosen to skip ResampleStep of calwebb_image2 to save on both processing time and disk 
-    space. If you wish to perform this step to inspect the outputs, change the skip: true 
-    in the jwst.resample.resample_step.ResampleStep dictionary of the image2_edited.asdf 
-    parameter file (line 136) to skip: false. Alternatively comment out the line 
-    image2.resample.skip = True in the cell using the run() method.
+    Updated "calibrated2_cals/jw*_cal.fits" with background subtracted, 
+    and their original versions "calibrated2_cals/jw*_cal_before_bkgsub.fits". 
     
-From ceers_nircam_reduction.ipynb
-
 """
 
 # Packages that allow us to get information about objects:
