@@ -56,6 +56,7 @@ import requests
 
 # Astropy tools:
 from astropy.io import fits
+from astropy.table import Table
 from astropy.utils.data import download_file
 from astropy.visualization import ImageNormalize, ManualInterval, LogStretch
 
@@ -132,17 +133,6 @@ if __name__ == '__main__':
     
     # Print JWST pipeline version
     logger.info('JWST pipeline version: {}'.format(jwst.__version__))
-
-    # Define input and output dirs for this stage
-    input_dir = "calibrated2_cals"
-    input_suffix = "_rate"
-    output_dir = "calibrated3_i2d"
-    output_suffix = "_cal"
-    if not os.path.isdir(input_dir):
-        logger.error("Error! Input directory \"{}\" does not exist!".format(input_dir))
-        sys.exit(-1)
-    if not os.path.isdir(output_dir):
-        os.makedirs(output_dir)
     
     # check CRDS 
     try:
@@ -157,34 +147,57 @@ if __name__ == '__main__':
         logger.error("Error! CRDS_SERVER_URL environment variable not set!")
         sys.exit(-1)
 
-    #try:
-    #    print(os.environ['CRDS_CONTEXT'])
-    #except KeyError:
-    #    print('CRDS_CONTEXT environment variable not set!')
-
-    # check stage asdf file
-    #asdf_file = get_script_name() + ".asdf"
-    #if not os.path.exists(asdf_file):
-    #    logger.error("Error! The asdf file is not found \"{}\"!".format(asdf_file))
-    #    sys.exit(-1)
-        
-    # print asdf file tree
-    #asdf_obj = asdf.open(asdf_file)
-    #logger.info("asdf file tree: \n" + str(asdf_obj.tree))
-    #asdf_obj.close()
+    
+    # Find all "jw*/calibrated2_cals/jw*_rate.fits"
+    input_files = glob.glob("jw*/calibrated2_cals/jw*_rate.fits")
     
     
-    # find files to process
-    input_files = [t for t in os.listdir(input_dir) if t.endswith(f"{input_suffix}.fits")]
+    # find files to make mosaic
     if (len(input_files) == 0):
-        logger.error("Error! No input file \"{}/*{}\" is found!".format(input_dir, f"{input_suffix}.fits"))
+        logger.error("Error! No input file \"jw*/calibrated2_cals/jw*_rate.fits\" is found!")
         sys.exit(-1)
+    
     input_files = sorted(input_files)
-    output_files = [t.replace(f"{input_suffix}.fits", f"{output_suffix}.fits") for t in input_files]
+    
+    
+    # loop individual files, find unique 'obs_id' and 'target_name'
+    info_dict = OrderedDict()
+    info_dict['program'] = []
+    info_dict['obs_id'] = []
+    info_dict['target_group'] = []
+    info_dict['target_name'] = []
+    info_dict['target_RA'] = []
+    info_dict['target_Dec'] = []
+    info_dict['instrument'] = []
+    info_dict['filter'] = []
+    info_dict['pupil'] = []
+    info_dict['file_path'] = []
+    for input_filepath in input_files:
+        # read fits header
+        header = fits.getheader(input_filepath, 0)
+        info_dict['program'].append(header['PROGRAM'].strip())
+        info_dict['obs_id'].append(header['OBSERVTN'].strip())
+        info_dict['target_group'].append(header['TARGPROP'].strip())
+        info_dict['target_name'].append(header['TARGNAME'].strip())
+        info_dict['target_RA'].append(header['TARG_RA'])
+        info_dict['target_Dec'].append(header['TARG_DEC'])
+        info_dict['instrument'].append(header['INSTRUME'].strip())
+        info_dict['filter'].append(header['FILTER'].strip())
+        info_dict['pupil'].append(header['PUPIL'].strip())
+        info_dict['file_path'].append(input_filepath)
+    
+    info_table = Table(info_dict)
+    
+    if os.path.isfile('info_table.txt'):
+        shutil.move('info_table.txt', 'info_table.txt.backup')
+    info_table.write('info_table.txt', format='ascii.fixed_width', delimiter=' ', bookend=True)
+    
+    unique_groups = info_table.group_by(['program', 'instrument', 'filter', 'obs_id', 'target_group'])
     
     
     # prepare association file to process all rate files into one single output file
-    if len(input_files) > 1:
+    for subgroup_key, subgroup_table in zip(unique_groups.groups.keys, unique_groups.groups):
+        
         # 
         # TODO: Need to find groups
         #     "jw<sci>_<group>_<scan>_<instr>_(uncal|rate|cal).fits"
@@ -194,30 +207,37 @@ if __name__ == '__main__':
         # file that lists each of the fits files to be processed.
         asn_dict = OrderedDict()
         asn_dict['asn_type'] = 'None'
-        asn_dict['asn_rule'] = 'DMSLevel2bBase'
+        asn_dict['asn_rule'] = 'DMS_Level3_Base'
         asn_dict['version_id'] = None
-        asn_dict['code_version'] = '0.17.1'
+        asn_dict['code_version'] = jwst.__version__
         asn_dict['degraded_status'] = 'No known degraded exposures in association.'
-        asn_dict['program'] = 'noprogram' # TODO
+        asn_dict['program'] = subgroup_key['program'] # TODO
         asn_dict['constraints'] = 'No constraints' # TODO
-        asn_dict['asn_id'] = 'a3001' # TODO
+        asn_dict['asn_id'] = subgroup_key['obs_id'] # TODO
         asn_dict['asn_pool'] = 'none'
         asn_dict['products'] = []
-        for input_file, output_file in list(zip(input_files, output_files)):
-            input_filepath = os.path.join(input_dir, input_file)
-            product_dict = OrderedDict()
-            product_dict['name'] = input_file.replace(f"{input_suffix}.fits", "")
-            product_dict['members'] = [
-                    {'expname': input_filepath,
-                     'exptype': 'science'}
-                ]
-            asn_dict['products'].append(product_dict)
+        input_files = subgroup_table['file_path'].data.tolist()
+        output_name = 'jw{}_obs{}_{}_{}'.format(
+            subgroup_key['program'], 
+            subgroup_key['obs_id'], 
+            subgroup_key['instrument'],
+            subgroup_key['filter'])
+        output_dir = os.path.join('calibrated3_mosaics', output_name) # directly output to "calibrated3_mosaics" under current directory.
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir)
+        product_dict = OrderedDict()
+        product_dict['name'] = output_name
+        product_dict['members'] = []
+        asn_dict['products'].append(product_dict)
+        for input_filepath in input_files:
+            input_filename = os.path.basename(input_filepath)
+            input_suffix = '_cal'
+            product_dict['members'].append(
+                {'expname': input_filepath,
+                 'exptype': 'science'}
+            )
         
-        combined_name = 'level3_combined'
-        if re.match(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', input_files[0]):
-            combined_name = re.sub(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', r'\1_\2_\4_combined', input_files[0])
-        
-        asn_file = os.path.join(output_dir, f'{combined_name}_asn.json')
+        asn_file = os.path.join('calibrated3_mosaics', output_name+'_asn.json')
         
         if os.path.isfile(asn_file):
             shutil.move(asn_file, asn_file+'.backup')
@@ -225,29 +245,31 @@ if __name__ == '__main__':
         with open(asn_file, 'w') as fp:
             json.dump(asn_dict, fp, indent=4)
         
+        
         # prepare a single output file 
-        output_file = f"{combined_name}_cal.fits"
-        output_filepath = os.path.join(output_dir, output_file)
+        output_file = output_name+'.fits'
+        output_filepath = os.path.join('calibrated3_mosaics', output_file)
         
         logger.info("Processing {} -> {}".format(input_files, output_filepath))
+        
         
         # prepare to run
         pipeline_object = calwebb_image3.Image3Pipeline()
 
         # Set some parameters that pertain to the entire pipeline
         pipeline_object.output_dir = output_dir
-        pipeline_object.output_file = os.path.splitext(output_file)[0]
-        pipeline_object.output_ext = ".fits"
+        pipeline_object.output_file = output_name # os.path.splitext(output_file)[0]
+        pipeline_object.output_ext = ".fits" # default
         pipeline_object.save_results = True
 
         # Set some parameters that pertain to some of the individual steps
         # Turn off TweakRegStep
-        pipeline_object.tweakreg.skip = True  
+        #pipeline_object.tweakreg.skip = True  
         # Turn off SkyMatchStep
-        pipeline_object.skymatch.skip = True
+        #pipeline_object.skymatch.skip = True
         # Set the ratio of input to output pixels to create an output mosaic 
         # on a 0.015"/pixel scale
-        pipeline_object.resample.pixel_scale_ratio = 0.48
+        #pipeline_object.resample.pixel_scale_ratio = 0.48
 
         # run
         pipeline_object.run(asn_file)

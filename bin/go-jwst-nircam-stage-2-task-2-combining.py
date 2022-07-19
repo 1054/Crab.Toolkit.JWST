@@ -22,14 +22,13 @@ The calwebb_image2 pipeline: Calibrated Slope Images
     All JWST imaging mode data, regardless of instrument, are processed through the 
     calwebb_image2 pipeline. The steps and the order in which they are performed is the 
     same for all data. See Figure 1 on the calwebb_image2 algorithm page for a map of the 
-    steps are performed on the input data. 
+    steps are performed on the input data.
 
 Inputs
 
     A 2D countrate image (*_rate.fits) in units of DN/sec. The user can input a single 
     image file or an association file listing several files, in which case the processing 
     steps will be applied to each input exposure, one at a time.
-
 Outputs
 
     A 2D calibrated, but unrectified, exposure (*_cal.fits) in units of MJy/sr
@@ -43,15 +42,6 @@ Outputs
     image2.resample.skip = True in the cell using the run() method.
     
 From ceers_nircam_reduction.ipynb
-
-Notes:
-    
-    The Stage 2 pipeline can be called on a single fits file, or a collection of fits files. 
-    When calling on multiple files, the input is a json-formatted file called an "association" 
-    file that lists each of the fits files to be processed. 
-    
-    In this script we process each file separately without using an "association" file
-    except for the additional sky subtraction step. 
 
 """
 
@@ -146,17 +136,6 @@ if __name__ == '__main__':
     # Print JWST pipeline version
     logger.info('JWST pipeline version: {}'.format(jwst.__version__))
 
-    # Define input and output dirs for this stage
-    input_dir = "calibrated1_rates"
-    input_suffix = "_rate"
-    output_dir = "calibrated2_cals"
-    output_suffix = "_cal"
-    if not os.path.isdir(input_dir):
-        logger.error("Error! Input directory \"{}\" does not exist!".format(input_dir))
-        sys.exit(-1)
-    if not os.path.isdir(output_dir):
-        os.makedirs(output_dir)
-    
     # check CRDS 
     try:
         logger.info("CRDS_PATH: {}".format(os.environ['CRDS_PATH']))
@@ -169,97 +148,101 @@ if __name__ == '__main__':
     except KeyError:
         logger.error("Error! CRDS_SERVER_URL environment variable not set!")
         sys.exit(-1)
-
-    #try:
-    #    print(os.environ['CRDS_CONTEXT'])
-    #except KeyError:
-    #    print('CRDS_CONTEXT environment variable not set!')
-
-    # check stage asdf file
-    #asdf_file = get_script_name() + ".asdf"
-    #if not os.path.exists(asdf_file):
-    #    logger.error("Error! The asdf file is not found \"{}\"!".format(asdf_file))
-    #    sys.exit(-1)
-        
-    # print asdf file tree
-    #asdf_obj = asdf.open(asdf_file)
-    #logger.info("asdf file tree: \n" + str(asdf_obj.tree))
-    #asdf_obj.close()
+    
+    
+    # Find all NIRCam "jw*/calibrated1_rates"
+    input_files = []
+    input_files.extend(glob.glob("jw*nrca1/calibrated1_rates/jw*_rate.fits"))
+    input_files.extend(glob.glob("jw*nrca2/calibrated1_rates/jw*_rate.fits"))
+    input_files.extend(glob.glob("jw*nrca3/calibrated1_rates/jw*_rate.fits"))
+    input_files.extend(glob.glob("jw*nrca4/calibrated1_rates/jw*_rate.fits"))
+    input_files.extend(glob.glob("jw*nrcb1/calibrated1_rates/jw*_rate.fits"))
+    input_files.extend(glob.glob("jw*nrcb2/calibrated1_rates/jw*_rate.fits"))
+    input_files.extend(glob.glob("jw*nrcb3/calibrated1_rates/jw*_rate.fits"))
+    input_files.extend(glob.glob("jw*nrcb4/calibrated1_rates/jw*_rate.fits"))
+    input_files.extend(glob.glob("jw*nrcalong/calibrated1_rates/jw*_rate.fits"))
+    input_files.extend(glob.glob("jw*nrcblong/calibrated1_rates/jw*_rate.fits"))
     
     
     # find files to process
-    input_files = [t for t in os.listdir(input_dir) if t.endswith(f"{input_suffix}.fits")]
     if (len(input_files) == 0):
-        logger.error("Error! No input file \"{}/*{}\" is found!".format(input_dir, f"{input_suffix}.fits"))
+        logger.error("Error! No input file \"jw*nrc*/calibrated1_rates/jw*_rate.fits\" is found!")
         sys.exit(-1)
     input_files = sorted(input_files)
-    output_files = [t.replace(f"{input_suffix}.fits", f"{output_suffix}.fits") for t in input_files]
     
     
-    # loop individual files
-    for input_file, output_file in list(zip(input_files, output_files)):
-        input_filepath = os.path.join(input_dir, input_file)
-        output_filepath = os.path.join(output_dir, output_file)
+    # loop individual files, find unique 'obs_id' and 'target_name'
+    list_of_obs_id = []
+    list_of_target_name = []
+    list_of_target_RA = []
+    list_of_target_Dec = []
+    list_of_instrument = []
+    list_of_ifilter = []
+    for input_filepath in input_files:
         logger.info("Processing {} -> {}".format(input_filepath, output_filepath))
         
-        # prepare to run
-        pipeline_object = calwebb_image2.Image2Pipeline()
-        pipeline_object.output_dir = output_dir
-        pipeline_object.save_results = True
-        pipeline_object.resample.skip = False # turn on the ResampleStep to produce the individual rectified *_i2d.fits for quick-look checks
-        #pipeline_object.resample.pixfrac = 1.0 # default
-        #pipeline_object.bkg_subtract.sigma = 3.0 # default
-        
-        # run
-        run_output = pipeline_object.run(input_filepath)
-        
-        # check
-        assert os.path.isfile(output_filepath)
-    
-        # additionally, following CEERS, 
-        # apply a custom flat to the NRCA5 detector
-        # -- see ceers_nircam_reduction.ipynb
-        #try:
-        #    from applyflat import apply_custom_flat
-        #    apply_custom_flat(output_filepath)
-        #except:
-        #    logger.warning("Warning! Failed to run apply_custom_flat(\"{}\")".format(output_filepath))
-        
-        
-        # additionally, following CEERS, 
-        # do sky subtraction, 
-        # this needs an association file
-        input_filename = os.path.splitext(input_file)[0]
-        
+        # read fits header
         header = fits.getheader(input_filepath, 0)
-        program = header['PROGRAM'].strip()
         obs_id = header['OBSERVTN'].strip()
-        target_group = header['TARGPROP'].strip()
-        target_name = header['TARGNAME'].strip()
-        if target_name == '':
-            target_name = target_group
+        target_name = header['TARGPROP'].strip()
+        target_RA = header['TARG_RA']
+        target_Dec = header['TARG_DEC']
+        instrument = header['INSTRUME']
+        ifilter = header['FILTER']
+        list_of_obs_id.extend(obs_id)
+        list_of_target_name.extend(target_name)
+        list_of_target_RA.extend(target_RA)
+        list_of_target_Dec.extend(target_Dec)
+        list_of_instrument = 
+        list_of_ifilter = 
         
+        # log
+        logger.info("Processed {} -> {}".format(input_filepath, output_filepath))
+    
+    
+    # get unique obs_id
+    list_unique_obs_id = list(set(sorted(list_of_obs_id)))
+    
+    
+    # loop unique obs_id
+    for unique_obs_id in list_unique_obs_id:
+        
+    
+    # prepare association file to process all rate files into one single output file
+    if len(list_unique_obs_id) > 1:
+        # 
+        # TODO: Need to find groups
+        #     "jw<sci>_<group>_<scan>_<instr>_(uncal|rate|cal).fits"
+        # 
+        # The Stage 2 pipeline can be called on a single fits file, or a collection of fits files. 
+        # When calling on multiple files, the input is a json-formatted file called an "association" 
+        # file that lists each of the fits files to be processed.
         asn_dict = OrderedDict()
         asn_dict['asn_type'] = 'None'
-        asn_dict['asn_rule'] = 'DMS_Level3_Base'
+        asn_dict['asn_rule'] = 'DMSLevel2bBase'
         asn_dict['version_id'] = None
-        asn_dict['code_version'] = jwst.__version__
+        asn_dict['code_version'] = '0.17.1'
         asn_dict['degraded_status'] = 'No known degraded exposures in association.'
-        asn_dict['program'] = program # 'noprogram' # TODO
-        asn_dict['constraints'] = 'No constraints' # TODO
-        asn_dict['asn_id'] = obs_id # TODO
-        asn_dict['target'] = target_name # TODO
+        asn_dict['program'] = 'noprogram'
+        asn_dict['constraints'] = 'No constraints'
+        asn_dict['asn_id'] = obs_id
         asn_dict['asn_pool'] = 'none'
         asn_dict['products'] = []
-        product_dict = OrderedDict()
-        product_dict['name'] = input_file.replace(f"{input_suffix}.fits", "")
-        product_dict['members'] = [
-                {'expname': input_file,  # not abs file path
-                 'exptype': 'science'}
-            ]
-        asn_dict['products'].append(product_dict)
+        for input_file, output_file in list(zip(input_files, output_files)):
+            input_filepath = os.path.join(input_dir, input_file)
+            product_dict = OrderedDict()
+            product_dict['name'] = input_file.replace(f"{input_suffix}.fits", "")
+            product_dict['members'] = [
+                    {'expname': input_filepath,
+                     'exptype': 'science'}
+                ]
+            asn_dict['products'].append(product_dict)
         
-        asn_file = os.path.join(output_dir, f"{input_filename}_bkgsub_asn.json")
+        combined_name = 'level2_combined'
+        if re.match(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', input_files[0]):
+            combined_name = re.sub(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', r'\1_\2_\4_combined', input_files[0])
+        
+        asn_file = os.path.join(output_dir, f'{combined_name}_asn.json')
         
         if os.path.isfile(asn_file):
             shutil.move(asn_file, asn_file+'.backup')
@@ -267,31 +250,30 @@ if __name__ == '__main__':
         with open(asn_file, 'w') as fp:
             json.dump(asn_dict, fp, indent=4)
         
-        skymatch = SkyMatchStep()
-        skymatch.save_results = True
-        skymatch.output_dir = output_dir
-        skymatch.output_file = f"{input_filename}_bkgsub" # SkyMatchStep will append 'skymatchstep' to the input filename
-        skymatch.output_ext = ".fits"
-
-        # sky statistics parameters
-        skymatch.skymethod = "local" # the default is global+match, doesn't matter as we're processing files individually
-        skymatch.lsigma = 2.0
-        skymatch.usigma = 2.0
-        skymatch.nclip = 10
-        skymatch.upper = 1.0
-        # set the 'subtract' parameter so the calculated sky value is removed from the image
-        # (subtracting the calculated sky value from the image is off by default)
-        skymatch.subtract = True 
-        sky = skymatch.run(asn_file)
-        #try:
-        #    sky = skymatch.run(asn_file)
-        #except:
-        #    logger.warning("Warning! Failed to run skymatch.run(\"{}\")".format(asn_file))
+        # prepare a single output file 
+        output_file = f"{combined_name}_cal.fits"
+        output_filepath = os.path.join(output_dir, output_file)
+        
+        logger.info("Processing {} -> {}".format(input_files, output_filepath))
+        
+        # prepare to run
+        pipeline_object = calwebb_image2.Image2Pipeline()
+        pipeline_object.output_dir = output_dir
+        pipeline_object.output_file = os.path.splitext(output_file)[0]
+        pipeline_object.output_ext = ".fits"
+        pipeline_object.save_results = True
+        #pipeline_object.resample.skip = True # turn off the ResampleStep, comment out to produce the individual rectified *_i2d.fits for quick-look checks
+        pipeline_object.resample.pixfrac = 1.0 # default
+        pipeline_object.bkg_subtract.sigma = 3.0 # default
+        
+        # run
+        run_output = pipeline_object.run(input_filepath)
+        
+        # check
+        assert os.path.isfile(output_filepath)
         
         # log
-        logger.info("Processed {} -> {}".format(input_filepath, output_filepath))
-        
-    
+        logger.info("Processed {} -> {}".format(input_files, output_filepath))
     
     
     

@@ -19,11 +19,17 @@ iarg=1
 argmode="none"
 argstr=""
 test=0
+combine=0
 input_files=()
 while [[ $iarg -le $# ]]; do
-    argstr="${!iarg}"
+    argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]')
     if [[ "$argstr"x == "--test"x ]]; then
         argmode="test"
+        iarg=$((iarg+1))
+        continue
+    elif [[ "$argstr"x == "--combine"x ]]; then
+        combine=1
+        argmode="none"
         iarg=$((iarg+1))
         continue
     fi
@@ -42,6 +48,10 @@ done
 
 
 # Run Python script
-python $script_dir/go-jwst-nircam-stage-2-task-1.py
+if [[ $combine -eq 0 ]]; then
+    python $script_dir/go-jwst-nircam-stage-2-task-1.py
+else
+    python $script_dir/go-jwst-nircam-stage-2-task-2-combining.py
+fi
 
 
