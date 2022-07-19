@@ -219,7 +219,7 @@ if __name__ == '__main__':
         # this needs an association file
         input_filename = os.path.splitext(input_file)[0]
         
-        header = fits.getheader(input_file, 0)
+        header = fits.getheader(input_filepath, 0)
         obs_id = header['OBSERVTN'].strip()
         target_name = header['TARGPROP'].strip()
         
