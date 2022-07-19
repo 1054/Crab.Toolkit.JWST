@@ -62,8 +62,8 @@ from astropy.visualization import ImageNormalize, ManualInterval, LogStretch
 # matplotlib
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-mpl.rcParams['savefig.dpi'] = 80
-mpl.rcParams['figure.dpi'] = 80
+mpl.rcParams['savefig.dpi'] = 300
+mpl.rcParams['figure.dpi'] = 300
 
 # Import JWST pipeline-related modules
 

@@ -37,8 +37,8 @@ from astropy.visualization import ImageNormalize, ManualInterval, LogStretch
 # matplotlib
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-mpl.rcParams['savefig.dpi'] = 80
-mpl.rcParams['figure.dpi'] = 80
+mpl.rcParams['savefig.dpi'] = 300
+mpl.rcParams['figure.dpi'] = 300
 
 # Import JWST pipeline-related modules
 
@@ -194,8 +194,10 @@ if __name__ == '__main__':
         # additionally, following CEERS, 
         # measure and remove the horizontal and vertical striping from the two countrate images
         # -- see ceers_nircam_reduction.ipynb
+        from util_make_seed_image_for_rate_image import make_seed_image_for_rate_image
+        make_seed_image_for_rate_image(output_filepath)
         from remstriping import measure_striping
-        measure_striping(output_filepath, apply_flat=True, mask_sources=True, seedim_directory=input_dir, threshold=0.01)
+        measure_striping(output_filepath, apply_flat=True, mask_sources=True, seedim_directory=output_dir, threshold=0.0)
         
         # log
         logger.info("Processed {} -> {}".format(input_filepath, output_filepath))
