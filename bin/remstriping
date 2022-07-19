@@ -39,13 +39,18 @@ done
 
 
 # Check user input
-if [[ $# -eq 0 ]]; then
+if [[ ${#input_files[@]} -eq 0 ]]; then
     echo "Please input a \"*_rate.fits\" file."
     exit 255
 fi
 
 
 # Run
-output_dir=$(dirname "$1")
-python $script_dir/remstriping.py --runone "$1" --output_dir "$output_dir"
+for (( i = 0; i < ${#input_files[@]}; i++ )); do
+    input_file="${input_files[i]}"
+    output_dir=$(dirname "$input_file")
+    echo "python $script_dir/remstriping.py --runone \"$input_file\" --output_dir \"$output_dir\""
+    python $script_dir/remstriping.py --runone "$input_file" --output_dir "$output_dir"
+done
+
 
