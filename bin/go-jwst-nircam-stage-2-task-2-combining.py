@@ -242,12 +242,12 @@ if __name__ == '__main__':
         if re.match(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', input_files[0]):
             combined_name = re.sub(r'(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)_rate.fits', r'\1_\2_\4_combined', input_files[0])
         
-        asn_file = os.path.join(output_dir, f'{combined_name}_asn.json')
+        asn_filepath = os.path.join(output_dir, f'{combined_name}_asn.json')
         
-        if os.path.isfile(asn_file):
-            shutil.move(asn_file, asn_file+'.backup')
+        if os.path.isfile(asn_filepath):
+            shutil.move(asn_filepath, asn_filepath+'.backup')
         
-        with open(asn_file, 'w') as fp:
+        with open(asn_filepath, 'w') as fp:
             json.dump(asn_dict, fp, indent=4)
         
         # prepare a single output file 

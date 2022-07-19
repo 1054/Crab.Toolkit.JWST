@@ -215,6 +215,11 @@ if __name__ == '__main__':
         
         # check
         assert os.path.isfile(output_filepath)
+        
+        # log
+        logger.info("Processed {} -> {}".format(input_filepath, output_filepath))
+        
+        
     
         # additionally, following CEERS, 
         # apply a custom flat to the NRCA5 detector
@@ -237,6 +242,7 @@ if __name__ == '__main__':
         shutil.move(output_filepath, bkgsub_input_filepath)
         bkgsub_output_file = output_file
         bkgsub_output_filename = os.path.splitext(bkgsub_output_file)[0] # no .fits suffix, has _cal suffix.
+        bkgsub_output_filepath = os.path.join(output_dir, bkgsub_output_file)
         
         header = fits.getheader(input_filepath, 0)
         program = header['PROGRAM'].strip()
@@ -266,12 +272,12 @@ if __name__ == '__main__':
             ]
         asn_dict['products'].append(product_dict)
         
-        asn_file = os.path.join(output_dir, f"{bkgsub_output_filename}_bkgsub_asn.json")
+        asn_filepath = os.path.join(output_dir, f"{bkgsub_output_filename}_bkgsub_asn.json")
         
-        if os.path.isfile(asn_file):
-            shutil.move(asn_file, asn_file+'.backup')
+        if os.path.isfile(asn_filepath):
+            shutil.move(asn_filepath, asn_filepath+'.backup')
         
-        with open(asn_file, 'w') as fp:
+        with open(asn_filepath, 'w') as fp:
             json.dump(asn_dict, fp, indent=4)
         
         skymatch = SkyMatchStep()
@@ -289,14 +295,14 @@ if __name__ == '__main__':
         # set the 'subtract' parameter so the calculated sky value is removed from the image
         # (subtracting the calculated sky value from the image is off by default)
         skymatch.subtract = True 
-        sky = skymatch.run(asn_file)
+        sky = skymatch.run(asn_filepath)
         #try:
-        #    sky = skymatch.run(asn_file)
+        #    sky = skymatch.run(asn_filepath)
         #except:
-        #    logger.warning("Warning! Failed to run skymatch.run(\"{}\")".format(asn_file))
+        #    logger.warning("Warning! Failed to run skymatch.run(\"{}\")".format(asn_filepath))
         
         # log
-        logger.info("Processed {} -> {}".format(input_filepath, output_filepath))
+        logger.info("Processed {} -> {} -> {}".format(input_filepath, bkgsub_input_filepath, bkgsub_output_filepath))
         
     
     
