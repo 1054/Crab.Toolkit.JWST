@@ -227,9 +227,10 @@ if __name__ == '__main__':
         
         
         # additionally, following CEERS, 
-        # do sky subtraction, 
+        # do sky subtraction at stage 2, 
         # this needs an association file
         input_filename = os.path.splitext(input_file)[0]
+        output_filename = os.path.splitext(output_file)[0]
         
         header = fits.getheader(input_filepath, 0)
         program = header['PROGRAM'].strip()
@@ -252,14 +253,14 @@ if __name__ == '__main__':
         asn_dict['asn_pool'] = 'none'
         asn_dict['products'] = []
         product_dict = OrderedDict()
-        product_dict['name'] = input_file.replace(f"{input_suffix}.fits", "")
+        product_dict['name'] = output_file.replace(f"{output_suffix}.fits", "")
         product_dict['members'] = [
                 {'expname': input_file,  # not abs file path
                  'exptype': 'science'}
             ]
         asn_dict['products'].append(product_dict)
         
-        asn_file = os.path.join(output_dir, f"{input_filename}_bkgsub_asn.json")
+        asn_file = os.path.join(output_dir, f"{output_filename}_bkgsub_asn.json")
         
         if os.path.isfile(asn_file):
             shutil.move(asn_file, asn_file+'.backup')
@@ -270,7 +271,7 @@ if __name__ == '__main__':
         skymatch = SkyMatchStep()
         skymatch.save_results = True
         skymatch.output_dir = output_dir
-        skymatch.output_file = f"{input_filename}_bkgsub" # SkyMatchStep will append 'skymatchstep' to the input filename
+        skymatch.output_file = f"{output_filename}_bkgsub" # SkyMatchStep will append 'skymatchstep' to the input filename
         skymatch.output_ext = ".fits"
 
         # sky statistics parameters

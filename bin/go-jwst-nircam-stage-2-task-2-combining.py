@@ -219,9 +219,9 @@ if __name__ == '__main__':
         # file that lists each of the fits files to be processed.
         asn_dict = OrderedDict()
         asn_dict['asn_type'] = 'None'
-        asn_dict['asn_rule'] = 'DMSLevel2bBase'
+        asn_dict['asn_rule'] = 'DMS_Level2_Base'
         asn_dict['version_id'] = None
-        asn_dict['code_version'] = '0.17.1'
+        asn_dict['code_version'] = jwst.__version__
         asn_dict['degraded_status'] = 'No known degraded exposures in association.'
         asn_dict['program'] = 'noprogram'
         asn_dict['constraints'] = 'No constraints'
