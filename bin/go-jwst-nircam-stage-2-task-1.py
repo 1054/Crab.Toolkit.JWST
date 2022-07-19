@@ -231,6 +231,7 @@ if __name__ == '__main__':
         # this needs an association file
         input_filename = os.path.splitext(input_file)[0]
         output_filename = os.path.splitext(output_file)[0]
+        shutil.copy2(output_filepath, os.path.join(output_dir, output_filename+'_before_bkgsub.fits'))
         
         header = fits.getheader(input_filepath, 0)
         program = header['PROGRAM'].strip()
@@ -255,7 +256,7 @@ if __name__ == '__main__':
         product_dict = OrderedDict()
         product_dict['name'] = output_file.replace(f"{output_suffix}.fits", "")
         product_dict['members'] = [
-                {'expname': input_file,  # not abs file path
+                {'expname': output_file,  # not abs file path
                  'exptype': 'science'}
             ]
         asn_dict['products'].append(product_dict)
@@ -271,7 +272,7 @@ if __name__ == '__main__':
         skymatch = SkyMatchStep()
         skymatch.save_results = True
         skymatch.output_dir = output_dir
-        skymatch.output_file = f"{output_filename}_bkgsub" # SkyMatchStep will append 'skymatchstep' to the input filename
+        skymatch.output_file = f"{output_filename}_bkgsub" # SkyMatchStep will append 'skymatchstep' to the input filename if output_file is undefined.
         skymatch.output_ext = ".fits"
 
         # sky statistics parameters
