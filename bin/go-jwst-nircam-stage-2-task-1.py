@@ -303,10 +303,14 @@ if __name__ == '__main__':
         # (subtracting the calculated sky value from the image is off by default)
         skymatch.subtract = True 
         sky = skymatch.run(asn_filepath)
-        #try:
-        #    sky = skymatch.run(asn_filepath)
-        #except:
-        #    logger.warning("Warning! Failed to run skymatch.run(\"{}\")".format(asn_filepath))
+        
+        
+        # check bkgsub output
+        bkgsub_output_filepath = output_filepath.replace(f"{output_suffix}.fits", "_skymatchstep.fits")
+        assert os.path.isfile(bkgsub_output_filepath)
+        
+        # overwrite output "_cal.fits"
+        shutil.copy2(bkgsub_output_filepath, output_filepath)
         
         # log
         #logger.info("Processed {} -> {} -> {}".format(input_filepath, bkgsub_input_filepath, bkgsub_output_filepath))
