@@ -233,7 +233,7 @@ if __name__ == '__main__':
             input_filename = os.path.basename(input_filepath)
             input_suffix = '_cal'
             product_dict['members'].append(
-                {'expname': input_filepath,
+                {'expname': os.path.join('..', input_filepath),
                  'exptype': 'science'}
             )
         
@@ -257,7 +257,6 @@ if __name__ == '__main__':
         pipeline_object = calwebb_image3.Image3Pipeline()
 
         # Set some parameters that pertain to the entire pipeline
-        pipeline_object.input_dir = os.getcwd()
         pipeline_object.output_dir = output_dir
         pipeline_object.output_file = output_name # os.path.splitext(output_file)[0]
         pipeline_object.output_ext = ".fits" # default
