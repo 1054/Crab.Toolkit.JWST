@@ -148,13 +148,13 @@ if __name__ == '__main__':
         sys.exit(-1)
 
     
-    # Find all "jw*/calibrated2_cals/jw*_rate.fits"
-    input_files = glob.glob("jw*/calibrated2_cals/jw*_rate.fits")
+    # Find all "jw*/calibrated2_cals/jw*_cal.fits"
+    input_files = glob.glob("jw*/calibrated2_cals/jw*_cal.fits")
     
     
     # find files to make mosaic
     if (len(input_files) == 0):
-        logger.error("Error! No input file \"jw*/calibrated2_cals/jw*_rate.fits\" is found!")
+        logger.error("Error! No input file \"jw*/calibrated2_cals/jw*_cal.fits\" is found!")
         sys.exit(-1)
     
     input_files = sorted(input_files)
