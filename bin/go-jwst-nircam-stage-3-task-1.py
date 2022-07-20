@@ -293,6 +293,7 @@ if __name__ == '__main__':
         pipeline_object.skymatch.usigma = 2.0
         pipeline_object.skymatch.nclip = 10
         pipeline_object.skymatch.upper = 1.0
+        pipeline_object.skymatch.save_results = True
         # Set the ratio of input to output pixels to create an output mosaic 
         # on a 0.015"/pixel scale
         pipeline_object.resample.pixel_scale_ratio = 0.48
