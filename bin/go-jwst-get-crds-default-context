@@ -1,0 +1,20 @@
+#!/bin/bash
+# 
+set -e
+
+# Set necessary system variables
+if [[ -z "$CRDS_PATH" ]]; then
+    export CRDS_PATH=$HOME/jwst_crds_cache
+fi
+if [[ -z "$CRDS_SERVER_URL" ]]; then
+    export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
+fi
+
+# Get script_dir
+script_dir=$(dirname "${BASH_SOURCE[0]}")
+
+
+# Run Python script
+python $script_dir/go-jwst-get-crds-default-context.py
+
+
