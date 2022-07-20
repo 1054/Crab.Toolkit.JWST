@@ -1,0 +1,55 @@
+#!/bin/bash
+# 
+set -e
+
+# Set necessary system variables
+if [[ -z "$CRDS_PATH" ]]; then
+    export CRDS_PATH=$HOME/jwst_crds_cache
+fi
+if [[ -z "$CRDS_SERVER_URL" ]]; then
+    export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
+fi
+
+# Get script_dir
+script_dir=$(dirname "${BASH_SOURCE[0]}")
+
+
+# Read user input
+iarg=1
+argmode="none"
+argstr=""
+test=0
+input_files=()
+while [[ $iarg -le $# ]]; do
+    argstr="${!iarg}"
+    if [[ "$argstr"x == "--test"x ]]; then
+        argmode="test"
+        iarg=$((iarg+1))
+        continue
+    fi
+    if [[ "$argmode"x == "test"x ]]; then
+        test="${!iarg}"
+        argmode="none"
+    elif [[ "$argmode"x == "none"x ]]; then
+        input_files+=("${!iarg}")
+    fi
+    iarg=$((iarg+1))
+    continue
+done
+
+
+# Check user input
+if [[ ${#input_files[@]} -eq 0 ]]; then
+    echo "Usage: Please input a jwst data dir name, e.g., \"jw01345002001_02201_00003_nrcb1\""
+    exit 1
+fi
+
+
+# Run Python script
+for (( i = 0; i < ${#input_files[@]}; i++ )); do
+    echo "python $script_dir/go-jwst-nircam-cache-crds-files.py \"${input_files[i]}\""
+    python $script_dir/go-jwst-nircam-cache-crds-files.py "${input_files[i]}"
+done
+
+
+
