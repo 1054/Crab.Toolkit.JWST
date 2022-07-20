@@ -316,13 +316,14 @@ if __name__ == '__main__':
         # only FITS headers are updated, but the background-subtracted image are not saved to disk.
         
         # output to "_cal.fits"
+        os.remove(output_filepath)
         with fits.open(bkgsub_output_filepath) as hdul:
             sky = hdul[0].header['BKGLEVEL']
             assert (hdul[1].header['EXTNAME'] == 'SCI')
             hdul[0].header['HISTORY'] = 'Subtracted background level {} in the SCI image; {}'.format(
                 sky, datetime.datetime.now().strftime("%Y:%m:%d %Hh%Mm%Ss") + time.tzname[time.daylight])
             hdul[1].data -= sky
-            hdul.writeto(output_filepath, overwrite=True)
+            hdul.writeto(output_filepath)
         
         # log
         #logger.info("Processed {} -> {} -> {}".format(input_filepath, bkgsub_input_filepath, bkgsub_output_filepath))
