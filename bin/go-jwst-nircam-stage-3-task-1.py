@@ -287,6 +287,11 @@ if __name__ == '__main__':
         # Turn off SkyMatchStep
         #pipeline_object.skymatch.skip = True
         pipeline_object.skymatch.subtract = True
+        pipeline_object.skymatch.skymethod = "global+match"
+        pipeline_object.skymatch.lsigma = 2.0
+        pipeline_object.skymatch.usigma = 2.0
+        pipeline_object.skymatch.nclip = 10
+        pipeline_object.skymatch.upper = 1.0
         # Set the ratio of input to output pixels to create an output mosaic 
         # on a 0.015"/pixel scale
         pipeline_object.resample.pixel_scale_ratio = 0.48
