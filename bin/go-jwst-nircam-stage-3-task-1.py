@@ -267,9 +267,10 @@ if __name__ == '__main__':
         #pipeline_object.tweakreg.skip = True  
         # Turn off SkyMatchStep
         #pipeline_object.skymatch.skip = True
+        pipeline_object.skymatch.subtract = True
         # Set the ratio of input to output pixels to create an output mosaic 
         # on a 0.015"/pixel scale
-        #pipeline_object.resample.pixel_scale_ratio = 0.48
+        pipeline_object.resample.pixel_scale_ratio = 0.48
 
         # run
         pipeline_object.run(asn_file)
