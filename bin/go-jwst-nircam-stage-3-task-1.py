@@ -178,7 +178,7 @@ if __name__ == '__main__':
         info_dict['program'].append(header['PROGRAM'].strip())
         info_dict['obs_id'].append(header['OBSERVTN'].strip())
         info_dict['target_group'].append(header['TARGPROP'].strip())
-        info_dict['target_name'].append(header['TARGNAME'].strip())
+        info_dict['target_name'].append('"{}"'.format(header['TARGNAME'].strip()))
         info_dict['target_RA'].append(header['TARG_RA'])
         info_dict['target_Dec'].append(header['TARG_DEC'])
         info_dict['instrument'].append(header['INSTRUME'].strip())
@@ -188,10 +188,20 @@ if __name__ == '__main__':
     
     info_table = Table(info_dict)
     
-    if os.path.isfile('info_table.txt'):
-        shutil.move('info_table.txt', 'info_table.txt.backup')
-    info_table.write('info_table.txt', format='ascii.fixed_width', delimiter=' ', bookend=True)
+    if not os.path.isdir('calibrated3_mosaics'):
+        os.makedirs('calibrated3_mosaics')
+    if os.path.isfile('calibrated3_mosaics/info_table.txt'):
+        shutil.move('calibrated3_mosaics/info_table.txt', 'calibrated3_mosaics/info_table.txt.backup')
+    if os.path.isfile('calibrated3_mosaics/info_table.csv'):
+        shutil.move('calibrated3_mosaics/info_table.csv', 'calibrated3_mosaics/info_table.csv.backup')
+    info_table.write('calibrated3_mosaics/info_table.txt', format='ascii.fixed_width', delimiter=' ', bookend=True)
+    with open('calibrated3_mosaics/info_table.txt', 'r+') as fp:
+        fp.seek(0)
+        fp.write('#')
+    info_table.write('calibrated3_mosaics/info_table.csv', format='csv')
     
+    
+    # group by '{program}_{obs_id}_{instrument}_{filter}'
     unique_groups = info_table.group_by(['program', 'instrument', 'filter', 'obs_id', 'target_group'])
     
     
@@ -248,7 +258,7 @@ if __name__ == '__main__':
         
         # prepare a single output file 
         output_file = output_name+'.fits'
-        output_filepath = os.path.join('calibrated3_mosaics', output_file)
+        output_filepath = os.path.join(output_dir, output_file)
         
         logger.info("Processing {} -> {}".format(input_files, output_filepath))
         
