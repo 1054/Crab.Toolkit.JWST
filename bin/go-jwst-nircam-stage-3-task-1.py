@@ -221,7 +221,7 @@ if __name__ == '__main__':
             subgroup_key['instrument'],
             subgroup_key['filter'])
         output_dir = os.path.join('calibrated3_mosaics', output_name) # directly output to "calibrated3_mosaics" under current directory.
-        output_file = output_name+'.fits'
+        output_file = output_name+'_i2d.fits'
         output_filepath = os.path.join(output_dir, output_file)
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
@@ -284,6 +284,7 @@ if __name__ == '__main__':
         # Set some parameters that pertain to some of the individual steps
         # Turn off TweakRegStep
         #pipeline_object.tweakreg.skip = True  
+        #pipeline_object.tweakreg.save_catalogs = True
         # Turn off SkyMatchStep
         #pipeline_object.skymatch.skip = True
         pipeline_object.skymatch.subtract = True
