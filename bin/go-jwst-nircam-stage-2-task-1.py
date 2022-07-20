@@ -301,7 +301,7 @@ if __name__ == '__main__':
         skymatch.upper = 1.0
         # set the 'subtract' parameter so the calculated sky value is removed from the image
         # (subtracting the calculated sky value from the image is off by default)
-        skymatch.subtract = True 
+        skymatch.subtract = True
         sky = skymatch.run(asn_filepath)
         
         
@@ -309,8 +309,20 @@ if __name__ == '__main__':
         bkgsub_output_filepath = output_filepath.replace(f"{output_suffix}.fits", "_skymatchstep.fits")
         assert os.path.isfile(bkgsub_output_filepath)
         
-        # overwrite output "_cal.fits"
-        shutil.copy2(bkgsub_output_filepath, output_filepath)
+        
+        # the skymatch module is not actually saving the background-subtracted image, 
+        # see "jwst/skymatch/skymatch_step.py" `process()`, which converts `img.models_grouped` into `images`
+        # but `images` are not saved back into `img`. The `process()` returns `img`, not `images`, so
+        # only FITS headers are updated, but the background-subtracted image are not saved to disk.
+        
+        # output to "_cal.fits"
+        with fits.open(bkgsub_output_filepath) as hdul:
+            sky = hdul[0].header['BKGLEVEL']
+            assert (hdul[1].header['EXTNAME'] == 'SCI')
+            hdul[0].header['HISTORY'] = 'Subtracted background level {} in the SCI image; {}'.format(
+                sky, datetime.datetime.now().strftime("%Y:%m:%d %Hh%Mm%Ss") + time.tzname[time.daylight])
+            hdul[1].data -= sky
+            hdul.writeto(output_filepath, overwrite=True)
         
         # log
         #logger.info("Processed {} -> {} -> {}".format(input_filepath, bkgsub_input_filepath, bkgsub_output_filepath))
