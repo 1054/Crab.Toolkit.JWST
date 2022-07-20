@@ -7,7 +7,7 @@ By Daizhong Liu.
 
 """
 
-import os, sys, re
+import os, sys, re, datetime
 assert os.environ["CRDS_PATH"] != ''
 assert os.environ["CRDS_SERVER_URL"] != ''
 #os.environ["CRDS_SERVER_URL"] = "https://jwst-crds.stsci.edu"
