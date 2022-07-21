@@ -191,22 +191,25 @@ if __name__ == '__main__':
         # check
         assert os.path.isfile(output_filepath)
     
-        # additionally, following CEERS, 
-        # measure and remove the horizontal and vertical striping from the two countrate images
-        # -- see ceers_nircam_reduction.ipynb
         
-        # run dzliu tool to make seed image, i.e., initial source masking
-        from util_make_seed_image_for_rate_image import make_seed_image_for_rate_image
-        make_seed_image_for_rate_image(output_filepath)
-        
-        # set CRDS_CONTEXT
+        # get fits header, check if NIRCam image, do 'remstriping'
         header = fits.getheader(output_filepath, 0)
-        if ('CRDS_CONTEXT' not in os.environ) or (os.environ['CRDS_CONTEXT'] == ''):
-            os.environ['CRDS_CONTEXT'] = header['CRDS_CTX']
-        
-        # run CEERS team's script to remove striping
-        from remstriping import measure_striping
-        measure_striping(output_filepath, apply_flat=True, mask_sources=True, seedim_directory=output_dir, threshold=0.0)
+        if header['INSTRUME'].strip().upper() == 'NIRCAM':
+            # set CRDS_CONTEXT
+            if ('CRDS_CONTEXT' not in os.environ) or (os.environ['CRDS_CONTEXT'] == ''):
+                os.environ['CRDS_CONTEXT'] = header['CRDS_CTX']
+            
+            # additionally, following CEERS, 
+            # measure and remove the horizontal and vertical striping from the two countrate images
+            # -- see ceers_nircam_reduction.ipynb
+            
+            # run dzliu tool to make seed image, i.e., initial source masking
+            from util_make_seed_image_for_rate_image import make_seed_image_for_rate_image
+            make_seed_image_for_rate_image(output_filepath)
+            
+            # run CEERS team's script to remove striping
+            from remstriping import measure_striping
+            measure_striping(output_filepath, apply_flat=True, mask_sources=True, seedim_directory=output_dir, threshold=0.0)
         
         # log
         logger.info("Processed {} -> {}".format(input_filepath, output_filepath))
