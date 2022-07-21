@@ -32,8 +32,13 @@ def make_seed_image_for_rate_image(fits_image, check_rate_image = True, overwrit
     image, header = fits.getdata(fits_image, header=True)
     
     # check output file
-    output_fits_image = fits_name + '_{}_{}_{}_galaxy_seed_image.fits'.format(
-        pheader['INSTRUME'].strip(), pheader['FILTER'].strip(), pheader['PUPIL'].strip())
+    if 'PUPIL' in pheader:
+        output_fits_image = fits_name + '_{}_{}_{}_galaxy_seed_image.fits'.format(
+            pheader['INSTRUME'].strip(), pheader['FILTER'].strip(), pheader['PUPIL'].strip())
+    else:
+        output_fits_image = fits_name + '_{}_{}_galaxy_seed_image.fits'.format(
+            pheader['INSTRUME'].strip(), pheader['FILTER'].strip())
+    
     if os.path.isfile(output_fits_image): 
         if not overwrite:
             print('Found existing output file: "{}" and overwrite is set to False. Will do nothing.'.format(output_fits_image))

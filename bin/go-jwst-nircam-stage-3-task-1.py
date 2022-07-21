@@ -189,7 +189,10 @@ if __name__ == '__main__':
         info_dict['target_Dec'].append(header['TARG_DEC'])
         info_dict['instrument'].append(header['INSTRUME'].strip())
         info_dict['filter'].append(header['FILTER'].strip())
-        info_dict['pupil'].append(header['PUPIL'].strip())
+        if 'PUPIL' in header:
+            info_dict['pupil'].append(header['PUPIL'].strip())
+        else:
+            info_dict['pupil'].append('""')
         info_dict['file_path'].append(input_filepath)
     
     info_table = Table(info_dict)
