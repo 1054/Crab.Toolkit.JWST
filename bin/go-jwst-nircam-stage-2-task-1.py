@@ -231,103 +231,108 @@ if __name__ == '__main__':
         #    logger.warning("Warning! Failed to run apply_custom_flat(\"{}\")".format(output_filepath))
         
         
-        # additionally, following CEERS, 
-        # do sky subtraction at stage 2, 
-        # this needs an association file
         
-        # backup "_cal.fits" as "_cal_before_bkgsub.fits"
-        backup_output_filepath = output_filepath.replace(f"{output_suffix}.fits", f"{output_suffix}_before_bkgsub.fits")
-        if os.path.isfile(backup_output_filepath):
-            shutil.move(backup_output_filepath, backup_output_filepath+'.backup')
-        shutil.copy2(output_filepath, backup_output_filepath)
+        # get fits header, check if NIRCam image, do bkgsub
+        header = fits.getheader(output_filepath, 0)
+        if header['INSTRUME'].strip().upper() == 'NIRCAM':
         
-        output_filename = os.path.splitext(output_file)[0] # no .fits suffix, has _cal suffix.
-        #bkgsub_input_file = output_filename+'.fits' # "_cal.fits"
-        #bkgsub_input_filepath = os.path.join(output_dir, bkgsub_input_file)
-        #if os.path.isfile(bkgsub_input_filepath):
-        #    shutil.move(bkgsub_input_filepath, bkgsub_input_filepath+'.backup')
-        #shutil.copy2(output_filepath, bkgsub_input_filepath)
-        #bkgsub_output_file = output_file
-        #bkgsub_output_filename = os.path.splitext(bkgsub_output_file)[0] # no .fits suffix, has _cal suffix.
-        #bkgsub_output_filepath = os.path.join(output_dir, bkgsub_output_file)
-        
-        header = fits.getheader(input_filepath, 0)
-        program = header['PROGRAM'].strip()
-        obs_id = header['OBSERVTN'].strip()
-        target_group = header['TARGPROP'].strip()
-        target_name = header['TARGNAME'].strip()
-        if target_name == '':
-            target_name = target_group
-        
-        asn_dict = OrderedDict()
-        asn_dict['asn_type'] = 'None'
-        asn_dict['asn_rule'] = 'DMS_Level3_Base'
-        asn_dict['version_id'] = None
-        asn_dict['code_version'] = jwst.__version__
-        asn_dict['degraded_status'] = 'No known degraded exposures in association.'
-        asn_dict['program'] = program # 'noprogram' # TODO
-        asn_dict['constraints'] = 'No constraints' # TODO
-        asn_dict['asn_id'] = obs_id # TODO
-        asn_dict['target'] = target_name # TODO
-        asn_dict['asn_pool'] = 'none'
-        asn_dict['products'] = []
-        product_dict = OrderedDict()
-        product_dict['name'] = output_filename # bkgsub_output_file.replace(f"{output_suffix}.fits", "")
-        product_dict['members'] = [
-                {'expname': output_file, # bkgsub_input_file,  # not abs file path
-                 'exptype': 'science'}
-            ]
-        asn_dict['products'].append(product_dict)
-        
-        asn_filepath = os.path.join(output_dir, f"{output_filename}_bkgsub_asn.json")
-        
-        if os.path.isfile(asn_filepath):
-            shutil.move(asn_filepath, asn_filepath+'.backup')
-        
-        with open(asn_filepath, 'w') as fp:
-            json.dump(asn_dict, fp, indent=4)
-        
-        skymatch = SkyMatchStep()
-        skymatch.save_results = True
-        skymatch.output_dir = output_dir
-        skymatch.output_file = output_filename # SkyMatchStep will append 'skymatchstep' to the input filename if output_file is undefined.
-        skymatch.output_ext = ".fits"
+            # additionally, following CEERS, 
+            # do sky subtraction at stage 2, 
+            # this needs an association file
+            
+            # backup "_cal.fits" as "_cal_before_bkgsub.fits"
+            backup_output_filepath = output_filepath.replace(f"{output_suffix}.fits", f"{output_suffix}_before_bkgsub.fits")
+            if os.path.isfile(backup_output_filepath):
+                shutil.move(backup_output_filepath, backup_output_filepath+'.backup')
+            shutil.copy2(output_filepath, backup_output_filepath)
+            
+            output_filename = os.path.splitext(output_file)[0] # no .fits suffix, has _cal suffix.
+            #bkgsub_input_file = output_filename+'.fits' # "_cal.fits"
+            #bkgsub_input_filepath = os.path.join(output_dir, bkgsub_input_file)
+            #if os.path.isfile(bkgsub_input_filepath):
+            #    shutil.move(bkgsub_input_filepath, bkgsub_input_filepath+'.backup')
+            #shutil.copy2(output_filepath, bkgsub_input_filepath)
+            #bkgsub_output_file = output_file
+            #bkgsub_output_filename = os.path.splitext(bkgsub_output_file)[0] # no .fits suffix, has _cal suffix.
+            #bkgsub_output_filepath = os.path.join(output_dir, bkgsub_output_file)
+            
+            header = fits.getheader(input_filepath, 0)
+            program = header['PROGRAM'].strip()
+            obs_id = header['OBSERVTN'].strip()
+            target_group = header['TARGPROP'].strip()
+            target_name = header['TARGNAME'].strip()
+            if target_name == '':
+                target_name = target_group
+            
+            asn_dict = OrderedDict()
+            asn_dict['asn_type'] = 'None'
+            asn_dict['asn_rule'] = 'DMS_Level3_Base'
+            asn_dict['version_id'] = None
+            asn_dict['code_version'] = jwst.__version__
+            asn_dict['degraded_status'] = 'No known degraded exposures in association.'
+            asn_dict['program'] = program # 'noprogram' # TODO
+            asn_dict['constraints'] = 'No constraints' # TODO
+            asn_dict['asn_id'] = obs_id # TODO
+            asn_dict['target'] = target_name # TODO
+            asn_dict['asn_pool'] = 'none'
+            asn_dict['products'] = []
+            product_dict = OrderedDict()
+            product_dict['name'] = output_filename # bkgsub_output_file.replace(f"{output_suffix}.fits", "")
+            product_dict['members'] = [
+                    {'expname': output_file, # bkgsub_input_file,  # not abs file path
+                     'exptype': 'science'}
+                ]
+            asn_dict['products'].append(product_dict)
+            
+            asn_filepath = os.path.join(output_dir, f"{output_filename}_bkgsub_asn.json")
+            
+            if os.path.isfile(asn_filepath):
+                shutil.move(asn_filepath, asn_filepath+'.backup')
+            
+            with open(asn_filepath, 'w') as fp:
+                json.dump(asn_dict, fp, indent=4)
+            
+            skymatch = SkyMatchStep()
+            skymatch.save_results = True
+            skymatch.output_dir = output_dir
+            skymatch.output_file = output_filename # SkyMatchStep will append 'skymatchstep' to the input filename if output_file is undefined.
+            skymatch.output_ext = ".fits"
 
-        # sky statistics parameters
-        skymatch.skymethod = "local" # the default is global+match, doesn't matter as we're processing files individually
-        skymatch.lsigma = 2.0
-        skymatch.usigma = 2.0
-        skymatch.nclip = 10
-        skymatch.upper = 1.0
-        # set the 'subtract' parameter so the calculated sky value is removed from the image
-        # (subtracting the calculated sky value from the image is off by default)
-        skymatch.subtract = True
-        sky = skymatch.run(asn_filepath)
-        
-        
-        # check bkgsub output
-        bkgsub_output_filepath = output_filepath.replace(f"{output_suffix}.fits", "_skymatchstep.fits")
-        assert os.path.isfile(bkgsub_output_filepath)
-        
-        
-        # the skymatch module is not actually saving the background-subtracted image, 
-        # see "jwst/skymatch/skymatch_step.py" `process()`, which converts `img.models_grouped` into `images`
-        # but `images` are not saved back into `img`. The `process()` returns `img`, not `images`, so
-        # only FITS headers are updated, but the background-subtracted image are not saved to disk.
-        
-        # output to "_cal.fits"
-        os.remove(output_filepath)
-        with fits.open(bkgsub_output_filepath) as hdul:
-            sky = hdul[0].header['BKGLEVEL']
-            assert (hdul[1].header['EXTNAME'] == 'SCI')
-            hdul[0].header['HISTORY'] = 'Subtracted background level {} in the SCI image; {}'.format(
-                sky, datetime.datetime.now().strftime("%Y:%m:%d %Hh%Mm%Ss") + time.tzname[time.daylight])
-            hdul[1].data -= sky
-            hdul.writeto(output_filepath)
-        
-        # log
-        #logger.info("Processed {} -> {} -> {}".format(input_filepath, bkgsub_input_filepath, bkgsub_output_filepath))
-        logger.info("Processed {} -> {} -> {}".format(input_filepath, backup_output_filepath, output_filepath))
+            # sky statistics parameters
+            skymatch.skymethod = "local" # the default is global+match, doesn't matter as we're processing files individually
+            skymatch.lsigma = 2.0
+            skymatch.usigma = 2.0
+            skymatch.nclip = 10
+            skymatch.upper = 1.0
+            # set the 'subtract' parameter so the calculated sky value is removed from the image
+            # (subtracting the calculated sky value from the image is off by default)
+            skymatch.subtract = True
+            sky = skymatch.run(asn_filepath)
+            
+            
+            # check bkgsub output
+            bkgsub_output_filepath = output_filepath.replace(f"{output_suffix}.fits", "_skymatchstep.fits")
+            assert os.path.isfile(bkgsub_output_filepath)
+            
+            
+            # the skymatch module is not actually saving the background-subtracted image, 
+            # see "jwst/skymatch/skymatch_step.py" `process()`, which converts `img.models_grouped` into `images`
+            # but `images` are not saved back into `img`. The `process()` returns `img`, not `images`, so
+            # only FITS headers are updated, but the background-subtracted image are not saved to disk.
+            
+            # output to "_cal.fits"
+            os.remove(output_filepath)
+            with fits.open(bkgsub_output_filepath) as hdul:
+                sky = hdul[0].header['BKGLEVEL']
+                assert (hdul[1].header['EXTNAME'] == 'SCI')
+                hdul[0].header['HISTORY'] = 'Subtracted background level {} in the SCI image; {}'.format(
+                    sky, datetime.datetime.now().strftime("%Y:%m:%d %Hh%Mm%Ss") + time.tzname[time.daylight])
+                hdul[1].data -= sky
+                hdul.writeto(output_filepath)
+            
+            # log
+            #logger.info("Processed {} -> {} -> {}".format(input_filepath, bkgsub_input_filepath, bkgsub_output_filepath))
+            logger.info("Processed {} -> {} -> {}".format(input_filepath, backup_output_filepath, output_filepath))
         
     
     

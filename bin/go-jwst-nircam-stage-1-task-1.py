@@ -195,6 +195,7 @@ if __name__ == '__main__':
         # get fits header, check if NIRCam image, do 'remstriping'
         header = fits.getheader(output_filepath, 0)
         if header['INSTRUME'].strip().upper() == 'NIRCAM':
+            
             # set CRDS_CONTEXT
             if ('CRDS_CONTEXT' not in os.environ) or (os.environ['CRDS_CONTEXT'] == ''):
                 os.environ['CRDS_CONTEXT'] = header['CRDS_CTX']
