@@ -44,6 +44,12 @@ done
 
 
 # Run Python script
-python $script_dir/go-jwst-nircam-stage-3-task-1.py
+if [[ ${#input_files[@]} -eq 0 ]]; then
+    python $script_dir/go-jwst-nircam-stage-3-task-1.py
+else
+    for (( i = 0; i < ${#input_files[@]}; i++ )); do
+        python $script_dir/go-jwst-nircam-stage-3-task-1.py ${input_files[i]}
+    done
+fi
 
 

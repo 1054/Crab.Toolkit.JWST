@@ -149,10 +149,17 @@ if __name__ == '__main__':
     
     # Read command line input arguments
     overwrite = False
-    for i in range(1, len(sys.argv)):
+    prefix = None
+    iarg = 1
+    while iarg < len(sys.argv):
         if sys.argv[i] == '--overwrite' or sys.argv[i] == '-overwrite':
             overwrite = True
+        elif prefix is None:
+            prefix = sys.argv[i]
+        iarg += 1
     
+    if prefix is None:
+        prefix = 'jw'
     
     # Find all "jw*/calibrated2_cals/jw*_cal.fits"
     input_files = glob.glob("jw*/calibrated2_cals/jw*_cal.fits")
@@ -160,7 +167,7 @@ if __name__ == '__main__':
     
     # find files to make mosaic
     if (len(input_files) == 0):
-        logger.error("Error! No input file \"jw*/calibrated2_cals/jw*_cal.fits\" is found!")
+        logger.error(f"Error! No input file \"{prefix}*/calibrated2_cals/{prefix}*_cal.fits\" is found!")
         sys.exit(-1)
     
     input_files = sorted(input_files)
@@ -197,6 +204,9 @@ if __name__ == '__main__':
     
     info_table = Table(info_dict)
     
+    # sort by '{program}_{obs_id}_{instrument}_{filter}'
+    info_table.sort(['program', 'obs_id', 'instrument', 'filter'])
+    
     if not os.path.isdir('calibrated3_mosaics'):
         os.makedirs('calibrated3_mosaics')
     if os.path.isfile('calibrated3_mosaics/info_table.txt'):
@@ -211,7 +221,7 @@ if __name__ == '__main__':
     
     
     # group by '{program}_{obs_id}_{instrument}_{filter}'
-    unique_groups = info_table.group_by(['program', 'instrument', 'filter', 'obs_id', 'target_group'])
+    unique_groups = info_table.group_by(['program', 'obs_id', 'instrument', 'filter', 'target_group'])
     
     
     # prepare association file to process all rate files into one single output file
@@ -234,8 +244,19 @@ if __name__ == '__main__':
                 if not overwrite:
                     logger.info("Found processed {} -> {} and overwrite is set to False. We will skip the processing.".format(input_files, output_filepath))
                     continue
-                else:
-                    shutil.move(output_filepath, output_filepath+'.backup')
+        
+        # check if another script is processing this data
+        if os.path.exists(output_dir+'.touch'):
+            logger.info("Found another script processing {} -> {}. We will skip processing it.".format(input_files, output_filepath))
+            continue
+        
+        # create touch file
+        with open(output_dir+'.touch', 'a'):
+            os.utime(output_dir+'.touch', None)
+        
+        # backup existing file
+        if os.path.isfile(output_filepath):
+            shutil.move(output_filepath, output_filepath+'.backup')
         
         # prepare the json-format "association" file
         asn_dict = OrderedDict()
@@ -303,6 +324,9 @@ if __name__ == '__main__':
 
         # run
         pipeline_object.run(asn_file)
+        
+        # remove touch file
+        os.remove(output_dir+'.touch')
         
         # check
         assert os.path.isfile(output_filepath)

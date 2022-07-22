@@ -59,6 +59,7 @@ Notes:
 import os, sys, re, json, copy, datetime, time, glob, shutil
 import asdf
 from collections import OrderedDict
+from distutils.version import LooseVersion
 
 # Numpy library:
 import numpy as np
@@ -315,20 +316,26 @@ if __name__ == '__main__':
             assert os.path.isfile(bkgsub_output_filepath)
             
             
-            # the skymatch module is not actually saving the background-subtracted image, 
-            # see "jwst/skymatch/skymatch_step.py" `process()`, which converts `img.models_grouped` into `images`
-            # but `images` are not saved back into `img`. The `process()` returns `img`, not `images`, so
-            # only FITS headers are updated, but the background-subtracted image are not saved to disk.
-            
-            # output to "_cal.fits"
-            os.remove(output_filepath)
-            with fits.open(bkgsub_output_filepath) as hdul:
-                sky = hdul[0].header['BKGLEVEL']
-                assert (hdul[1].header['EXTNAME'] == 'SCI')
-                hdul[0].header['HISTORY'] = 'Subtracted background level {} in the SCI image; {}'.format(
-                    sky, datetime.datetime.now().strftime("%Y:%m:%d %Hh%Mm%Ss") + time.tzname[time.daylight])
-                hdul[1].data -= sky
-                hdul.writeto(output_filepath)
+            if LooseVersion(jwst.__version__) <= LooseVersion("1.6.2"):
+                # for jwst.__version__ <= 1.6.2, 
+                # the skymatch module is not actually saving the background-subtracted image, 
+                # see "jwst/skymatch/skymatch_step.py" `process()`, which converts `img.models_grouped` into `images`
+                # but `images` are not saved back into `img`. The `process()` returns `img`, not `images`, so
+                # only FITS headers are updated, but the background-subtracted image are not saved to disk.
+                
+                # output to "_cal.fits"
+                os.remove(output_filepath)
+                with fits.open(bkgsub_output_filepath) as hdul:
+                    sky = hdul[0].header['BKGLEVEL']
+                    assert (hdul[1].header['EXTNAME'] == 'SCI')
+                    hdul[0].header['HISTORY'] = 'Subtracted background level {} in the SCI image; {}'.format(
+                        sky, datetime.datetime.now().strftime("%Y:%m:%d %Hh%Mm%Ss") + time.tzname[time.daylight])
+                    hdul[1].data -= sky
+                    hdul.writeto(output_filepath)
+            else:
+                # directly copy "_skymatchstep.fits" to "_cal.fits"
+                os.remove(output_filepath)
+                shutil.copy2(bkgsub_output_filepath, output_filepath)
             
             # log
             #logger.info("Processed {} -> {} -> {}".format(input_filepath, bkgsub_input_filepath, bkgsub_output_filepath))
