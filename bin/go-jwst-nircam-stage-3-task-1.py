@@ -152,10 +152,10 @@ if __name__ == '__main__':
     prefix = None
     iarg = 1
     while iarg < len(sys.argv):
-        if sys.argv[i] == '--overwrite' or sys.argv[i] == '-overwrite':
+        if sys.argv[iarg] == '--overwrite' or sys.argv[iarg] == '-overwrite':
             overwrite = True
         elif prefix is None:
-            prefix = sys.argv[i]
+            prefix = sys.argv[iarg]
         iarg += 1
     
     if prefix is None:
