@@ -228,6 +228,7 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
         immodel.dq[wnan] = np.bitwise_or(immodel.dq[wnan], bpflag)
 
         # write output
+        print('type(outsci)', type(outsci))
         immodel.data = outsci
         # add history entry
         time = datetime.now()

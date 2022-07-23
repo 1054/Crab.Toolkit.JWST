@@ -9,6 +9,10 @@ fi
 if [[ -z "$CRDS_SERVER_URL" ]]; then
     export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
 fi
+if [[ -z "$CRDS_CONTEXT" ]]; then
+    export CRDS_CONTEXT="jwst_0932.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())'
+fi
+
 
 # Get script_dir
 script_dir=$(dirname $(perl -MCwd -e 'print Cwd::abs_path shift' "${BASH_SOURCE[0]}"))

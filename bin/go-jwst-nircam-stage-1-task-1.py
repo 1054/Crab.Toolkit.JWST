@@ -204,20 +204,29 @@ if __name__ == '__main__':
             # measure and remove the horizontal and vertical striping from the two countrate images
             # -- see ceers_nircam_reduction.ipynb
             
+            # prepare a temporary file
+            temp_filepath = os.path.splitext(output_filepath)[0] + '_remstriping_rate.fits'
+            backup_filepath = os.path.splitext(output_filepath)[0] + '_orig.fits'
+            shutil.copy2(output_filepath, temp_filepath)
+            
             # run dzliu tool to make seed image, i.e., initial source masking
             from util_make_seed_image_for_rate_image import make_seed_image_for_rate_image
-            make_seed_image_for_rate_image(output_filepath)
+            make_seed_image_for_rate_image(temp_filepath)
             
             # run CEERS team's script to remove striping
             from remstriping import measure_striping
-            measure_striping(output_filepath, apply_flat=True, mask_sources=True, seedim_directory=output_dir, threshold=0.0)
+            measure_striping(temp_filepath, apply_flat=True, mask_sources=True, seedim_directory=output_dir, threshold=0.0)
             
-            # make sure output fits file has the correct size
-            assert os.path.isfile(output_filepath)
-            header_out = fits.getheader(output_filepath, 1)
-            if os.path.getsize(output_filepath) < len(header_out.tostring()) + header_out['NAXIS1']*header_out['NAXIS2']*np.abs(header_out['BITPIX']//8):
-                shutil.move(output_filepath, output_filepath+'.corrupted')
-                raise Exception('Error! The output file "{0}" has a too small size! Corrupted? Renaming it as "{0}.corrupted"!'.format(output_filepath))
+            # make sure output fits file has the correct size -- NOT REALLY USEFUL BECAUSE THE CODE STOPPED AT `measure_striping`
+            assert os.path.isfile(temp_filepath)
+            header_out = fits.getheader(temp_filepath, 1)
+            if os.path.getsize(temp_filepath) < len(header_out.tostring()) + header_out['NAXIS1']*header_out['NAXIS2']*np.abs(header_out['BITPIX']//8):
+                shutil.move(temp_filepath, temp_filepath+'.corrupted')
+                raise Exception('Error! The output file "{0}" has a too small size! Corrupted? Renaming it as "{0}.corrupted"!'.format(temp_filepath))
+            
+            # backup output_filepath and copy temporary file to output_filepath # do not backup it earlier as `measure_striping` may fail.
+            shutil.copy2(output_filepath, backup_filepath)
+            shutil.copy2(temp_filepath, output_filepath)
         
         # log
         logger.info("Processed {} -> {}".format(input_filepath, output_filepath))
