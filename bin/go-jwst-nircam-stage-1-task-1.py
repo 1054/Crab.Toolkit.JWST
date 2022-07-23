@@ -211,6 +211,13 @@ if __name__ == '__main__':
             # run CEERS team's script to remove striping
             from remstriping import measure_striping
             measure_striping(output_filepath, apply_flat=True, mask_sources=True, seedim_directory=output_dir, threshold=0.0)
+            
+            # make sure output fits file has the correct size
+            assert os.path.isfile(output_filepath)
+            header_out = fits.getheader(output_filepath, 1)
+            if os.path.getsize(output_filepath) < len(header_out.tostring()) + header_out['NAXIS1']*header_out['NAXIS2']*np.abs(header_out['BITPIX']//8):
+                shutil.move(output_filepath, output_filepath+'.corrupted')
+                raise Exception('Error! The output file "{0}" has a too small size! Corrupted? Renaming it as "{0}.corrupted"!'.format(output_filepath))
         
         # log
         logger.info("Processed {} -> {}".format(input_filepath, output_filepath))
