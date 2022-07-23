@@ -213,6 +213,8 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
         # transpose back
         temp_sci2 = temp_sci.T
         outsci = temp_sci2 - vertical_striping
+        print('dzliu debugging', 'type(sci)', type(sci))
+        print('dzliu debugging', 'type(temp_sci2)', type(temp_sci2))
         # replace NaNs with zeros and update DQ array
         # the image has NaNs where an entire row/column has been masked out
         # so no median could be calculated.
@@ -224,12 +226,14 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
 #        outsci[np.where(wref)] = 0
         wnan = np.isnan(outsci)
         bpflag = dqflags.pixel['DO_NOT_USE']
+        print('dzliu debugging', 'type(outsci)', type(outsci))
         outsci[wnan] = 0
+        print('dzliu debugging', 'type(outsci)', type(outsci))
         immodel.dq[wnan] = np.bitwise_or(immodel.dq[wnan], bpflag)
 
         # write output
-        print('type(outsci)', type(outsci))
         immodel.data = outsci
+        print('dzliu debugging', 'type(outsci)', type(outsci))
         # add history entry
         time = datetime.now()
         stepdescription = 'Removed horizontal,vertical striping; remstriping.py %s'%time.strftime('%Y-%m-%d %H:%M:%S')
