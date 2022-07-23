@@ -1,0 +1,24 @@
+--- Software/CONDA/miniconda3/lib/python3.9/site-packages/jwst/tweakreg/tweakreg_catalog.py.backup	2022-07-23 12:23:44.605148282 +0200
++++ Software/CONDA/miniconda3/lib/python3.9/site-packages/jwst/tweakreg/tweakreg_catalog.py.new	2022-07-23 12:24:25.898531698 +0200
+@@ -64,9 +64,18 @@
+     if not isinstance(model, ImageModel):
+         raise TypeError('The input model must be an ImageModel.')
+ 
+-    threshold_img = detect_threshold(model.data, nsigma=snr_threshold)
+-    # TODO:  use threshold image based on error array
+-    threshold = threshold_img[0, 0]     # constant image
++    #<DZLIU># threshold_img = detect_threshold(model.data, nsigma=snr_threshold)
++    #<DZLIU># # TODO:  use threshold image based on error array
++    #<DZLIU># threshold = threshold_img[0, 0]     # constant image
++    
++    from photutils.background import Background2D   #<DZLIU>#
++    from astropy.stats import SigmaClip             #<DZLIU>#
++    bkg = Background2D(model.data, 50,              #<DZLIU>#
++        sigma_clip=SigmaClip(sigma=3.0,             #<DZLIU>#
++        sigma_lower=3.0, sigma_upper=3.0,           #<DZLIU>#
++        maxiters=50))                               #<DZLIU>#
++    threshold_img = bkg.background                  #<DZLIU>#
++    threshold = bkg.background_median               #<DZLIU>#
+ 
+     daofind = DAOStarFinder(fwhm=kernel_fwhm, threshold=threshold,
+                             sharplo=sharplo, sharphi=sharphi, roundlo=roundlo,
