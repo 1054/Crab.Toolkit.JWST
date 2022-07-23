@@ -192,6 +192,8 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
 
     # fit horizontal striping, collapsing along columns
     horizontal_striping = collapse_image(model.data, mask, dimension='y')
+    print('dzliu debugging', 'type(model.data)', type(model.data))
+    print('dzliu debugging', 'type(horizontal_striping)', type(horizontal_striping))
     # remove horizontal striping, requires taking transpose of image
     temp_image = model.data.T - horizontal_striping
     # transpose back

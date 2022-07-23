@@ -1,21 +1,7 @@
 #!/usr/bin/env python
 #
 """
-Process JWST uncalibrated FITS data under "uncals/" and named as "jw*_uncal.fits"
-into calibrated FITS data under "calibrated1_rates/" and named as "jw*_rate.fits". 
-
-The calwebb_detector1 pipeline: Ramps to Slopes
-
-Inputs
-
-    A raw exposure (*_uncal.fits) containing the 4-dimensional raw data from all detector readouts: (ncols x nrows x ngroups x nintegrations).
-
-Outputs
-
-    A 2D countrate image (*_rate.fits) resulting from averaging over the exposure's integrations.
-    A 3D countrate image (*_rateints.fits) containing the results of each integration in separate extensions.
-    
-From ceers_nircam_reduction.ipynb
+Redo remstriping
 
 """
 
@@ -39,6 +25,14 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['savefig.dpi'] = 300
 mpl.rcParams['figure.dpi'] = 300
+
+# Set CRDS
+if not ('CRDS_PATH' in os.environ):
+    os.environ['CRDS_PATH'] = os.path.expanduser('~/jwst_crds_cache')
+if not ('CRDS_SERVER_URL' in os.environ):
+    os.environ['CRDS_SERVER_URL'] = 'https://jwst-crds.stsci.edu'
+#if not ('CRDS_CONTEXT' in os.environ):
+#    os.environ['CRDS_CONTEXT'] = 
 
 # Import JWST pipeline-related modules
 
@@ -111,23 +105,34 @@ if __name__ == '__main__':
     
     # Print JWST pipeline version
     logger.info('JWST pipeline version: {}'.format(jwst.__version__))
-
-    # Define input and output dirs for this stage
-    input_dir = "uncals"
-    input_suffix = "_uncal"
-    output_dir = "calibrated1_rates"
-    output_suffix = "_rate"
-    if not os.path.isdir(input_dir):
-        logger.error("Error! Input directory \"{}\" does not exist!".format(input_dir))
-        sys.exit(-1)
-    if not os.path.isdir(output_dir):
-        os.makedirs(output_dir)
     
-    # check override_gain_file
-    override_gain_file = ""
-    #override_gain_file = "gains_v2.1.0/jwst_nircam_gain_nrca1.fits" # TODO
+    # read user input
+    input_dirs = []
+    input_files = []
+    input_filepaths = []
+    iarg = 1 
+    while iarg < len(sys.argv):
+        argstr = sys.argv[iarg]
+        print("re.match(r'^(.*/|)jw.*_[0-9].*_[0-9].*_.*_.*$', '{}')".format(argstr))
+        if re.match(r'^(.*/|)jw.*_[0-9].*_[0-9].*_.*_.*$', argstr):
+            if os.path.isdir(argstr):
+                list_files = os.path.listdir(argstr + os.sep + 'calibrated1_rates')
+                for list_file in list_files:
+                    if re.match(r'^jw.*_[0-9].*_[0-9].*_.*_rate.fits$', list_file):
+                        input_dirs.append(argstr)
+                        input_files.append(list_file)
+                        input_filepaths.append(os.path.join(argstr, list_file))
+            elif os.path.isfile(argstr):
+                input_dirs.append(os.path.dirname(argstr))
+                input_files.append(os.path.basename(argstr))
+                input_filepaths.append(argstr)
+        iarg+=1
+    if len(input_dirs) == 0:
+        print('Please input directories like "jw.*_[0-9].*_[0-9].*_[0-9].*_.*"  or files like "jw.*_[0-9].*_[0-9].*_[0-9].*_rate.fits"')
+        sys.exit(255)
+    
 
-    # check CRDS 
+    # check CRDS, needed by remstriping.py
     try:
         logger.info("CRDS_PATH: {}".format(os.environ['CRDS_PATH']))
     except KeyError:
@@ -139,58 +144,14 @@ if __name__ == '__main__':
     except KeyError:
         logger.error("Error! CRDS_SERVER_URL environment variable not set!")
         sys.exit(-1)
-
-    #try:
-    #    print(os.environ['CRDS_CONTEXT'])
-    #except KeyError:
-    #    print('CRDS_CONTEXT environment variable not set!')
-
-    # check stage asdf file
-    #asdf_file = get_script_name() + ".asdf"
-    #if not os.path.exists(asdf_file):
-    #    logger.error("Error! The asdf file is not found \"{}\"!".format(asdf_file))
-    #    sys.exit(-1)
-        
-    # print asdf file tree
-    #asdf_obj = asdf.open(asdf_file)
-    #logger.info("asdf file tree: \n" + str(asdf_obj.tree))
-    #asdf_obj.close()
-    
-    
-    # find files to process
-    input_files = [t for t in os.listdir(input_dir) if t.endswith(f"{input_suffix}.fits")]
-    if (len(input_files) == 0):
-        logger.error("Error! No input file \"{}/*{}\" is found!".format(input_dir, f"{input_suffix}.fits"))
-        sys.exit(-1)
-    input_files = sorted(input_files)
-    output_files = [t.replace(f"{input_suffix}.fits", f"{output_suffix}.fits") for t in input_files]
     
     
     # loop individual files
-    for input_file, output_file in list(zip(input_files, output_files)):
-        input_filepath = os.path.join(input_dir, input_file)
-        output_filepath = os.path.join(output_dir, output_file)
+    for input_file, input_filepath in zip(input_files, input_filepaths):
+        
+        output_filepath = input_filepath
+        output_dir = os.path.dirname(output_filepath)
         logger.info("Processing {} -> {}".format(input_filepath, output_filepath))
-        
-        # prepare to run
-        pipeline_object = calwebb_detector1.Detector1Pipeline()
-        pipeline_object.output_dir = output_dir
-        pipeline_object.save_results = True
-        pipeline_object.ipc.skip = False # turn on IPCStep
-        pipeline_object.persistence.skip = False # turn on PersistenceStep
-        pipeline_object.save_calibrated_ramp = True #<dzliu>#
-        # Specify the name of the gain file that will override 
-        # the existing gain reference file used for the jump and ramp_fit steps
-        if override_gain_file is not None and override_gain_file != "":
-            pipeline_object.jump.override_gain = override_gain_file
-            pipeline_object.ramp_fit.override_gain = override_gain_file
-        
-        # run
-        run_output = pipeline_object.run(input_filepath)
-        
-        # check
-        assert os.path.isfile(output_filepath)
-    
         
         # get fits header, check if NIRCam image, do 'remstriping'
         header = fits.getheader(output_filepath, 0)
@@ -207,14 +168,17 @@ if __name__ == '__main__':
             # prepare a temporary file
             temp_filepath = os.path.splitext(output_filepath)[0] + '_remstriping_rate.fits'
             backup_filepath = os.path.splitext(output_filepath)[0] + '_orig.fits'
+            print('shutil.copy2({!r}, {!r})'.format(output_filepath, temp_filepath))
             shutil.copy2(output_filepath, temp_filepath)
             
             # run dzliu tool to make seed image, i.e., initial source masking
             from util_make_seed_image_for_rate_image import make_seed_image_for_rate_image
-            make_seed_image_for_rate_image(temp_filepath)
+            print('make_seed_image_for_rate_image({!r}, overwrite=False)'.format(temp_filepath))
+            make_seed_image_for_rate_image(temp_filepath, overwrite=False)
             
             # run CEERS team's script to remove striping
             from remstriping import measure_striping
+            print('measure_striping({!r}, apply_flat=True, mask_sources=True, seedim_directory={!r}, threshold=0.0)'.format(temp_filepath, output_dir))
             measure_striping(temp_filepath, apply_flat=True, mask_sources=True, seedim_directory=output_dir, threshold=0.0)
             
             # make sure output fits file has the correct size -- NOT REALLY USEFUL BECAUSE THE CODE STOPPED AT `measure_striping`
