@@ -309,6 +309,8 @@ if __name__ == '__main__':
         # Turn off TweakRegStep
         #pipeline_object.tweakreg.skip = True  
         #pipeline_object.tweakreg.save_catalogs = True
+        #pipeline_object.tweakreg.save_results = True
+        #pipeline_object.tweakreg.output_dir = output_dir
         # Turn off SkyMatchStep
         #pipeline_object.skymatch.skip = True
         pipeline_object.skymatch.subtract = True

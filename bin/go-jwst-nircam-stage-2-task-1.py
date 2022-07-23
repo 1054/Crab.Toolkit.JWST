@@ -304,7 +304,7 @@ if __name__ == '__main__':
             skymatch.lsigma = 2.0
             skymatch.usigma = 2.0
             skymatch.nclip = 10
-            skymatch.upper = 1.0
+            #skymatch.upper = 1.0
             # set the 'subtract' parameter so the calculated sky value is removed from the image
             # (subtracting the calculated sky value from the image is off by default)
             skymatch.subtract = True
