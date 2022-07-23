@@ -160,6 +160,9 @@ if __name__ == '__main__':
     
     if prefix is None:
         prefix = 'jw'
+        suffix_str = ''
+    else:
+        suffix_str = '_'+prefix
     
     # Find all "jw*/calibrated2_cals/jw*_cal.fits"
     input_files = glob.glob("jw*/calibrated2_cals/jw*_cal.fits")
@@ -209,12 +212,12 @@ if __name__ == '__main__':
     
     if not os.path.isdir('calibrated3_mosaics'):
         os.makedirs('calibrated3_mosaics')
-    if os.path.isfile('calibrated3_mosaics/info_table.txt'):
-        shutil.move('calibrated3_mosaics/info_table.txt', 'calibrated3_mosaics/info_table.txt.backup')
-    if os.path.isfile('calibrated3_mosaics/info_table.csv'):
-        shutil.move('calibrated3_mosaics/info_table.csv', 'calibrated3_mosaics/info_table.csv.backup')
-    info_table.write('calibrated3_mosaics/info_table.txt', format='ascii.fixed_width', delimiter=' ', bookend=True)
-    with open('calibrated3_mosaics/info_table.txt', 'r+') as fp:
+    if os.path.isfile(f'calibrated3_mosaics/info_table{suffix_str}.txt'):
+        shutil.move(f'calibrated3_mosaics/info_table{suffix_str}.txt', f'calibrated3_mosaics/info_table{suffix_str}.txt.backup')
+    if os.path.isfile(f'calibrated3_mosaics/info_table{suffix_str}.csv'):
+        shutil.move(f'calibrated3_mosaics/info_table{suffix_str}.csv', f'calibrated3_mosaics/info_table{suffix_str}.csv.backup')
+    info_table.write(f'calibrated3_mosaics/info_table{suffix_str}.txt', format='ascii.fixed_width', delimiter=' ', bookend=True)
+    with open(f'calibrated3_mosaics/info_table{suffix_str}.txt', 'r+') as fp:
         fp.seek(0)
         fp.write('#')
     info_table.write('calibrated3_mosaics/info_table.csv', format='csv')
