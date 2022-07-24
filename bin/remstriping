@@ -72,8 +72,8 @@ for (( i = 0; i < ${#input_files[@]}; i++ )); do
     fi
     
     # run CEERS team's "remstriping.py" scripts
-    echo "python $script_dir/remstriping.py --runone \"$temp_file\" --output_dir \"$output_dir\" --threshold=0.0"
-    python $script_dir/remstriping.py --runone "$temp_file" --output_dir "$output_dir" --threshold=0.0
+    echo "python $script_dir/remstriping.py --runone \"$temp_file\" --output_dir \"$output_dir\" --threshold=0.0 --apply_flat --mask_sources"
+    python $script_dir/remstriping.py --runone "$temp_file" --output_dir "$output_dir" --threshold=0.0 --apply_flat --mask_sources
     
     # do backup and copy results, the input_file will be overwritten!
     if [[ ! -f "$backup_file" ]]; then

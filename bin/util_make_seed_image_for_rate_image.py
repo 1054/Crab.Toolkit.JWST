@@ -8,6 +8,7 @@ from astropy.modeling import models as apy_models
 from astropy.modeling import fitting as apy_fitting
 from astropy.convolution import convolve as apy_convolve
 from astropy.convolution import Gaussian2DKernel
+from photutils.background import Background2D
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 mpl.rcParams['savefig.dpi'] = 300
@@ -83,18 +84,59 @@ def make_seed_image_for_rate_image(
     #print('dqmask', dqmask, np.count_nonzero(dqmask))
     
     # get valid pixels
-    valid_data = image[dqmask].ravel()
+    valid_data = image[(dqmask > 0)].ravel()
     
     # analyze pixel histogram
-    nbin = nbin # 50
+    nbin = int(np.ceil(float(nbin)/2.)*2+1) # 50
     dynamical_range = dynamical_range # 2.0 #<TODO>#
     clip_sigma = sigma # 1.0 #<TODO>
     conv_kern = smooth # 0 #<TODO># do a convolution to the not-used-for-background mask
-    pixval_median = np.nanpercentile(valid_data, 50)
-    pixval_min = max(1.0/dynamical_range*pixval_median, np.nanmin(valid_data))
-    pixval_max = min(dynamical_range*pixval_median, np.nanmax(valid_data))
-    hist, bin_edges = np.histogram(valid_data, bins=nbin, range=(pixval_min, pixval_max))
-    bin_centers = (bin_edges[1:]+bin_edges[0:-1])/2.0
+    
+    which_method = 2
+    if which_method == 1:
+        # method 1, too slow
+        pixval_median = np.nanpercentile(valid_data, 50)
+        pixval_min = np.nanmin(valid_data)
+        pixval_max = np.nanmax(valid_data)
+        bin_min = max(1.0/dynamical_range*pixval_median, pixval_min)
+        bin_max = min(dynamical_range*pixval_median, pixval_max)
+        hist, bin_edges = np.histogram(valid_data, bins=nbin, range=(bin_min, bin_max))
+        bin_centers = (bin_edges[1:]+bin_edges[0:-1])/2.0
+        
+        recheck_valid_hist = 0
+        while np.count_nonzero(hist>0) < 5 and recheck_valid_hist < 10:
+            # insufficient histograms, shrink the dynamical range
+            shrink_factor = float(np.count_nonzero(hist>0)+1) / float(len(hist))
+            dynamical_range = dynamical_range * shrink_factor
+            bin_min = max(1.0/dynamical_range*pixval_median, pixval_min)
+            bin_max = min(dynamical_range*pixval_median, pixval_max)
+            hist, bin_edges = np.histogram(valid_data, bins=nbin, range=(bin_min, bin_max))
+            bin_centers = (bin_edges[1:]+bin_edges[0:-1])/2.0
+            recheck_valid_hist += 1
+        
+    elif which_method == 2:
+        # method 2
+        box_size = min(header['NAXIS1'], header['NAXIS2']) // 10
+        bkg = Background2D(image, box_size = box_size, mask = (dqmask == 0)) # mask means invalid here. dqmask 1 means valid.
+        pixval_median = bkg.background_median
+        pixval_rms = np.nanmax(bkg.background_rms)
+        bin_min = (pixval_median - 7.*pixval_rms)
+        bin_max = (pixval_median + 7.*pixval_rms)
+        print('pixval_median:', pixval_median)
+        print('pixval_rms:', pixval_rms)
+        print('bin_min:', bin_min)
+        print('bin_max:', bin_max)
+        hist, bin_edges = np.histogram(valid_data, bins=np.linspace(bin_min, bin_max, num=nbin+1, endpoint=True))
+        print('bin_edges:', bin_edges)
+        print('hist:', hist)
+        bin_centers = (bin_edges[1:]+bin_edges[0:-1])/2.0
+        dynamical_range_1 = pixval_median / bin_min
+        dynamical_range_2 = bin_max / pixval_median
+        dynamical_range = max(dynamical_range_1, dynamical_range_2)
+        
+    else:
+        raise NotImplementedError('which_method {} is invalid.'.format(which_method))
+    
     
     # plot pixel histogram
     fig, ax = plt.subplots(ncols=1, nrows=1)
@@ -112,6 +154,7 @@ def make_seed_image_for_rate_image(
     pixval_stddev_fitted = model_fitted.stddev.value
     pixval_3sigma = pixval_mean_fitted + 3.0 * pixval_stddev_fitted
     ax.plot([pixval_mean_fitted]*2, ax.get_ylim(), ls='dotted', color='C2')
+    header['PIXDYN'] = (dynamical_range, 'dynamical range')
     header['PIXMED'] = pixval_median
     header['PIXMEAN'] = pixval_mean_fitted
     header['PIXSTD'] = pixval_stddev_fitted
