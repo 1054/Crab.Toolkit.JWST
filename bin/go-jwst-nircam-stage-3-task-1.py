@@ -221,7 +221,7 @@ if __name__ == '__main__':
     with open(f'calibrated3_mosaics/info_table{suffix_str}.txt', 'r+') as fp:
         fp.seek(0)
         fp.write('#')
-    info_table.write('calibrated3_mosaics/info_table{suffix_str}.csv', format='csv')
+    info_table.write(f'calibrated3_mosaics/info_table{suffix_str}.csv', format='csv')
     
     
     # group by '{program}_{obs_id}_{instrument}_{filter}'
