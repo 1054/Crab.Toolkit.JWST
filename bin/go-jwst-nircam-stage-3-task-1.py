@@ -166,6 +166,7 @@ if __name__ == '__main__':
     
     # Find all "jw*/calibrated2_cals/jw*_cal.fits"
     input_files = glob.glob("jw*/calibrated2_cals/jw*_cal.fits")
+    input_files = [input_file for input_file in input_files if input_file.find('remstriping') < 0]
     
     
     # find files to make mosaic
