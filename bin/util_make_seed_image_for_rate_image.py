@@ -249,7 +249,7 @@ def make_seed_image_for_rate_image(
             fit_max = pixval_mode
     
     # model fitting 1D Gaussian histogram
-    model_init = apy_models.Gaussian1D(amplitude=np.max(hist), mean=pixval_median, stddev=pixval_median*0.2)
+    model_init = apy_models.Gaussian1D(amplitude=np.max(hist), mean=pixval_mode, stddev=np.count_nonzero(hist>=np.max(hist)/2.0)/2.35482)
     fitter = apy_fitting.LevMarLSQFitter()
     print('Fitting with bins from min {} to max {}'.format(fit_min, fit_max))
     bin_mask = np.logical_and(bin_centers >= fit_min, bin_centers <= fit_max)
