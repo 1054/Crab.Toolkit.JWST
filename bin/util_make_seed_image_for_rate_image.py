@@ -99,7 +99,7 @@ def make_seed_image_for_rate_image(
                 )
         dqmask = bitfield_to_boolean_mask(
                     image_model.dq,
-                    interpret_bit_flags('~DO_NOT_USE+NON_SCIENCE+MSA_FAILED_OPEN+OTHER_BAD_PIXEL', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
+                    interpret_bit_flags('~(DO_NOT_USE+NON_SCIENCE+MSA_FAILED_OPEN+OTHER_BAD_PIXEL)', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
                         flag_name_map=dqflags_pixel), 
                     good_mask_value=1,
                     dtype=np.uint8
@@ -108,10 +108,10 @@ def make_seed_image_for_rate_image(
         #DZLIU: https://github.com/spacetelescope/jwst/wiki/DQ-Flags
         #DZLIU: https://jwst-reffiles.stsci.edu/source/data_quality.html
         #DZLIU: checked MIRI "jwst_crds_cache/references/jwst/miri/jwst_miri_flat_0786.fits" 
-        # DQ flag: struct.pack('>i', -2147483648).hex() = 80 00 00 00 (00000000)  -- science data
-        # DQ flag: struct.pack('>i', -2147483581).hex() = 80 00 00 43 (10000011)  -- miri blank area
-        # DQ flag: struct.pack('>i', -2147483583).hex() = 80 00 00 41 (10000001)  -- miri Lyot coronagraph support rack
-        # DQ flag: struct.pack('>i', -2147483645).hex() = 80 00 00 03 (00000011)  -- miri Lyot coronagraph support rack
+        # DQ flag: struct.pack('>i', -2147483648).hex() = 80 (10000000) 00 00 00 (00000000)  -- science data
+        # DQ flag: struct.pack('>i', -2147483581).hex() = 80 (10000000) 00 00 43 (10000011)  -- miri blank area
+        # DQ flag: struct.pack('>i', -2147483583).hex() = 80 (10000000) 00 00 41 (10000001)  -- miri Lyot coronagraph support rack
+        # DQ flag: struct.pack('>i', -2147483645).hex() = 80 (10000000) 00 00 03 (00000011)  -- miri Lyot coronagraph support rack
     
     
     # get valid pixels
