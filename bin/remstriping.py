@@ -136,7 +136,7 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
     if apply_flat:
         log.info('Applying flat for cleaner measurement of striping patterns')
         # pull flat from CRDS using the current context
-        crds_dict = {'INSTRUME':'NIRCAM', 
+        crds_dict = {'INSTRUME':model.meta.instrument.name, #<DZLIU>#
                      'DETECTOR':model.meta.instrument.detector, 
                      'FILTER':model.meta.instrument.filter, 
                      'PUPIL':model.meta.instrument.pupil, 
