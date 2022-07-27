@@ -144,6 +144,7 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
                      'TIME-OBS':model.meta.observation.time}
         if hasattr(model.meta.instrument, 'pupil'): #<DZLIU>#
             crds_dict['PUPIL'] = model.meta.instrument.pupil #<DZLIU>#
+        print('crds_dict:', crds_dict) #<DZLIU>#
         flats = crds.getreferences(crds_dict, reftypes=['flat'], 
                                    context=crds_context)
         # if the CRDS loopup fails, should return a CrdsLookupError, but 

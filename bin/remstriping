@@ -10,7 +10,9 @@ if [[ -z "$CRDS_SERVER_URL" ]]; then
     export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
 fi
 if [[ -z "$CRDS_CONTEXT" ]]; then
-    export CRDS_CONTEXT="jwst_0932.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())'
+    #export CRDS_CONTEXT="jwst_0932.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())' # 2022-07-24
+    export CRDS_CONTEXT="jwst_0937.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())' # 2022-07-27
+    echo "CRDS_CONTEXT = $CRDS_CONTEXT"
 fi
 
 
