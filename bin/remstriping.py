@@ -136,14 +136,27 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
     if apply_flat:
         log.info('Applying flat for cleaner measurement of striping patterns')
         # pull flat from CRDS using the current context
-        crds_dict = {'INSTRUME':model.meta.instrument.name, #<DZLIU>#
-                     'DETECTOR':model.meta.instrument.detector, 
-                     'FILTER':model.meta.instrument.filter, 
-                     #'PUPIL':model.meta.instrument.pupil, #<DZLIU>#
-                     'DATE-OBS':model.meta.observation.date,
-                     'TIME-OBS':model.meta.observation.time}
-        if hasattr(model.meta.instrument, 'pupil'): #<DZLIU>#
-            crds_dict['PUPIL'] = model.meta.instrument.pupil #<DZLIU>#
+        #<DZLIU># enabling both NIRCAM and MIRI, 
+        #<DZLIU># following https://jwst-pipeline.readthedocs.io/en/latest/jwst/flatfield/reference_files.html
+        instrument_name = model.meta.instrument.name
+        if instrument_name.upper() in ['NIRCAM', 'NIRISS']:
+            crds_dict = {'INSTRUME':instrument_name, #<DZLIU>#
+                         'DETECTOR':model.meta.instrument.detector, 
+                         'FILTER':model.meta.instrument.filter, 
+                         'PUPIL':model.meta.instrument.pupil, 
+                         'DATE-OBS':model.meta.observation.date,
+                         'TIME-OBS':model.meta.observation.time}
+        elif instrument_name.upper() == 'MIRI':
+            crds_dict = {'INSTRUME':instrument_name, #<DZLIU>#
+                         'DETECTOR':model.meta.instrument.detector, 
+                         'FILTER':model.meta.instrument.filter, 
+                         'BAND':model.meta.instrument.band, 
+                         'READPATT':model.meta.exposure.readpatt, 
+                         'SUBARRAY':model.meta.subarray.name, 
+                         'DATE-OBS':model.meta.observation.date,
+                         'TIME-OBS':model.meta.observation.time}
+        else:
+            raise ValueError("Error! The `instrument_name` (model.meta.instrument.name) can only be NIRCAM and MIRI!")
         print('crds_dict:', crds_dict) #<DZLIU>#
         flats = crds.getreferences(crds_dict, reftypes=['flat'], 
                                    context=crds_context)
