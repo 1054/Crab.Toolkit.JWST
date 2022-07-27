@@ -99,7 +99,7 @@ def make_seed_image_for_rate_image(
                 )
         dqmask = bitfield_to_boolean_mask(
                     image_model.dq,
-                    interpret_bit_flags('~DO_NOT_USE+NON_SCIENCE', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
+                    interpret_bit_flags('~DO_NOT_USE+NON_SCIENCE+NO_FLAT_FIELD', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
                         flag_name_map=dqflags_pixel), 
                     good_mask_value=1,
                     dtype=np.uint8
@@ -111,6 +111,7 @@ def make_seed_image_for_rate_image(
     valid_mask = (dqmask > 0)
     output_mask_fits_image = re.sub(r'\.fits$', '_mask.fits', output_fits_image)
     fits.PrimaryHDU(data=valid_mask.astype(int), header=header).writeto(output_mask_fits_image, overwrite=True)
+    print('Output to "{}"'.format(output_mask_fits_image))
     
     valid_data = image[valid_mask].ravel()
     pixval_min = np.nanmin(valid_data)

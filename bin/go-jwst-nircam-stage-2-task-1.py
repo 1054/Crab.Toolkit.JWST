@@ -189,7 +189,7 @@ if __name__ == '__main__':
     
     
     # find files to process
-    input_files = [t for t in os.listdir(input_dir) if t.endswith(f"{input_suffix}.fits")]
+    input_files = [t for t in os.listdir(input_dir) if t.endswith(f"{input_suffix}.fits") and t.find('remstriping')<0]
     if (len(input_files) == 0):
         logger.error("Error! No input file \"{}/*{}\" is found!".format(input_dir, f"{input_suffix}.fits"))
         sys.exit(-1)
