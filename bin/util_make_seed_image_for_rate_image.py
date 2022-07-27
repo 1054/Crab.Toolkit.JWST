@@ -1,5 +1,15 @@
 #!/usr/bin/env python
 # 
+"""
+Finding source emission in the image and deriving pixel histogram and 1D fitting.
+
+Usage: 
+    ./util_make_seed_image_for_rate_image.py ngc0628_miri_lvl3_f770w_i2d_hackedbgr.fits --min=-1.0 --max=4.0
+
+By Daizhong Liu @MPE. 
+
+Last update: 2022-07-27.
+"""
 import os, sys, re, shutil
 import click
 import numpy as np
@@ -30,9 +40,15 @@ def make_seed_image_for_rate_image(
         fits_image, 
         sigma = 3.0, 
         smooth = 1.0, 
-        nbin = 50, 
+        nbin = 91, 
+        bin_min = None, 
+        bin_max = None, 
+        fit_min = None, 
+        fit_max = None, 
+        fit_half = True, 
+        fit_core = False, 
         dynamical_range = 2.0, 
-        check_rate_image = True, 
+        check_rate_image = False, 
         overwrite = True, 
     ):
     
@@ -69,22 +85,32 @@ def make_seed_image_for_rate_image(
     if os.path.isfile(output_histogram_figure): 
         shutil.move(output_histogram_figure, output_histogram_figure+'.backup')
     
-    # deal with masked data
-    image_model = ImageModel(
-                fits_image
-            )
-    dqmask = bitfield_to_boolean_mask(
-                image_model.dq,
-                interpret_bit_flags('~DO_NOT_USE+NON_SCIENCE', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
-                    flag_name_map=dqflags_pixel), 
-                good_mask_value=1,
-                dtype=np.uint8
-            ) * np.isfinite(image_model.data) # following "jwst/skymatch/skymatch_step.py", this is valid data
     
-    #print('dqmask', dqmask, np.count_nonzero(dqmask))
+    # deal with masked data using the error map
+    if fits_image.find('_i2d') >= 0:
+        #error = fits.getdata(fits_image, header=False, extname='ERR')
+        #dqmask = np.isfinite(error).astype(int)
+        context_image = fits.getdata(fits_image, header=False, extname='CON')
+        dqmask = context_image
+    # deal with masked data using jwst.datamodels
+    else:
+        image_model = ImageModel(
+                    fits_image
+                )
+        dqmask = bitfield_to_boolean_mask(
+                    image_model.dq,
+                    interpret_bit_flags('~DO_NOT_USE+NON_SCIENCE', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
+                        flag_name_map=dqflags_pixel), 
+                    good_mask_value=1,
+                    dtype=np.uint8
+                ) * np.isfinite(image_model.data) # following "jwst/skymatch/skymatch_step.py", this is valid data
+        #print('dqmask', dqmask, np.count_nonzero(dqmask))
+    
     
     # get valid pixels
     valid_data = image[(dqmask > 0)].ravel()
+    pixval_min = np.nanmin(valid_data)
+    pixval_max = np.nanmax(valid_data)
     
     # analyze pixel histogram
     nbin = int(np.ceil(float(nbin)/2.)*2+1) # 50
@@ -96,10 +122,10 @@ def make_seed_image_for_rate_image(
     if which_method == 1:
         # method 1, too slow
         pixval_median = np.nanpercentile(valid_data, 50)
-        pixval_min = np.nanmin(valid_data)
-        pixval_max = np.nanmax(valid_data)
-        bin_min = max(1.0/dynamical_range*pixval_median, pixval_min)
-        bin_max = min(dynamical_range*pixval_median, pixval_max)
+        if bin_min is None:
+            bin_min = max(1.0/dynamical_range*pixval_median, pixval_min)
+        if bin_max is None:
+            bin_max = min(dynamical_range*pixval_median, pixval_max)
         hist, bin_edges = np.histogram(valid_data, bins=nbin, range=(bin_min, bin_max))
         bin_centers = (bin_edges[1:]+bin_edges[0:-1])/2.0
         
@@ -120,8 +146,10 @@ def make_seed_image_for_rate_image(
         bkg = Background2D(image, box_size = box_size, mask = (dqmask == 0)) # mask means invalid here. dqmask 1 means valid.
         pixval_median = bkg.background_median
         pixval_rms = np.nanmax(bkg.background_rms)
-        bin_min = (pixval_median - 7.*pixval_rms)
-        bin_max = (pixval_median + 7.*pixval_rms)
+        if bin_min is None:
+            bin_min = max((pixval_median - 7.*pixval_rms), pixval_min)
+        if bin_max is None:
+            bin_max = min((pixval_median + 7.*pixval_rms), pixval_max)
         print('pixval_median:', pixval_median)
         print('pixval_rms:', pixval_rms)
         print('bin_min:', bin_min)
@@ -142,28 +170,80 @@ def make_seed_image_for_rate_image(
     fig, ax = plt.subplots(ncols=1, nrows=1)
     ax.bar(bin_edges[0:-1], hist, width=(bin_edges[1:]-bin_edges[0:-1]), alpha=0.8, color='C0', align='edge')
     ax.set_xlim(ax.get_xlim())
-    ax.set_ylim(ax.get_ylim())
-    ax.plot([pixval_median]*2, ax.get_ylim(), ls='dashed', color='C1')
+    ax.set_ylim([ax.get_ylim()[0], ax.get_ylim()[1]*1.09]) # expanded a little bit the ylim
+    
+    #ax.plot([pixval_median]*2, ax.get_ylim(), ls='dashed', color='C1')
+    
+    # get histogram peak (mode)
+    pixval_argmode = np.argwhere(hist==np.max(hist)).ravel()[0]
+    pixval_mode = bin_centers[pixval_argmode]
+    
+    # prepare fitting range
+    if fit_min is None:
+        fit_min = np.min(bin_centers)
+    if fit_max is None:
+        fit_max = np.max(bin_centers)
+    if fit_half:
+        # fit only the lower half of the histogram
+        if pixval_argmode < len(bin_centers)-1:
+            # slightly extending to one bin over the mode (peak of the histogram)
+            fit_max = bin_centers[pixval_argmode+1]
+        else:
+            fit_max = pixval_mode
     
     # model fitting 1D Gaussian histogram
     model_init = apy_models.Gaussian1D(amplitude=np.max(hist), mean=pixval_median, stddev=pixval_median*0.2)
     fitter = apy_fitting.LevMarLSQFitter()
-    model_fitted = fitter(model_init, bin_centers, hist)
+    print('fitting with bins from min {} to max {}'.format(fit_min, fit_max))
+    bin_mask = np.logical_and(bin_centers >= fit_min, bin_centers <= fit_max)
+    model_fitted = fitter(model_init, bin_centers[bin_mask], hist[bin_mask])
     hist_fitted = model_fitted(bin_centers)
     pixval_mean_fitted = model_fitted.mean.value
     pixval_stddev_fitted = model_fitted.stddev.value
+    pixval_1sigma = pixval_mean_fitted + 1.0 * pixval_stddev_fitted
     pixval_3sigma = pixval_mean_fitted + 3.0 * pixval_stddev_fitted
-    ax.plot([pixval_mean_fitted]*2, ax.get_ylim(), ls='dotted', color='C2')
-    header['PIXDYN'] = (dynamical_range, 'dynamical range')
+    
+    # refit with the core part of the histogram
+    if fit_core and np.count_nonzero(valid_data > pixval_1sigma) > 0:
+       print('refitting with bins from min {} to 1-sigma {}'.format(fit_min, pixval_1sigma))
+       bin_mask = np.logical_and(bin_mask, bin_centers < pixval_1sigma)
+       model_fitted = fitter(model_init, bin_centers[bin_mask], hist[bin_mask])
+       hist_fitted = model_fitted(bin_centers)
+       pixval_mean_fitted = model_fitted.mean.value
+       pixval_stddev_fitted = model_fitted.stddev.value
+       pixval_1sigma = pixval_mean_fitted + 1.0 * pixval_stddev_fitted
+       pixval_3sigma = pixval_mean_fitted + 3.0 * pixval_stddev_fitted
+    
+    # plot vertical lines
+    ax.plot([pixval_mean_fitted]*2, ax.get_ylim(), ls='dotted', color='red')
+    ax.text(ax.get_xlim()[0] + 0.02 * (ax.get_xlim()[1]-ax.get_xlim()[0]), 
+            ax.get_ylim()[0] + 0.97 * (ax.get_ylim()[1]-ax.get_ylim()[0]), 
+            'mean={:.8g}, \nstddev={:.8g}'.format(pixval_mean_fitted, pixval_stddev_fitted), 
+            ha='left', va='top', color='red')
+    
+    ax.plot([pixval_3sigma]*2, ax.get_ylim(), ls='dotted', color='C0', alpha=0.9)
+    ax.text(pixval_3sigma + 0.02 * (ax.get_xlim()[1]-ax.get_xlim()[0]), 
+            ax.get_ylim()[0] + 0.97 * (ax.get_ylim()[1]-ax.get_ylim()[0]), 
+            '3$\\sigma$={:.8g}'.format(pixval_3sigma), 
+            ha='left', va='top', color='C0')
+    
+    #header['PIXDYN'] = (dynamical_range, 'dynamical range')
+    header['PIXMIN'] = bin_min
+    header['PIXMAX'] = bin_max
+    header['FITMIN'] = fit_min
+    header['FITMAX'] = fit_max
+    header['PIXMODE'] = pixval_mode
     header['PIXMED'] = pixval_median
     header['PIXMEAN'] = pixval_mean_fitted
     header['PIXSTD'] = pixval_stddev_fitted
+    header['PIX1SIG'] = pixval_1sigma
     header['PIX3SIG'] = pixval_3sigma
     if conv_kern > 0.0:
         header['CONVKERN'] = (conv_kern, 'Gaussian2DKernel stddev in pixel')
     
     # add model fitting line into the plot
     ax.plot(bin_centers, hist_fitted, ls='solid', color='C3')
+    ax.grid(True, color='#aaaaaa', alpha=0.5, lw=0.5, ls='dotted')
     
     # save figure
     fig.savefig(output_histogram_figure)
@@ -192,17 +272,36 @@ def make_seed_image_for_rate_image(
 @click.argument('fits_image', type=click.Path(exists=True))
 @click.option('--sigma', type=float, default=3.0)
 @click.option('--smooth', type=float, default=1.0)
-@click.option('--nbin', type=int, default=50)
+@click.option('--nbin', type=int, default=91)
+@click.option('--min', 'bin_min', type=float, default=None, help='range to get the histogram')
+@click.option('--max', 'bin_max', type=float, default=None, help='range to get the histogram')
+@click.option('--fit-min', type=float, default=None, help='range to fit the histogram')
+@click.option('--fit-max', type=float, default=None, help='range to fit the histogram')
+@click.option('--fit-half/--no-fit-half', type=bool, default=True, is_flag=True, help='fit only the left half of the histogram?')
+@click.option('--fit-core/--no-fit-core', type=bool, default=False, is_flag=True, help='fit only the core part (min to +1sigma) of the histogram?')
 @click.option('--dynamical-range', type=float, default=2.0)
-@click.option('--check-rate-image/--no-check-rate-image', default=True)
-@click.option('--overwrite/--no-overwrite', default=True)
-def main(fits_image, sigma, smooth, nbin, dynamical_range, check_rate_image, overwrite):
+@click.option('--check-rate-image/--no-check-rate-image', is_flag=True, default=False)
+@click.option('--overwrite/--no-overwrite', is_flag=True, default=True)
+def main(fits_image, sigma, smooth, nbin, 
+         bin_min, 
+         bin_max, 
+         fit_min, 
+         fit_max, 
+         fit_half, 
+         fit_core, 
+         dynamical_range, check_rate_image, overwrite):
     
     make_seed_image_for_rate_image(
         fits_image, 
         sigma = sigma, 
         smooth = smooth, 
         nbin = nbin, 
+        bin_min = bin_min, 
+        bin_max = bin_max, 
+        fit_min = fit_min, 
+        fit_max = fit_max, 
+        fit_half = fit_half, 
+        fit_core = fit_core, 
         dynamical_range = dynamical_range, 
         check_rate_image = check_rate_image, 
         overwrite = overwrite, 
