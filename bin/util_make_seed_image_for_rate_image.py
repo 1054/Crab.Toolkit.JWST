@@ -123,6 +123,10 @@ def make_seed_image_for_rate_image(
                          'TIME-OBS':image_model.meta.observation.time}
             print('crds_dict:', crds_dict) #<DZLIU>#
             import crds
+            try:
+                crds_context = os.environ['CRDS_CONTEXT']
+            except KeyError:
+                crds_context = crds.get_default_context()
             flats = crds.getreferences(crds_dict, reftypes=['flat'], 
                                        context=crds_context)
             # if the CRDS loopup fails, should return a CrdsLookupError, but 

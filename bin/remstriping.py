@@ -173,6 +173,10 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
             # use the JWST Calibration Pipeline flat fielding Step 
             model,applied_flat = do_correction(model, flat)
             
+            #<DZLIU># TODO: do we need to also combine DQ flags from the flat reference file?
+            #if instrument_name.upper() == 'MIRI':
+            #    model.dq = np.bitwise_or(image_model.dq, flat.dq)
+            
     # construct mask for median calculation
     mask = np.zeros(model.data.shape, dtype=bool)
     mask[model.dq > 0] = True
