@@ -137,7 +137,7 @@ def make_seed_image_for_rate_image(
                 print('Flat reference file was not found in CRDS with the parameters: {}'.format(crds_dict))
                 exit()
             
-            log.info('Combining DQ flags from flat reference file: %s'%(os.path.basename(flatfile)))
+            print('Combining DQ flags from flat reference file: %s'%(os.path.basename(flatfile)))
             with FlatModel(flatfile) as flat:
                 image_model.dq = np.bitwise_or(image_model.dq, flat.dq)
         # 
