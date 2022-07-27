@@ -43,7 +43,7 @@ from jwst.datamodels.dqflags import pixel as dqflags_pixel
 #'UNRELIABLE_RESET': 268435456, 'MSA_FAILED_OPEN': 536870912, 'OTHER_BAD_PIXEL': 1073741824, 'REFERENCE_PIXEL': 2147483648
 #}
 
-from jwst.datamodels import ImageModel
+from jwst.datamodels import ImageModel, FlatModel
 
 
 def make_seed_image_for_rate_image(
@@ -107,9 +107,39 @@ def make_seed_image_for_rate_image(
         image_model = ImageModel(
                     fits_image
                 )
+        # 
+        #DZLIU: 2022-07-27 the problem is that MIRI cal.fits DQ are not distinguishing 4QPM or coronograph support shadow areas!
+        #                  the DQ flags are only correct in the 'flat' calibration file "jwst_miri_flat_0786.fits"
+        # 
+        instrument_name = image_model.meta.instrument.name
+        if instrument_name.upper() == 'MIRI':
+            crds_dict = {'INSTRUME':instrument_name, #<DZLIU>#
+                         'DETECTOR':image_model.meta.instrument.detector, 
+                         'FILTER':image_model.meta.instrument.filter, 
+                         'BAND':image_model.meta.instrument.band, 
+                         'READPATT':image_model.meta.exposure.readpatt, 
+                         'SUBARRAY':image_model.meta.subarray.name, 
+                         'DATE-OBS':image_model.meta.observation.date,
+                         'TIME-OBS':image_model.meta.observation.time}
+            print('crds_dict:', crds_dict) #<DZLIU>#
+            import crds
+            flats = crds.getreferences(crds_dict, reftypes=['flat'], 
+                                       context=crds_context)
+            # if the CRDS loopup fails, should return a CrdsLookupError, but 
+            # just in case:
+            try:
+                flatfile = flats['flat']
+            except KeyError:
+                print('Flat reference file was not found in CRDS with the parameters: {}'.format(crds_dict))
+                exit()
+            
+            log.info('Combining DQ flags from flat reference file: %s'%(os.path.basename(flatfile)))
+            with FlatModel(flatfile) as flat:
+                image_model.dq = np.bitwise_or(image_model.dq, flat.dq)
+        # 
         dqmask = bitfield_to_boolean_mask(
                     image_model.dq,
-                    interpret_bit_flags('~(DO_NOT_USE,NON_SCIENCE,SATURATED,RESERVED_4)', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
+                    interpret_bit_flags('~(DO_NOT_USE,NON_SCIENCE,SATURATED,RESERVED_4,OTHER_BAD_PIXEL)', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
                         flag_name_map=dqflags_pixel), 
                     good_mask_value=1,
                     dtype=np.uint8
@@ -122,6 +152,7 @@ def make_seed_image_for_rate_image(
         # DQ flag: struct.pack('>i', -2147483581).hex() = 80 (10000000) 00 00 43 (10000011)  -- miri blank area
         # DQ flag: struct.pack('>i', -2147483583).hex() = 80 (10000000) 00 00 41 (10000001)  -- miri Lyot coronagraph support rack
         # DQ flag: struct.pack('>i', -2147483645).hex() = 80 (10000000) 00 00 03 (00000011)  -- miri Lyot coronagraph support rack
+        
     
     
     # get valid pixels
