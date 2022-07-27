@@ -251,25 +251,33 @@ def make_seed_image_for_rate_image(
     # model fitting 1D Gaussian histogram
     model_init = apy_models.Gaussian1D(amplitude=np.max(hist), mean=pixval_median, stddev=pixval_median*0.2)
     fitter = apy_fitting.LevMarLSQFitter()
-    print('fitting with bins from min {} to max {}'.format(fit_min, fit_max))
+    print('Fitting with bins from min {} to max {}'.format(fit_min, fit_max))
     bin_mask = np.logical_and(bin_centers >= fit_min, bin_centers <= fit_max)
     model_fitted = fitter(model_init, bin_centers[bin_mask], hist[bin_mask])
     hist_fitted = model_fitted(bin_centers)
     pixval_mean_fitted = model_fitted.mean.value
     pixval_stddev_fitted = model_fitted.stddev.value
+    pixval_m3sigma = pixval_mean_fitted - 3.0 * pixval_stddev_fitted
+    pixval_m1sigma = pixval_mean_fitted - 1.0 * pixval_stddev_fitted
     pixval_1sigma = pixval_mean_fitted + 1.0 * pixval_stddev_fitted
     pixval_3sigma = pixval_mean_fitted + 3.0 * pixval_stddev_fitted
     
     # refit with the core part of the histogram
-    if fit_core and np.count_nonzero(valid_data > pixval_1sigma) > 0:
-       print('refitting with bins from min {} to 1-sigma {}'.format(fit_min, pixval_1sigma))
-       bin_mask = np.logical_and(bin_mask, bin_centers < pixval_1sigma)
-       model_fitted = fitter(model_init, bin_centers[bin_mask], hist[bin_mask])
-       hist_fitted = model_fitted(bin_centers)
-       pixval_mean_fitted = model_fitted.mean.value
-       pixval_stddev_fitted = model_fitted.stddev.value
-       pixval_1sigma = pixval_mean_fitted + 1.0 * pixval_stddev_fitted
-       pixval_3sigma = pixval_mean_fitted + 3.0 * pixval_stddev_fitted
+    if fit_half and pixval_stddev_fitted < 1e-10:
+        print('Warning! Fitting with bins from min {} to max {} failed!'.format(fit_min, fit_max))
+        fit_core = True
+    if fit_core:
+        print('Refitting with bins from -3 sigma {} to +3 sigma {}'.format(pixval_m3sigma, pixval_3sigma))
+        bin_mask = np.logical_and.reduce((bin_mask, bin_centers >= pixval_m3sigma, bin_centers <= pixval_3sigma))
+        if np.count_nonzero(bin_mask) > 0:
+            model_fitted = fitter(model_init, bin_centers[bin_mask], hist[bin_mask])
+            hist_fitted = model_fitted(bin_centers)
+            pixval_mean_fitted = model_fitted.mean.value
+            pixval_stddev_fitted = model_fitted.stddev.value
+            pixval_1sigma = pixval_mean_fitted + 1.0 * pixval_stddev_fitted
+            pixval_3sigma = pixval_mean_fitted + 3.0 * pixval_stddev_fitted
+        else:
+            print('Error! no valid bins from -3 sigma {} to +3 sigma {}?!'.format(pixval_m3sigma, pixval_3sigma))
     
     # plot vertical lines
     ax.plot([pixval_mean_fitted]*2, ax.get_ylim(), ls='dotted', color='red')
