@@ -108,7 +108,11 @@ def make_seed_image_for_rate_image(
     
     
     # get valid pixels
-    valid_data = image[(dqmask > 0)].ravel()
+    valid_mask = (dqmask > 0)
+    output_mask_fits_image = re.sub(r'\.fits$', '_mask.fits', output_fits_image)
+    fits.PrimaryHDU(data=valid_mask.astype(int), header=header).writeto(output_mask_fits_image, overwrite=True)
+    
+    valid_data = image[valid_mask].ravel()
     pixval_min = np.nanmin(valid_data)
     pixval_max = np.nanmax(valid_data)
     
