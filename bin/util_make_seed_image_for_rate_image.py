@@ -273,8 +273,8 @@ def make_seed_image_for_rate_image(
         pixval_1sigma = pixval_mean_fitted + 1.0 * pixval_stddev_fitted
         pixval_2sigma = pixval_mean_fitted + 2.0 * pixval_stddev_fitted
         pixval_3sigma = pixval_mean_fitted + 3.0 * pixval_stddev_fitted
-        else:
-            print('Error! no valid bins from min {} to max {}?!'.format(fit_min, fit_max))
+    else:
+        print('Error! no valid bins from min {} to max {}?!'.format(fit_min, fit_max))
     
     # refit with the core part of the histogram
     #if fit_half and pixval_stddev_fitted < 1e-10:
