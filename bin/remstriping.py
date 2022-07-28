@@ -126,6 +126,7 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
     log.info('Working on %s'%image)
     
     #<DZLIU>#
+    instrument_name = model.meta.instrument.name #<DZLIU>#
     if instrument_name.upper() == 'MIRI' and image.find('_rate')>=0:
         raise Exception('Error! Do not apply to MIRI "rate.fits"!')
     if apply_flat and (image.find('_cal.fits')>=0 or image.find('_cal_')>=0):
@@ -145,7 +146,6 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
         # pull flat from CRDS using the current context
         #<DZLIU># enabling both NIRCAM and MIRI, 
         #<DZLIU># following https://jwst-pipeline.readthedocs.io/en/latest/jwst/flatfield/reference_files.html
-        instrument_name = model.meta.instrument.name #<DZLIU>#
         if instrument_name.upper() in ['NIRCAM', 'NIRISS']: #<DZLIU>#
             crds_dict = {'INSTRUME':instrument_name, #<DZLIU>#
                          'DETECTOR':model.meta.instrument.detector, 
