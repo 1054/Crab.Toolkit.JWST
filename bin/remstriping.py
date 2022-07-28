@@ -127,7 +127,7 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
     
     #<DZLIU>#
     instrument_name = model.meta.instrument.name #<DZLIU>#
-    if instrument_name.upper() == 'MIRI' and image.find('_rate')>=0:
+    if instrument_name.upper() == 'MIRI' and image.endswith('_rate.fits') and image.find('_cal_')<0:
         raise Exception('Error! Do not apply to MIRI "rate.fits"!')
     if apply_flat and (image.find('_cal.fits')>=0 or image.find('_cal_')>=0):
         print('Turning off apply_flat for "cal.fits"!')
