@@ -10,6 +10,7 @@ By Daizhong Liu.
 import os, sys, re, datetime
 assert os.environ["CRDS_PATH"] != ''
 assert os.environ["CRDS_SERVER_URL"] != ''
+#os.environ["CRDS_PATH"] = os.path.expanduser('~/jwst_crds_cache')
 #os.environ["CRDS_SERVER_URL"] = "https://jwst-crds.stsci.edu"
 
 # Import CRDS
@@ -69,7 +70,7 @@ def main(jwst_data_dir_name):
     if jwst_data_dir_name.find(os.sep) >= 0:
         jwst_data_dir_name = os.path.basename(jwst_data_dir_name)
     
-    regex_pattern = r'(jw[0-9]{5}[0-9]{3}[0-9]{3}_[0-9]{5}_[0-9]{5})_([a-zA-Z0-9]+)'
+    regex_pattern = r'(jw[0-9]{5}[0-9]{3}[0-9]{3}_[0-9]{5}_[0-9]{5})_([a-zA-Z0-9]+)' # e.g., {jw01345004001_04201_00003}_{nrcb4}
     regex_match = re.match(regex_pattern, jwst_data_dir_name)
     if not regex_match:
         raise Exception('Error! The input jwst_data_dir_name "{}" could not match the regular expression "{}"'.format(jwst_data_dir_name, regex_pattern))
@@ -84,9 +85,21 @@ def main(jwst_data_dir_name):
     pipeline_context = crds.client.get_default_context('jwst')
     logger.info('pipeline_context: {}'.format(pipeline_context))
     
+    #crds.get_cached_mapping(pipeline_context) # need local file to exist
+    
+    #crds.rmap.load_mapping(pipeline_context)
+    
+    #crds.getreferences(parameters={'INSTRUME':'NIRCAM', }, 
+    #                   reftypes=['DARK'], 
+    #                   context=pipeline_context,
+    #                   ignore_cache=False,
+    #                   observatory='jwst')
+    
     payload = crds.client.get_aui_best_references(pipeline_context, [jwst_data_base_str+'.'+jwst_data_detector_str])
     
     fcache = crds.api.FileCacher(pipeline_context, ignore_cache=False, raise_exceptions=False)
+    
+    fcache.get_local_files([pipeline_context])
     
     for key in payload.keys():
         bestrefs = payload[key][1]
