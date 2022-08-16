@@ -310,12 +310,15 @@ if __name__ == '__main__':
         pipeline_object.save_results = True
 
         # Set some parameters that pertain to some of the individual steps
-        # Turn off TweakRegStep
-        #pipeline_object.tweakreg.skip = True  
+        # Set OutlierDetection
+        #pipeline_object.outlier_detection.skip = True
+        pipeline_object.outlier_detection.output_dir = output_dir
+        # Turn on TweakRegStep
+        #pipeline_object.tweakreg.skip = True
         #pipeline_object.tweakreg.save_catalogs = True
         #pipeline_object.tweakreg.save_results = True
         #pipeline_object.tweakreg.output_dir = output_dir
-        # Turn off SkyMatchStep
+        # Turn on SkyMatchStep
         #pipeline_object.skymatch.skip = True
         pipeline_object.skymatch.subtract = True
         pipeline_object.skymatch.skymethod = "global+match"
