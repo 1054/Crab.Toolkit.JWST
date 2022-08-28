@@ -15,7 +15,7 @@ download = True
 extension = None # "fits" # None if calib_level 1 2
 
 obs_list = Observations.query_criteria(obs_collection="JWST",
-                                       proposal_id="01345")
+                                       proposal_id="01837")
 
 for obs in obs_list:
     product_list = Observations.get_product_list(obs)

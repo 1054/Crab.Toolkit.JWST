@@ -16,6 +16,9 @@ assert os.environ["CRDS_SERVER_URL"] != ''
 # Import CRDS
 import crds
 
+# Import JWST pipeline
+from jwst.pipeline import calwebb_detector1
+
 # Import click
 import click
 
@@ -67,6 +70,7 @@ def main(jwst_data_dir_name):
     logger = setup_logger()
     
     # Check input
+    jwst_data_dir_path = jwst_data_dir_name
     if jwst_data_dir_name.find(os.sep) >= 0:
         jwst_data_dir_name = os.path.basename(jwst_data_dir_name)
     
@@ -96,6 +100,19 @@ def main(jwst_data_dir_name):
     #                   observatory='jwst')
     
     payload = crds.client.get_aui_best_references(pipeline_context, [jwst_data_base_str+'.'+jwst_data_detector_str])
+    # {'JW01837014001_02101_00001_MIRIMAGE': [True, [
+    #     'jwst_miri_abvegaoffset_0001.asdf', 'jwst_miri_apcorr_0008.fits', 
+    #     'jwst_miri_area_0004.fits', 'jwst_miri_dark_0082.fits', 
+    #     'jwst_miri_distortion_0047.asdf', 'jwst_miri_drizpars_0001.fits', 
+    #     'jwst_miri_filteroffset_0006.asdf', 'jwst_miri_flat_0785.fits', 
+    #     'jwst_miri_gain_0008.fits', 'jwst_miri_ipc_0009.fits', 
+    #     'jwst_miri_linearity_0032.fits', 'jwst_miri_mask_0030.fits', 
+    #     'jwst_miri_pars-darkpipeline_0001.asdf', 'jwst_miri_pars-detector1pipeline_0001.asdf', 
+    #     'jwst_miri_pars-outlierdetectionstep_0037.asdf', 'jwst_miri_pars-sourcecatalogstep_0018.asdf', 
+    #     'jwst_miri_pars-tweakregstep_0020.asdf', 'jwst_miri_photom_0074.fits', 
+    #     'jwst_miri_readnoise_0085.fits', 'jwst_miri_reset_0070.fits', 
+    #     'jwst_miri_rscd_0017.fits', 'jwst_miri_saturation_0027.fits'
+    # ]]}
     
     fcache = crds.api.FileCacher(pipeline_context, ignore_cache=False, raise_exceptions=False)
     
@@ -106,6 +123,13 @@ def main(jwst_data_dir_name):
         fcache.get_local_files(bestrefs)
         #for bestref in bestrefs:
         #    crds.client.get_flex_uri(bestref)
+    
+    
+    # 
+    if os.path.exists():
+        fitsfile = f'{jwst_data_dir_path}/uncals/{jwst_data_dir_name}_uncal.fits'
+        pipeline_object = calwebb_detector1.Detector1Pipeline()
+        pipeline_object._precache_references(fitsfile)
 
 
 
