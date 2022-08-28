@@ -126,8 +126,8 @@ def main(jwst_data_dir_name):
     
     
     # 
-    if os.path.exists():
-        fitsfile = f'{jwst_data_dir_path}/uncals/{jwst_data_dir_name}_uncal.fits'
+    fitsfile = f'{jwst_data_dir_path}/uncals/{jwst_data_dir_name}_uncal.fits'
+    if os.path.exists(fitsfile):
         pipeline_object = calwebb_detector1.Detector1Pipeline()
         pipeline_object._precache_references(fitsfile)
 
