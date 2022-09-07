@@ -66,6 +66,17 @@ import matplotlib as mpl
 mpl.rcParams['savefig.dpi'] = 300
 mpl.rcParams['figure.dpi'] = 300
 
+# Set default pipeline context
+if 'CRDS_PATH' not in os.environ:
+    os.environ['CRDS_PATH'] = os.path.expanduser('~/jwst_crds_cache')
+    print('Setting {!r} to {!r}'.format('CRDS_PATH', os.environ['CRDS_PATH']))
+if 'CRDS_SERVER_URL' not in os.environ:
+    os.environ['CRDS_SERVER_URL'] = 'https://jwst-crds.stsci.edu'
+    print('Setting {!r} to {!r}'.format('CRDS_SERVER_URL', os.environ['CRDS_SERVER_URL']))
+if 'CRDS_CONTEXT' not in os.environ:
+    os.environ['CRDS_CONTEXT'] = 'jwst_0968.pmap' # TODO
+    print('Setting {!r} to {!r}'.format('CRDS_CONTEXT', os.environ['CRDS_CONTEXT']))
+
 # Import JWST pipeline-related modules
 
 # List of possible data quality flags
