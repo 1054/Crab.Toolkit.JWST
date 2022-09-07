@@ -248,6 +248,14 @@ if __name__ == '__main__':
     unique_programs = sorted(unique_programs)
     all_program_str = '+'.join(unique_programs)
     
+    unique_program_obs_ids = []
+    for i in range(len()):
+        program_obs_id_str = '{}{}'.format(info_table['program'][i], info_table['obs_id'][i])
+        if program_obs_id_str not in unique_program_obs_ids:
+            unique_program_obs_ids.append(program_obs_id_str)
+    unique_program_obs_ids = sorted(unique_program_obs_ids)
+    all_program_obs_id_str = '+'.join(unique_program_obs_ids)
+    
     
     # prepare association file to process all rate files into one single output file
     for subgroup_key, subgroup_table in zip(unique_groups.groups.keys, unique_groups.groups):
@@ -289,9 +297,9 @@ if __name__ == '__main__':
         asn_dict['version_id'] = None
         asn_dict['code_version'] = jwst.__version__
         asn_dict['degraded_status'] = 'No known degraded exposures in association.'
-        asn_dict['program'] = subgroup_key['program'] # TODO
+        asn_dict['program'] = all_program_str # TODO
         asn_dict['constraints'] = 'No constraints' # TODO
-        asn_dict['asn_id'] = subgroup_key['obs_id'] # TODO
+        asn_dict['asn_id'] = all_program_obs_id_str # TODO
         asn_dict['asn_pool'] = 'none'
         asn_dict['products'] = []
         product_dict = OrderedDict()
