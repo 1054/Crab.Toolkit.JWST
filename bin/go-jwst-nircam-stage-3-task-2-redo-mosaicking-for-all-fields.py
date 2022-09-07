@@ -249,7 +249,7 @@ if __name__ == '__main__':
     all_program_str = '+'.join(unique_programs)
     
     unique_program_obs_ids = []
-    for i in range(len()):
+    for i in range(len(info_table)):
         program_obs_id_str = '{}{}'.format(info_table['program'][i], info_table['obs_id'][i])
         if program_obs_id_str not in unique_program_obs_ids:
             unique_program_obs_ids.append(program_obs_id_str)
