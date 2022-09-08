@@ -42,7 +42,7 @@ done
 
 
 # Run Python script
-python $script_dir/go-jwst-nircam-stage-1-task-1.py
+python $script_dir/go-jwst-nircam-stage-1-task-1.py $@
 
 ret=$?
 if [[ $ret -ne 0 ]]; then

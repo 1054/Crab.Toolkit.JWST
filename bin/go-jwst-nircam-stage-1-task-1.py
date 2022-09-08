@@ -101,6 +101,16 @@ def setup_logger():
 
 # Main 
 if __name__ == '__main__':
+    
+    # Read user input
+    iarg = 1
+    arg_str = ''
+    do_remstripping = True
+    while iarg < len(sys.argv):
+        arg_str = sys.argv['iarg'].lower().replace('--', '-')
+        if arg_str == '-no-remstripping':
+            print('User set no remstriping.')
+            do_remstripping = False
 
     # Add script dir to sys path
     if not (get_script_dir() in sys.path):
@@ -196,9 +206,12 @@ if __name__ == '__main__':
     
         
         # get fits header, check if NIRCam image, do 'remstriping'
-        header = fits.getheader(output_filepath, 0)
-        if header['INSTRUME'].strip().upper() == 'NIRCAM':
-            
+        if do_remstripping:
+            header = fits.getheader(output_filepath, 0)
+            if header['INSTRUME'].strip().upper() != 'NIRCAM':
+                do_remstripping = False
+        
+        if do_remstripping:
             # set CRDS_CONTEXT
             if ('CRDS_CONTEXT' not in os.environ) or (os.environ['CRDS_CONTEXT'] == ''):
                 os.environ['CRDS_CONTEXT'] = header['CRDS_CTX']
