@@ -12,7 +12,8 @@ fi
 if [[ -z "$CRDS_CONTEXT" ]]; then
     #export CRDS_CONTEXT="jwst_0932.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())' # 2022-07-24
     #export CRDS_CONTEXT="jwst_0937.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())' # 2022-07-27
-    export CRDS_CONTEXT="jwst_0945.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())' # 2022-08-15
+    #export CRDS_CONTEXT="jwst_0945.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())' # 2022-08-15
+    export CRDS_CONTEXT="jwst_0968.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())' # 2022-09-07
     echo "CRDS_CONTEXT = $CRDS_CONTEXT"
 fi
 

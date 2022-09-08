@@ -24,6 +24,11 @@ import matplotlib.pyplot as plt
 mpl.rcParams['savefig.dpi'] = 300
 mpl.rcParams['figure.dpi'] = 300
 
+if "CRDS_PATH" not in os.environ:
+    os.environ["CRDS_PATH"] = os.path.expanduser('~/jwst_crds_cache')
+if "CRDS_SERVER_URL" not in os.environ:
+    os.environ["CRDS_SERVER_URL"] = "https://jwst-crds.stsci.edu"
+
 from jwst import datamodels
 
 from astropy.nddata.bitmask import (
@@ -58,7 +63,8 @@ def make_seed_image_for_rate_image(
         fit_half = True, 
         fit_core = False, 
         dynamical_range = 2.0, 
-        check_rate_image = False, 
+        check_rate_image = False, # whether to check file name ends with "_rate.fits"
+        miri_flat_file = None, # for MIRI only, will read DQ from the flat file.
         overwrite = True, 
     ):
     
@@ -75,6 +81,10 @@ def make_seed_image_for_rate_image(
     pheader = hdulist[0].header
     hdulist.close()
     image, header = fits.getdata(fits_image, header=True)
+    if len(image.shape) == 0 or image.shape == (0,):
+        image, header1 = fits.getdata(fits_image, ext=1, header=True)
+        for key in header1:
+            header[key] = header1[key]
     
     # check output file
     if 'PUPIL' in pheader:
@@ -102,6 +112,23 @@ def make_seed_image_for_rate_image(
         #dqmask = np.isfinite(error).astype(int)
         context_image = fits.getdata(fits_image, header=False, extname='CON')
         dqmask = context_image
+    # deal with masked data using the error map
+    elif fits_image.find('_miri_flat') >= 0:
+        #error = fits.getdata(fits_image, header=False, extname='ERR')
+        #dqmask = np.isfinite(error).astype(int)
+        print('The input is a MIRI flat! Directly reading the DQ.')
+        dqarr = fits.getdata(fits_image, header=False, extname='DQ')
+        dqmask = bitfield_to_boolean_mask(
+                    dqarr,
+                    interpret_bit_flags('~(DO_NOT_USE,SATURATED,NON_SCIENCE,JUMP_DET,OUTLIER,PERSISTENCE,AD_FLOOR,RESERVED_4,UNRELIABLE_FLAT,OTHER_BAD_PIXEL)', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
+                        flag_name_map=dqflags_pixel), # -1073742468
+                    good_mask_value=1,
+                    dtype=np.uint8
+                ) * np.isfinite(image) # >0 means good data
+        #print('dqmask[623,532]', dqmask[623,532], 1)
+        #print('dqmask[981,412]', dqmask[981,412], 0) # UNRELIABLE_FLAT
+        print('Turning off smoothing for MIRI')
+        smooth = 0.0
     # deal with masked data using jwst.datamodels
     else:
         image_model = ImageModel(
@@ -113,33 +140,38 @@ def make_seed_image_for_rate_image(
         # 
         instrument_name = image_model.meta.instrument.name
         if instrument_name.upper() == 'MIRI':
-            crds_dict = {'INSTRUME':instrument_name, #<DZLIU>#
-                         'DETECTOR':image_model.meta.instrument.detector, 
-                         'FILTER':image_model.meta.instrument.filter, 
-                         'BAND':image_model.meta.instrument.band, 
-                         'READPATT':image_model.meta.exposure.readpatt, 
-                         'SUBARRAY':image_model.meta.subarray.name, 
-                         'DATE-OBS':image_model.meta.observation.date,
-                         'TIME-OBS':image_model.meta.observation.time}
-            print('crds_dict:', crds_dict) #<DZLIU>#
-            import crds
-            try:
-                crds_context = os.environ['CRDS_CONTEXT']
-            except KeyError:
-                crds_context = crds.get_default_context()
-            flats = crds.getreferences(crds_dict, reftypes=['flat'], 
-                                       context=crds_context)
-            # if the CRDS loopup fails, should return a CrdsLookupError, but 
-            # just in case:
-            try:
-                flatfile = flats['flat']
-            except KeyError:
-                print('Flat reference file was not found in CRDS with the parameters: {}'.format(crds_dict))
-                exit()
+            if miri_flat_file is None:
+                crds_dict = {'INSTRUME':instrument_name, #<DZLIU>#
+                             'DETECTOR':image_model.meta.instrument.detector, 
+                             'FILTER':image_model.meta.instrument.filter, 
+                             'BAND':image_model.meta.instrument.band, 
+                             'READPATT':image_model.meta.exposure.readpatt, 
+                             'SUBARRAY':image_model.meta.subarray.name, 
+                             'DATE-OBS':image_model.meta.observation.date,
+                             'TIME-OBS':image_model.meta.observation.time}
+                print('crds_dict:', crds_dict) #<DZLIU>#
+                import crds
+                try:
+                    crds_context = os.environ['CRDS_CONTEXT']
+                except KeyError:
+                    crds_context = crds.get_default_context()
+                flats = crds.getreferences(crds_dict, reftypes=['flat'], 
+                                           context=crds_context)
+                # if the CRDS loopup fails, should return a CrdsLookupError, but 
+                # just in case:
+                try:
+                    miri_flat_file = flats['flat']
+                except KeyError:
+                    print('Flat reference file was not found in CRDS with the parameters: {}'.format(crds_dict))
+                    exit()
             
-            print('Combining DQ flags from flat reference file: %s'%(os.path.basename(flatfile)))
-            with FlatModel(flatfile) as flat:
+            print('Combining DQ flags from flat reference file: %s'%(os.path.basename(miri_flat_file)))
+            with FlatModel(miri_flat_file) as flat:
                 image_model.dq = np.bitwise_or(image_model.dq, flat.dq)
+            
+            # 
+            print('Turning off smoothing for MIRI')
+            smooth = 0.0
         # 
         dqmask = bitfield_to_boolean_mask(
                     image_model.dq,
@@ -152,19 +184,22 @@ def make_seed_image_for_rate_image(
         #DZLIU: https://github.com/spacetelescope/jwst/wiki/DQ-Flags
         #DZLIU: https://jwst-reffiles.stsci.edu/source/data_quality.html
         #DZLIU: checked MIRI "jwst_crds_cache/references/jwst/miri/jwst_miri_flat_0786.fits" 
-        # DQ flag: struct.pack('>i', -2147483648).hex() = 80 (10000000) 00 00 00 (00000000)  -- science data
-        # DQ flag: struct.pack('>i', -2147483581).hex() = 80 (10000000) 00 00 43 (10000011)  -- miri blank area
-        # DQ flag: struct.pack('>i', -2147483583).hex() = 80 (10000000) 00 00 41 (10000001)  -- miri Lyot coronagraph support rack
-        # DQ flag: struct.pack('>i', -2147483645).hex() = 80 (10000000) 00 00 03 (00000011)  -- miri Lyot coronagraph support rack
+        # DQ flag: struct.pack('>i', -2147483648).hex() = 80 (10000000) 00 (00000000) 00 (00000000) 00 (00000000)  -- science data
+        # DQ flag: struct.pack('>i', -2147483581).hex() = 80 (10000000) 00 (00000000) 00 (00000000) 43 (10000011)  -- miri blank area
+        # DQ flag: struct.pack('>i', -2147483583).hex() = 80 (10000000) 00 (00000000) 00 (00000000) 41 (10000001)  -- miri Lyot coronagraph support rack
+        # DQ flag: struct.pack('>i', -2147483645).hex() = 80 (10000000) 00 (00000000) 00 (00000000) 03 (00000011)  -- miri Lyot coronagraph support rack
+        # textwrap.wrap(bin(int( struct.pack('>i', -2147483583).hex(), 16))[2:], 8)
         
     
     
     # get valid pixels
     valid_mask = (dqmask > 0)
-    output_mask_fits_image = re.sub(r'\.fits$', '_mask.fits', output_fits_image)
+    output_mask_fits_image = re.sub(r'\.fits$', '_mask.fits', output_fits_image) # 1 means valid pixel
     fits.PrimaryHDU(data=valid_mask.astype(int), header=header).writeto(output_mask_fits_image, overwrite=True)
     print('Output to "{}"'.format(output_mask_fits_image))
     
+    #print('valid_mask.shape', valid_mask.shape)
+    #print('image.shape', image.shape)
     valid_data = image[valid_mask].ravel()
     pixval_min = np.nanmin(valid_data)
     pixval_max = np.nanmax(valid_data)
@@ -200,7 +235,10 @@ def make_seed_image_for_rate_image(
     elif which_method == 2:
         # method 2
         box_size = min(header['NAXIS1'], header['NAXIS2']) // 10
-        bkg = Background2D(image, box_size = box_size, mask = (dqmask == 0)) # mask means invalid here. dqmask 1 means valid.
+        bkg = Background2D(image, box_size = box_size, 
+                           mask = (dqmask == 0), # mask means invalid here. dqmask 1 means valid.
+                           exclude_percentile = 50.0, # default is 10.0 percent bad pixel per box
+                          ) 
         pixval_median = bkg.background_median
         pixval_rms = np.nanmax(bkg.background_rms)
         if bin_min is None:
@@ -335,9 +373,12 @@ def make_seed_image_for_rate_image(
     # get reduced chisq
     chisq_fitted = (hist_fitted - hist) / np.max(hist) / nbin
     
+    
     # mask sources by 3-sigma and invalid data
-    mask = np.logical_or(image > pixval_3sigma, dqmask == 0)
+    mask = np.logical_or(image > pixval_3sigma, dqmask == 0) # mask bright sources (>3sigma) and invalid pixels (dqmask == 0)
     arr = mask.astype(int).astype(float)
+    
+    # smoothing/expanding the mask
     if conv_kern > 0.0:
         kernel = Gaussian2DKernel(x_stddev=conv_kern) # 1 pixel stddev kernel
         arr = apy_convolve(arr, kernel)
@@ -345,7 +386,7 @@ def make_seed_image_for_rate_image(
     
     # save fits file
     hdu = fits.PrimaryHDU(data=arr, header=header)
-    hdu.writeto(output_fits_image)
+    hdu.writeto(output_fits_image, overwrite=True)
     print('Output to "{}"'.format(output_fits_image))
 
 
@@ -363,6 +404,7 @@ def make_seed_image_for_rate_image(
 @click.option('--fit-half/--no-fit-half', type=bool, default=True, is_flag=True, help='fit only the left half of the histogram?')
 @click.option('--fit-core/--no-fit-core', type=bool, default=False, is_flag=True, help='fit only the core part (min to +1sigma) of the histogram?')
 @click.option('--dynamical-range', type=float, default=2.0)
+@click.option('--miri-flat-file', type=click.Path(exists=True), default=None)
 @click.option('--check-rate-image/--no-check-rate-image', is_flag=True, default=False)
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=True)
 def main(fits_image, sigma, smooth, nbin, 
@@ -372,7 +414,10 @@ def main(fits_image, sigma, smooth, nbin,
          fit_max, 
          fit_half, 
          fit_core, 
-         dynamical_range, check_rate_image, overwrite):
+         dynamical_range, 
+         miri_flat_file, 
+         check_rate_image, 
+         overwrite):
     
     make_seed_image_for_rate_image(
         fits_image, 
@@ -386,6 +431,7 @@ def main(fits_image, sigma, smooth, nbin,
         fit_half = fit_half, 
         fit_core = fit_core, 
         dynamical_range = dynamical_range, 
+        miri_flat_file = miri_flat_file, 
         check_rate_image = check_rate_image, 
         overwrite = overwrite, 
     )

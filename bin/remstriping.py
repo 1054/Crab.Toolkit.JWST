@@ -127,10 +127,13 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
     
     #<DZLIU>#
     instrument_name = model.meta.instrument.name #<DZLIU>#
-    if instrument_name.upper() == 'MIRI' and image.endswith('_rate.fits') and image.find('_cal_')<0:
-        raise Exception('Error! Do not apply to MIRI "rate.fits"!')
+    #if instrument_name.upper() == 'MIRI' and image.endswith('_rate.fits') and image.find('_cal_')<0:
+    #    raise Exception('Error! Do not apply to MIRI "rate.fits"!')
     if apply_flat and (image.find('_cal.fits')>=0 or image.find('_cal_')>=0):
         print('Turning off apply_flat for "cal.fits"!')
+        apply_flat = False
+    elif apply_flat and (image.find('_miri_flat')>=0):
+        print('Turning off apply_flat for "*_miri_flat*"!')
         apply_flat = False
 
     # check that striping hasn't already been removed
@@ -186,7 +189,10 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
             
     # construct mask for median calculation
     mask = np.zeros(model.data.shape, dtype=bool)
-    mask[model.dq > 0] = True
+    #<DZLIU># mask[model.dq > 0] = True
+    print('instrument_name.upper()', instrument_name.upper())
+    if instrument_name.upper() == 'NIRCAM':
+        mask[model.dq > 0] = True
     
     # mask out sources
     if mask_sources:
@@ -204,7 +210,10 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
     log.info('Measuring the pedestal in the image')
     pedestal_data = model.data[~mask]
     pedestal_data = pedestal_data.flatten()
-    median_image = np.median(pedestal_data)
+    #<DZLIU># median_image = np.median(pedestal_data)
+    median_image = np.nanmedian(pedestal_data) #<DZLIU>#
+    if np.isnan(median_image): #<DZLIU>#
+        median_image = 0.0 #<DZLIU>#
     log.info('Image median (unmasked and DQ==0): %f'%(median_image))
     try:
         pedestal = fit_sky(pedestal_data)
@@ -255,8 +264,9 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
         immodel.dq[wnan] = np.bitwise_or(immodel.dq[wnan], bpflag)
         
         # dzliu fixing "NotImplementedError: MaskedArray.tofile() not implemented yet."
-        #if isinstance(outsci, np.ma.core.MaskedArray):
-        #    outsci = outsci.filled()
+        print('type(outsci)', type(outsci))
+        if isinstance(outsci, np.ma.core.MaskedArray):
+           outsci = outsci.filled()
 
         # write output
         immodel.data = outsci
