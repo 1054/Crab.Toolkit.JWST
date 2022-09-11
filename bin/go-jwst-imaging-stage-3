@@ -186,10 +186,10 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     mosaic_asn=$(dirname "$mosaic_image")"_asn.json"
     echo "mosaic_asn = $mosaic_asn"
     
-    instrument_filter=($(dirname "$mosaic_image" | cut -d '_' -f 3,4))
+    instrument_filter=($(basename $(dirname "$mosaic_image") | cut -d '_' -f 3,4))
     echo "instrument_filter = $instrument_filter"
     
-    multiobs_mosaic_asn=($(ls $(basename $(dirname "$mosaic_asn"))/jw*_obs*_${instrument_filter}"_asn.json"))
+    multiobs_mosaic_asn=($(ls $(dirname "$mosaic_asn")/jw*_obs*_${instrument_filter}"_asn.json"))
     
     echo "multiobs_mosaic_asn = ${multiobs_mosaic_asn[@]} (${#multiobs_mosaic_asn[@]})"
     
