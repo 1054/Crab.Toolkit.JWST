@@ -142,14 +142,14 @@ if [[ ${#files_out[@]} -eq 0 ]]; then
 fi
 
 
-# Run step 2, for MIRI only
+# Run step 2, mask source emission and produce darkobs, for MIRI only
 for (( i = 0; i < ${#files_out[@]}; i++ )); do
     
     # mosaic_image
     mosaic_image="${files_out[i]}"
-    #if [[ "$mosaic_image" != *"MIRI"* ]]; then
-    #    continue
-    #fi
+    if [[ "$mosaic_image" != *"MIRI"* ]]; then
+       continue
+    fi
     
     # obtain galaxy seed image
     this_file_in="$mosaic_image"
@@ -234,6 +234,44 @@ for (( i = 0; i < ${#files_out[@]}; i++ )); do
             fi
         fi
     done
+    
+    # loop rate image dir, reprocess pipeline stage2
+    redone_cal_files=()
+    for (( k = 0; k < ${#asn_rate_images[@]}; k++ )); do
+        asn_rate="${asn_rate_images[k]}"
+        asn_cal="${asn_cal_images[k]}"
+        merged_masked_rate=$(dirname "$asn_rate")"/merged_other_visits_rate_masked_source_emission.fits"
+        output_recal=$(echo "$asn_cal" | perl -p -e 's/_cal.fits$/_cal_bkgsub_with_source_emission_mask.fits/g')
+        
+        if [[ ! -f "$output_recal" ]] || [[ $overwrite -gt 0 ]]; then
+            proc_args=(--darkobs "$merged_masked_rate")
+            if [[ $overwrite -gt 0 ]]; then
+                proc_args+=(--overwrite)
+            fi
+            echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
+                "$asn_rate" \
+                "$output_recal" \
+                "${proc_args[@]}"
+            python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
+                "$asn_rate" \
+                "$output_recal" \
+                "${proc_args[@]}"
+            if [[ ! -f "$output_recal" ]] && [[ ! -L "$output_recal" ]]; then
+                echo "Error! Failed to produce the output file: $output_recal"
+                exit 255
+            fi
+        fi
+        redone_cal_files+=("$output_recal")
+    done
+    
+    # redo mosaic
+    redone_dir_out="calibrated3_mosaics_redone_with_source_emission_mask"
+    proc_args=()
+    if [[ $overwrite -gt 0 ]]; then
+        proc_args+=(--overwrite)
+    fi
+    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-1.py ${redone_cal_files[@]} $redone_dir_out "${proc_args[@]}"
+    $script_dir/go-jwst-imaging-stage-3-step-1.py ${redone_cal_files[@]} $redone_dir_out "${proc_args[@]}"
     
 done
 
