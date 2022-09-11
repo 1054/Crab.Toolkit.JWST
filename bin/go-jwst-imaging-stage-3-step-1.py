@@ -426,6 +426,13 @@ def main(
         assert os.path.isfile(output_filepath)
         
         
+        # clean up
+        for i in range(len(subgroup_files)):
+            if os.path.isfile(f'{output_name}_{i}_outlier_i2d.fits'):
+                shutil.move(f'{output_name}_{i}_outlier_i2d.fits', 
+                            f'{output_subdir}/{output_name}_{i}_outlier_i2d.fits')
+        
+        
         # log
         logger.info("Processed {} -> {}".format(subgroup_files, output_filepath))
     
