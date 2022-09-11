@@ -143,12 +143,12 @@ def main(
         # Check input_filepath history
         with datamodels.open(input_filepath) as model:
             if model.meta.instrument.name.upper() != 'NIRCAM':
-                print('The input data is not a NIRCam imaging data. Will not run background subtraction.')
+                logger.warning('The input data is not a NIRCam imaging data. Will not run background subtraction.')
                 return
             for entry in model.history:
                 for k,v in entry.items():
                     if 'Done background subtraction; go-jwst-imaging-stage-2-step-2-do-bkgsub.py' in v:
-                        print(f'{input_filepath} already had background subtraction. Skipping!')
+                        logger.warning(f'{input_filepath} already had background subtraction. Skipping!')
                         return
     else:
         # Check skymatchstep_filepath existence

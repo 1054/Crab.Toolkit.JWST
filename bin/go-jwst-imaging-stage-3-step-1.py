@@ -219,6 +219,7 @@ def main(
             info_dict['pupil'] = header['PUPIL'].strip()
         else:
             info_dict['pupil'] = '""'
+        info_dict['file_path'] = input_filepath
         # check instrument and infilter
         if program != '':
             if program != info_dict['program']:
@@ -232,7 +233,6 @@ def main(
         if infilter != '':
             if infilter != info_dict['filter']:
                 continue
-        info_dict['file_path'].append(input_filepath)
         info_list.append(info_dict)
     
     
