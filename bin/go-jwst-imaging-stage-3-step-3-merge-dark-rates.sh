@@ -51,7 +51,7 @@ for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
         cal_image="${temp_cal_images[m]}"
         rate_image=$(echo "$cal_image" | perl -p -e 's%/calibrated2_cals/%/calibrated1_rates/%g' | perl -p -e 's%_cal.fits$%_rate.fits%g')
         echo "rate_image = \"$rate_image\""
-        masked_rate=$(echo "$rate_image" | perl -p -e 's%\.fits$%%g')"_masked_source_emission.fits"
+        masked_rate=$(echo "$rate_image" | perl -p -e 's%_rate.fits$%%g')"_masked_source_emission_rate.fits"
         multiobs_cal_images+=("$cal_image")
         multiobs_rate_images+=("$rate_image")
         multiobs_masked_rate_images+=("$masked_rate")
@@ -66,9 +66,9 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     cal_image="${multiobs_cal_images[i]}"
     rate_image="${multiobs_rate_images[i]}"
     masked_rate_image="${multiobs_masked_rate_images[i]}"
-    merged_masked_rate=$(dirname "$masked_rate_image")"/merged_other_visit_rates_with_source_emission_mask.fits"
-    merged_masked_rate_list_file=$(dirname "$masked_rate_image")"/merged_other_visit_rates_with_source_emission_mask.list.txt"
-    output_cal_image=$(echo "$cal_image" | perl -p -e 's/_cal.fits$/_cal_bkgsub_with_source_emission_mask.fits/g')
+    merged_masked_rate=$(dirname "$masked_rate_image")"/merged_other_visits_masked_source_emission_rate.fits"
+    merged_masked_rate_list_file=$(dirname "$masked_rate_image")"/merged_other_visits_masked_source_emission_rate.list.txt"
+    output_cal_image=$(echo "$cal_image" | perl -p -e 's/_cal.fits$/_bkgsub_masked_source_emission_cal.fits/g')
     
     if [[ ! -f "$merged_masked_rate" ]] || [[ $overwrite -gt 0 ]]; then
         applicable_masked_rate_images=()

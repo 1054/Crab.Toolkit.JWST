@@ -442,8 +442,10 @@ def main(
         # clean up
         for i in range(len(subgroup_files)):
             if os.path.isfile(f'{output_name}_{i}_outlier_i2d.fits'):
+                if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_outlier'):
+                    os.makedirs(f'{output_subdir}/{output_name}_{i}_outlier')
                 shutil.move(f'{output_name}_{i}_outlier_i2d.fits', 
-                            f'{output_subdir}/{output_name}_{i}_outlier_i2d.fits')
+                            f'{output_subdir}/{output_name}_{i}_outlier/{output_name}_{i}_outlier_i2d.fits')
         
         
         # log

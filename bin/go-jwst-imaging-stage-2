@@ -156,27 +156,27 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         exit 255
     fi
     
-    # Optionally run step 3
-    file_in1="calibrated1_rates/${dataset_name}_rate.fits"
-    file_in2="calibrated1_rates/merged_other_visit_rates_with_source_emission_mask.fits"
-    file_out="calibrated2_cals/${dataset_name}_cal_bkgsub_with_source_emission_mask.fits"
-    if [[ -f "$file_in2" ]]; then
-        proc_args=(--darkobs "$file_in2")
-        if [[ $overwrite -gt 0 ]]; then
-            proc_args+=(--overwrite)
-        fi
-        echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_out" "${proc_args[@]}"
-        python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_out" "${proc_args[@]}"
-        ret=$?
-        if [[ $ret -ne 0 ]]; then
-            echo "Error occurred?!"
-            exit 255
-        fi
-        if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
-            echo "Error! Failed to produce the output file: $file_out"
-            exit 255
-        fi
-    fi
+    # Optionally run step 3 -- now in stage 3 script
+    # file_in1="calibrated1_rates/${dataset_name}_rate.fits"
+    # file_in2="calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits"
+    # file_out="calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits"
+    # if [[ -f "$file_in2" ]]; then
+    #     proc_args=(--darkobs "$file_in2")
+    #     if [[ $overwrite -gt 0 ]]; then
+    #         proc_args+=(--overwrite)
+    #     fi
+    #     echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_out" "${proc_args[@]}"
+    #     python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_out" "${proc_args[@]}"
+    #     ret=$?
+    #     if [[ $ret -ne 0 ]]; then
+    #         echo "Error occurred?!"
+    #         exit 255
+    #     fi
+    #     if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+    #         echo "Error! Failed to produce the output file: $file_out"
+    #         exit 255
+    #     fi
+    # fi
     
     echo cd ../
     cd ../
