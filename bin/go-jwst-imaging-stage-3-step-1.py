@@ -311,14 +311,11 @@ def main(
         unique_obsnums = np.unique(subgroup_table['obs_num'])
         groupped_obsnum_str = '+'.join(unique_obsnums)
         
-        if group_filter:
-            groupped_instrument_str = subgroup_key['instrument']
-            groupped_filter_str = subgroup_key['filter']
-        else:
-            unique_instruments = np.unique(subgroup_table['instrument'])
-            groupped_instrument_str = '+'.join(unique_instruments)
-            unique_filters = np.unique(subgroup_table['filter'])
-            groupped_filter_str = '+'.join(unique_filters)
+        unique_instruments = np.unique(subgroup_table['instrument'])
+        groupped_instrument_str = '+'.join(unique_instruments)
+        
+        unique_filters = np.unique(subgroup_table['filter'])
+        groupped_filter_str = '+'.join(unique_filters)
         
         unique_obsnums = np.unique(subgroup_table['obs_num'])
         groupped_obsnum_str = '+'.join(unique_obsnums)
