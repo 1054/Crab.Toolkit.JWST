@@ -1,0 +1,189 @@
+#!/bin/bash
+# 
+set -e
+
+# Set necessary system variables
+if [[ -z "$CRDS_PATH" ]]; then
+    export CRDS_PATH=$HOME/jwst_crds_cache
+fi
+if [[ -z "$CRDS_SERVER_URL" ]]; then
+    export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
+fi
+
+# Get script_dir
+script_dir=$(dirname "${BASH_SOURCE[0]}")
+
+
+# Read user input
+iarg=1
+argstr=""
+work_dir="."
+overwrite=0
+input_files=()
+while [[ $iarg -le $# ]]; do
+    argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
+    if [[ "$argstr"x == "--"* ]]; then
+        if [[ "$argstr"x == "--work-dir"x ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                work_dir="${!iarg}"
+                echo "work_dir = \"$work_dir\""
+            fi
+        else
+            echo "Unkonwn argument: ${!iarg}"
+        fi
+    else
+        input_files+=("${!iarg}")
+    fi
+    # 
+    iarg=$((iarg+1))
+done
+
+
+# Check user input
+
+
+
+# Use input_files or find "calibrated2_cals/*_rate.fits"
+process_files=()
+if [[ ${#input_files[@]} -gt 0 ]]; then
+    if [[ ! -d calibrated1_rates ]]; then
+        echo "mkdir calibrated1_rates"
+        mkdir calibrated1_rates
+    fi
+    for (( i = 0; i < ${#input_files[@]}; i++ )); do
+        input_filename=$(basename "${input_files[i]}" | perl -p -e 's/\.fits$//g')
+        if [[ "$input_filename" != *"_rate" ]]; then
+            echo "Error! The input file is not a \"*_rate.fits\" file?"
+            exit 255
+        fi
+        process_file="calibrated1_rates/$input_filename.fits"
+        if [[ -f "$work_dir/$process_file" ]]; then
+            echo mv "$work_dir/$process_file" "$work_dir/$process_file.backup"
+            mv "$work_dir/$process_file" "$work_dir/$process_file.backup"
+        fi
+        echo cp "${input_files[i]}" "$work_dir/$process_file"
+        cp "${input_files[i]}" "$work_dir/$process_file"
+        process_files+=("$process_file")
+    done
+fi
+
+
+# cd work_dir
+if [[ "$work_dir" != "." ]]; then
+    echo "cd \"$work_dir\""
+    cd "$work_dir"
+fi
+
+
+# check calibrated1_rates directory
+if [[ ! -d calibrated1_rates ]]; then
+    echo "Error! No input file is given and default directory is not found: \"calibrated1_rates/\""
+    exit 255
+fi
+
+
+# find "calibrated1_rates/*_rate.fits" to process if no user input_files
+if [[ ${#process_files[@]} -eq 0 ]]; then
+    found_files=$(find "calibrated1_rates" -type f -mindepth 1 -maxdepth 1 -name "jw*_rate.fits")
+    for (( i = 0; i < ${#found_files[@]}; i++ )); do
+        dataset_name=$(basename "${found_files[i]}" | perl -p -e 's/_rate.fits$//g')
+        dataset_info=($(echo "$dataset_name" | perl -p -e \
+            's/^jw([0-9]{5})([0-9]{3})([0-9]{3})_([0-9]{2})([0-9]{1})([0-9]{2})_([0-9]{5})_([a-z0-9]+)$/\1 \2 \3 \4 \5 \6 \7 \8/g' \
+            ))
+        if [[ ${#dataset_info[@]} -ne 8 ]]; then
+            echo "Error! Wrong dataset name format: ${dataset_name}. Please check file: ${found_files[i]}"
+            exit 255
+        fi
+        process_files+=("${found_files[i]}")
+    done
+fi
+
+
+# check output directory: calibrated2_cals
+if [[ ! -d calibrated2_cals ]]; then
+    echo "mkdir calibrated2_cals"
+    mkdir calibrated2_cals
+fi
+
+
+# process files
+for (( i = 0; i < ${#process_files[@]}; i++ )); do
+    
+    # Run step 1
+    dataset_name=$(basename "${process_files[i]}" | perl -p -e 's/_rate.fits$//g')
+    file_in="${process_files[i]}"
+    file_out="calibrated2_cals/${dataset_name}_cal.fits"
+    proc_args=()
+    if [[ $overwrite -gt 0 ]]; then
+        proc_args+=(--overwrite)
+    fi
+    echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    python $script_dir/go-jwst-imaging-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    ret=$?
+    if [[ $ret -ne 0 ]]; then
+        echo "Error occurred?!"
+        exit 255
+    fi
+    if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+        echo "Error! Failed to produce the output file: $file_out"
+        exit 255
+    fi
+    
+    # Run step 2
+    file_in="calibrated2_cals/${dataset_name}_cal.fits"
+    file_out="calibrated2_cals/${dataset_name}_cal_skymatchstep.fits"
+    proc_args=()
+    if [[ $overwrite -gt 0 ]]; then
+        proc_args+=(--overwrite)
+    fi
+    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-2-do-bkgsub.py "$file_in" "${proc_args[@]}"
+    $script_dir/go-jwst-imaging-stage-2-step-2-do-bkgsub.py "$file_in" "${proc_args[@]}"
+    ret=$?
+    if [[ $ret -ne 0 ]]; then
+        echo "Error occurred?!"
+        exit 255
+    fi
+    if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+        echo "Error! Failed to produce the output file: $file_out"
+        exit 255
+    fi
+    
+    # Optionally run step 3
+    file_in1="${process_files[i]}"
+    file_in2="calibrated1_rates/merged_other_visits_mirimage_rate_masked_source_emission.fits"
+    file_out="calibrated2_cals/${dataset_name}_cal_bkgsub_with_source_emission_mask.fits"
+    if [[ -f "$file_in2" ]]; then
+        proc_args=()
+        if [[ $overwrite -gt 0 ]]; then
+            proc_args+=(--overwrite)
+        fi
+        echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_in2" "$file_out" "${proc_args[@]}"
+        python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_in2" "$file_out" "${proc_args[@]}"
+        ret=$?
+        if [[ $ret -ne 0 ]]; then
+            echo "Error occurred?!"
+            exit 255
+        fi
+        if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+            echo "Error! Failed to produce the output file: $file_out"
+            exit 255
+        fi
+    fi
+    
+done
+
+
+
+
+
+# Run Python script
+if [[ ${#input_files[@]} -eq 0 ]]; then
+    python $script_dir/go-jwst-nircam-stage-3-task-1.py
+else
+    for (( i = 0; i < ${#input_files[@]}; i++ )); do
+        python $script_dir/go-jwst-nircam-stage-3-task-1.py ${input_files[i]}
+    done
+fi
+
+

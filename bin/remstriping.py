@@ -129,12 +129,12 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
     instrument_name = model.meta.instrument.name #<DZLIU>#
     #if instrument_name.upper() == 'MIRI' and image.endswith('_rate.fits') and image.find('_cal_')<0:
     #    raise Exception('Error! Do not apply to MIRI "rate.fits"!')
-    if apply_flat and (image.find('_cal.fits')>=0 or image.find('_cal_')>=0):
-        print('Turning off apply_flat for "cal.fits"!')
-        apply_flat = False
-    elif apply_flat and (image.find('_miri_flat')>=0):
-        print('Turning off apply_flat for "*_miri_flat*"!')
-        apply_flat = False
+    # if apply_flat and (image.find('_cal.fits')>=0 or image.find('_cal_')>=0):
+    #     print('Turning off apply_flat for "cal.fits"!')
+    #     apply_flat = False
+    # elif apply_flat and (image.find('_miri_flat')>=0):
+    #     print('Turning off apply_flat for "*_miri_flat*"!')
+    #     apply_flat = False
 
     # check that striping hasn't already been removed
     for entry in model.history:
@@ -197,9 +197,12 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
     # mask out sources
     if mask_sources:
         log.info('Using the input seed image to mask out source flux')
-        base = os.path.basename(image).split('_rate.fits')[0]
+        #base = os.path.basename(image).split('_rate.fits')[0] #<DZLIU>#
+        base = os.path.basename(image).split('.fits')[0] #<DZLIU>#
+        #seedimage = glob(os.path.join(seedim_directory, 
+        #                 '%s_*_galaxy_seed_image.fits'%base)) #<DZLIU>#
         seedimage = glob(os.path.join(seedim_directory, 
-                         '%s_*_galaxy_seed_image.fits'%base))
+                         '%s_galaxy_seed_image.fits'%base)) #<DZLIU>#
         log.info('Using seedim: %s'%(os.path.basename(seedimage[0])))
         seedim = fits.getdata(seedimage[0])
         log.info('Masking flux above threshold %f'%threshold)
@@ -239,8 +242,10 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
     model.close()
     
     # copy image 
-    log.info('Copying input to %s'%image.replace('rate.fits', 'rate_orig.fits'))
-    shutil.copy2(image, image.replace('rate.fits', 'rate_orig.fits'))
+    #log.info('Copying input to %s'%image.replace('rate.fits', 'rate_orig.fits'))
+    #shutil.copy2(image, image.replace('rate.fits', 'rate_orig.fits'))
+    log.info('Copying input to %s'%image.replace('.fits', '_orig.fits')) #<DZLI># removed 'rate'
+    shutil.copy2(image, image.replace('.fits', '_orig.fits')) #<DZLI># removed 'rate'
 
     # remove striping from science image
     with ImageModel(image) as immodel:

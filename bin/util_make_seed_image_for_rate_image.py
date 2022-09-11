@@ -62,17 +62,18 @@ def make_seed_image_for_rate_image(
         fit_max = None, 
         fit_half = True, 
         fit_core = False, 
-        dynamical_range = 2.0, 
+        dynamical_range = 2.0, # NOT USED ANYMORE
         check_rate_image = False, # whether to check file name ends with "_rate.fits"
         miri_flat_file = None, # for MIRI only, will read DQ from the flat file.
-        overwrite = True, 
+        filter_in_filename = False, # add filter in the output filename
+        overwrite = False, 
     ):
     
     # check fits_image
     if check_rate_image:
-        if not fits_image.endswith('_rate.fits') and not fits_image.endswith('_cal.fits'):
+        if not fits_image.endswith('_rate.fits'):
             raise Exception('Error! The input FITS image file name should ends with \"_rate.fits\"!')
-        fits_name = re.sub(r'^(.*)(_rate|_cal)\.fits$', r'\1', fits_image)
+        fits_name = re.sub(r'^(.*)(_rate)\.fits$', r'\1', fits_image)
     else:
         fits_name = os.path.splitext(fits_image)[0]
     
@@ -87,13 +88,16 @@ def make_seed_image_for_rate_image(
             header[key] = header1[key]
     
     # check output file
-    if 'PUPIL' in pheader:
-        output_fits_image = fits_name + '_{}_{}_{}_galaxy_seed_image.fits'.format(
-            pheader['INSTRUME'].strip(), pheader['FILTER'].strip(), pheader['PUPIL'].strip())
-    else:
-        output_fits_image = fits_name + '_{}_{}_galaxy_seed_image.fits'.format(
-            pheader['INSTRUME'].strip(), pheader['FILTER'].strip())
+    output_fits_image = fits_name + '_galaxy_seed_image.fits' # this extension is needed by 'remstriping.py'
+    if filter_in_filename:
+        if 'PUPIL' in pheader:
+            output_fits_image = fits_name + '_{}_{}_{}_galaxy_seed_image.fits'.format(
+                pheader['INSTRUME'].strip(), pheader['FILTER'].strip(), pheader['PUPIL'].strip())
+        else:
+            output_fits_image = fits_name + '_{}_{}_galaxy_seed_image.fits'.format(
+                pheader['INSTRUME'].strip(), pheader['FILTER'].strip())
     
+    print('output_fits_image: {!r}'.format(output_fits_image))
     if os.path.isfile(output_fits_image): 
         if not overwrite:
             print('Found existing output file: "{}" and overwrite is set to False. Will do nothing.'.format(output_fits_image))
@@ -194,7 +198,7 @@ def make_seed_image_for_rate_image(
     
     # get valid pixels
     valid_mask = (dqmask > 0)
-    output_mask_fits_image = re.sub(r'\.fits$', '_mask.fits', output_fits_image) # 1 means valid pixel
+    output_mask_fits_image = re.sub(r'\.fits$', '_valid_pixels.fits', output_fits_image) # 1 means valid pixel
     fits.PrimaryHDU(data=valid_mask.astype(int), header=header).writeto(output_mask_fits_image, overwrite=True)
     print('Output to "{}"'.format(output_mask_fits_image))
     
@@ -212,7 +216,7 @@ def make_seed_image_for_rate_image(
     
     which_method = 2
     if which_method == 1:
-        # method 1, too slow
+        # method 1, too slow, NOT USED ANYMORE
         pixval_median = np.nanpercentile(valid_data, 50)
         if bin_min is None:
             bin_min = max(1.0/dynamical_range*pixval_median, pixval_min)
@@ -388,6 +392,11 @@ def make_seed_image_for_rate_image(
     hdu = fits.PrimaryHDU(data=arr, header=header)
     hdu.writeto(output_fits_image, overwrite=True)
     print('Output to "{}"'.format(output_fits_image))
+    
+    # save fits file
+    hdu = fits.PrimaryHDU(data=arr, header=header)
+    hdu.writeto(output_fits_image, overwrite=True)
+    print('Output to "{}"'.format(output_fits_image))
 
 
 
@@ -406,7 +415,7 @@ def make_seed_image_for_rate_image(
 @click.option('--dynamical-range', type=float, default=2.0)
 @click.option('--miri-flat-file', type=click.Path(exists=True), default=None)
 @click.option('--check-rate-image/--no-check-rate-image', is_flag=True, default=False)
-@click.option('--overwrite/--no-overwrite', is_flag=True, default=True)
+@click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 def main(fits_image, sigma, smooth, nbin, 
          bin_min, 
          bin_max, 

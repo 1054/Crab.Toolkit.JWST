@@ -1,5 +1,13 @@
 #!/bin/bash
 #
+# Remove horizontal/vertical stripes in the input image. 
+# 
+# The code will replace the input file if the --output-dir or --output-suffix is not set!
+# 
+# The output file name is determined from the input file name, allowing to choose 
+# a different output directory and/or with an output suffix, but not allowing to 
+# specify an exact output file path. 
+# 
 set -e
 
 # Set necessary system variables
@@ -24,32 +32,56 @@ script_dir=$(dirname $(perl -MCwd -e 'print Cwd::abs_path shift' "${BASH_SOURCE[
 
 # Read user input
 iarg=1
-argmode="none"
 argstr=""
 test=0
 overwrite=0
+apply_flat=0 # in default no apply flat
+smooth=1.0
+inplace=0 # if inplace is set, output_dir and output_suffix are ignored
+output_suffix="remstriping"
+output_dir="."
 input_files=()
 while [[ $iarg -le $# ]]; do
-    argstr="${!iarg}"
-    if [[ "$argstr"x == "--test"x ]]; then
-        argmode="test"
-        iarg=$((iarg+1))
-        continue
-    elif [[ "$argstr"x == "--overwrite"x ]] || [[ "$argstr"x == "-overwrite"x ]]; then
-        argmode="none"
-        overwrite=1
-        echo "overwrite=$overwrite"
-        iarg=$((iarg+1))
-        continue
+    if [[ "$argmode"x == "none"x ]]; then 
+        argmode="file"
     fi
-    if [[ "$argmode"x == "test"x ]]; then
-        test="${!iarg}"
-        argmode="none"
-    elif [[ "$argmode"x == "none"x ]]; then
+    argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
+    if [[ "$argstr"x == "--test"x ]]; then
+        test=1
+        echo "test=$test"
+    elif [[ "$argstr"x == "--overwrite"x ]]; then
+        overwrite=1
+        echo "overwrite = $overwrite"
+    elif [[ "$argstr"x == "--inplace"x ]]; then
+        inplace=1
+        echo "inplace = $inplace"
+    elif [[ "$argstr"x == "--apply-flat"x ]]; then
+        apply_flat=1
+        echo "apply_flat = $apply_flat"
+    elif [[ "$argstr"x == "--no-apply-flat"x ]]; then
+        apply_flat=0
+        echo "apply_flat = $apply_flat"
+    elif [[ "$argstr"x == "--smooth"x ]]; then
+        iarg=$((iarg+1))
+        if [[ $iarg -le $# ]]; then
+            smooth="${!iarg}"
+            echo "smooth = $smooth"
+        fi
+    elif [[ "$argstr"x == "--output-suffix"x ]]; then
+        iarg=$((iarg+1))
+        if [[ $iarg -le $# ]]; then
+            output_suffix="${!iarg}"
+        fi
+    elif [[ "$argstr"x == "--output-dir"x ]]; then
+        iarg=$((iarg+1))
+        if [[ $iarg -le $# ]]; then
+            output_dir="${!iarg}"
+        fi
+    else
         input_files+=("${!iarg}")
     fi
+    # 
     iarg=$((iarg+1))
-    continue
 done
 
 
@@ -58,45 +90,87 @@ if [[ ${#input_files[@]} -eq 0 ]]; then
     echo "Please input a \"*.fits\" file."
     exit 255
 fi
+echo "Running remstriping"
+echo "input_files = ${input_files[@]} (${#input_files[@]})"
+if [[ $inplace -gt 0 ]]; then
+    echo "inplace is set"
+    echo "output_suffix and output_dir are ignored"
+else
+    echo "output_suffix = \"$output_suffix\""
+    echo "output_dir = \"$output_dir\""
+fi
 
 
 # Run
 for (( i = 0; i < ${#input_files[@]}; i++ )); do
     
     input_file="${input_files[i]}"
-    output_dir=$(dirname "$input_file")
-    
-    # make temp copy
-    temp_file=$(echo "$input_file" | perl -p -e 's/\.fits$//g')"_remstriping_rate.fits" # CEERS' remstriping.py needs _rate.fits
-    backup_file=$(echo "$input_file" | perl -p -e 's/\.fits$//g')"_orig.fits"
-    
-    echo cp "$input_file" "$temp_file"
-    \cp "$input_file" "$temp_file"
-    
-    # CEERS team's "remstriping.py" script needs a galaxy seed image, i.e., indicating where galaxy emissions are.
-    # I have a script "util_make_seed_image_for_rate_image.py" to detect galaxy emission and make such a seed image. 
-    interm_file=$(echo "$temp_file" | perl -p -e 's/_rate.fits$//g')
-    interm_files=($(find "$output_dir" -maxdepth 1 -mindepth 1 -name "${interm_file}_*_galaxy_seed_image.fits"))
-    if [[ ${#interm_files[@]} -eq 0 ]] || [[ $overwrite -gt 0 ]]; then
-        echo "python $script_dir/util_make_seed_image_for_rate_image.py \"$temp_file\""
-        python $script_dir/util_make_seed_image_for_rate_image.py "$temp_file"
-    fi
-    
-    # run CEERS team's "remstriping.py" scripts
-    echo "python $script_dir/remstriping.py --runone \"$temp_file\" --output_dir \"$output_dir\" --threshold=0.0 --apply_flat --mask_sources"
-    python $script_dir/remstriping.py --runone "$temp_file" --output_dir "$output_dir" --threshold=0.0 --apply_flat --mask_sources
-    
-    # do backup and copy results, the input_file will be overwritten!
-    if [[ -f "$backup_file" ]]; then
-        echo "Warning! Backup file exists: \"$backup_file\"! We will not do a new backup!"
+    input_dir=$(dirname "$input_file")
+    output_name=$(basename "$input_file" | perl -p -e 's/\.fits$//g')
+    if [[ $inplace -gt 0 ]]; then
+        output_dir_active=$(dirname "$input_file")
+        output_file="$input_file"
     else
-        echo cp "$input_file" "$backup_file"
-        \cp "$input_file" "$backup_file"
+        output_dir_active="$output_dir"
+        if [[ ! -d "$output_dir_active" ]]; then
+            mkdir -p "$output_dir_active"
+        fi
+        
+        if [[ "$output_suffix"x != ""x ]]; then
+            if [[ "$output_suffix" == "_"* ]]; then
+                output_name="${output_name}${output_suffix}"
+            else
+                output_name="${output_name}_${output_suffix}"
+            fi
+        fi
+        output_file="$output_dir_active/${output_name}.fits"
+        
+        # copy input file to output_dir
+        if [[ "$input_dir" != "$output_dir_active" ]]; then
+            echo cp "$input_file" "$output_file"
+            \cp "$input_file" "$output_file"
+        fi
     fi
-    echo mv "$input_file" "$input_file.backup" # double backup
-    \mv "$input_file" "$input_file.backup" # double backup
-    echo cp "$temp_file" "$input_file"
-    \cp "$temp_file" "$input_file"
+    
+    
+    # seed image (source emission mask)
+    # CEERS' "remstriping.py" script needs a galaxy seed image indicating where source emission is.
+    # My script "util_make_seed_image_for_rate_image.py" can detect source emission and make such a seed image. 
+    proc_args=(--smooth $smooth)
+    if [[ $overwrite -gt 0 ]]; then
+        proc_args+=(--overwrite)
+    fi
+    echo "python $script_dir/util_make_seed_image_for_rate_image.py \"$output_file\" ${proc_args[@]}"
+    python $script_dir/util_make_seed_image_for_rate_image.py "$output_file" ${proc_args[@]}
+    
+    seed_image="$output_dir_active/${output_name}_galaxy_seed_image.fits" # will be output
+    if [[ ! -f "$seed_image" ]]; then
+        echo "Error! Failed to produce the output file: \"$seed_image\""
+        exit 255
+    fi
+    
+    
+    # run CEERS' "remstriping.py" scripts
+    # if the file has already been processed with "remstriping.py", it will not overwrite it.
+    proc_args=(--runone="${output_name}.fits")
+    proc_args+=(--output_dir="$output_dir_active")
+    proc_args+=(--seedim_directory="$output_dir_active")
+    proc_args+=(--threshold=0.0)
+    proc_args+=(--mask_sources)
+    if [[ $apply_flat -gt 0 ]]; then
+        proc_args+=("--apply_flat")
+    fi
+    echo "python $script_dir/remstriping.py ${proc_args[@]}"
+    python $script_dir/remstriping.py ${proc_args[@]}
+    
+    orig_image="$output_dir_active/${output_name}_orig.fits" # will be output
+    if [[ ! -f "$orig_image" ]]; then
+        echo "Error! Failed to produce the output file: \"$orig_image\""
+        exit 255
+    fi
+    
+    
+    echo "Done remstriping"
     
 done
 
