@@ -147,12 +147,12 @@ for (( i = 0; i < ${#files_out[@]}; i++ )); do
     
     # mosaic_image
     mosaic_image="${files_out[i]}"
-    if [[ "$mosaic_image" != *"MIRI"* ]]; then
-        continue
-    fi
+    #if [[ "$mosaic_image" != *"MIRI"* ]]; then
+    #    continue
+    #fi
     
     # obtain galaxy seed image
-    this_file_in="${files_out[i]}"
+    this_file_in="$mosaic_image"
     this_file_out=$(echo "$this_file_in" | perl -p -e 's/\.fits$//g')"_remstriping_galaxy_seed_image.fits"
     if [[ ! -f "$this_file_out" ]] || [[ $overwrite -gt 0 ]]; then
         echo $script_dir/remstriping "$this_file_in" \
