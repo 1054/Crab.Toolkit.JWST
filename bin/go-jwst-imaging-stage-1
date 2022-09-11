@@ -112,6 +112,11 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     
     dataset_name="${dataset_names[i]}"
     
+    if [[ ! -d $dataset_name ]]; then
+        echo mkdir $dataset_name
+        mkdir $dataset_name
+    fi
+    
     echo cd $dataset_name
     cd $dataset_name
     
