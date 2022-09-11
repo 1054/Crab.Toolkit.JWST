@@ -86,20 +86,6 @@ def setup_logger():
     
     return logger
 
-def parse_jwst_data_name(input_str, raise_exception=True):
-    regex_format = r'^jw([0-9]{5})([0-9]{3})([0-9]{3})_([0-9]{2})([0-9]{1})([0-9]{2})_([0-9]{5})_([a-z0-9]+)(.*)$'
-    regex_match = re.match(regex_format, input_str)
-    if regex_match is not None:
-        return dict(zip(['program', 'obs_num', 'visit_num', 
-                         'visit_group', 'parallel', 'activity', 
-                         'exposure', 'detector', 'extra'], 
-                        regex_match.groups()
-               ))
-    else:
-        if raise_exception:
-            raise Exception('Error! The input prefix does not seem to have the right format: {}'.format(regex_format))
-        return None
-
 
 
 

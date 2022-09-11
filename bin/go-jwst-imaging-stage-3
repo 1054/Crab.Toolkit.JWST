@@ -1,5 +1,18 @@
 #!/bin/bash
 # 
+# Inputs:
+# 
+#    jwst dataset names ("jwpppppooovvv_ggsaa_eeeee_detector_prodType")
+#    
+#    For each input jwst dataset name, the following file must exist:
+#        {dataset_name}/calibrated1_rates/{dataset_name}_rate.fits
+# 
+# Outputs:
+# 
+#    For each input jwst dataset name, the main output file is: 
+#        {dataset_name}/calibrated2_cals/{dataset_name}_cal.fits
+# 
+# 
 set -e
 
 # Set necessary system variables
@@ -19,11 +32,11 @@ iarg=1
 argstr=""
 work_dir="."
 overwrite=0
-input_files=()
+dataset_names=()
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
-    if [[ "$argstr"x == "--"* ]]; then
-        if [[ "$argstr"x == "--work-dir"x ]]; then
+    if [[ "$argstr" == "--"* ]]; then
+        if [[ "$argstr" == "--work-dir" ]]; then
             iarg=$((iarg+1))
             if [[ $iarg -le $# ]]; then
                 work_dir="${!iarg}"
@@ -33,7 +46,7 @@ while [[ $iarg -le $# ]]; do
             echo "Unkonwn argument: ${!iarg}"
         fi
     else
-        input_files+=("${!iarg}")
+        dataset_names+=("${!iarg}")
     fi
     # 
     iarg=$((iarg+1))
@@ -41,15 +54,70 @@ done
 
 
 # Check user input
+# If dataset_names is not given, then we will search under current or specified working directory.
+if [[ ${#dataset_names[@]} -eq 0 ]]; then
+    if [[ "$work_dir" != "." ]]; then
+        echo "Searching for JWST dataset under working directory: $work_dir"
+        found_dirs=($(find $work_dir -maxdepth 1 -mindepth 1 -type d -name "jw*_*" | sort -V))
+    else
+        echo "Searching for JWST dataset under current directory: $current_dir"
+        found_dirs=($(find . -maxdepth 1 -mindepth 1 -type d -name "jw*_*" | sort -V))
+    fi
+    for (( i = 0; i < ${#found_dirs[@]}; i++ )); do
+        found_dirname=$(basename "${found_dirs[i]}")
+        $script_dir/go-jwst-parse-dataset-name.py "$found_dirname" > /dev/null 2>&1
+        if [[ $? -eq 0 ]]; then
+            dataset_names+=("$found_dirname")
+        fi
+    done
+else
+    for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
+        dataset_name="${dataset_names[i]}"
+        $script_dir/go-jwst-parse-dataset-name.py "$dataset_name" > /dev/null 2>&1
+        if [[ $? -ne 0 ]]; then
+            echo "Error! The input dataset name \"$dataset_name\" seems incorrect?"
+            exit 255
+        fi
+    done
+fi
+
+if [[ ${#dataset_names[@]} -eq 0 ]]; then
+    echo "No JWST dataset found!"
+    exit 2
+fi
 
 
+# cd work_dir
+if [[ "$work_dir" != "." ]]; then
+    echo "cd \"$work_dir\""
+    cd "$work_dir"
+fi
 
-# Use input_files or find "calibrated2_cals/*_rate.fits"
-process_files=()
-if [[ ${#input_files[@]} -gt 0 ]]; then
+
+# process datasets
+for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
+    
+    dataset_name="${dataset_names[i]}"
+    echo "*** Processing $dataset_name ***"
+    
+    if [[ ! -d $dataset_name ]]; then
+        echo "Error! Dataset directory does not exist: \"$dataset_name\"! Current directory: \"$(pwd)\"."
+        exit 255
+    fi
+    
+    echo cd $dataset_name
+    cd $dataset_name
+    
+    # check input directory: calibrated1_rates
     if [[ ! -d calibrated1_rates ]]; then
-        echo "mkdir calibrated1_rates"
-        mkdir calibrated1_rates
+        echo "Error! Dataset directory does not exist: \"$calibrated1_rates\"! Current directory: \"$(pwd)\"."
+        exit 255
+    fi
+
+    # check output directory: calibrated2_cals
+    if [[ ! -d calibrated2_cals ]]; then
+        echo "mkdir calibrated2_cals"
+        mkdir calibrated2_cals
     fi
     for (( i = 0; i < ${#input_files[@]}; i++ )); do
         input_filename=$(basename "${input_files[i]}" | perl -p -e 's/\.fits$//g')

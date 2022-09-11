@@ -62,6 +62,7 @@ From ceers_nircam_reduction.ipynb
 # Packages that allow us to get information about objects:
 import os, sys, re, json, copy, datetime, time, glob, shutil
 from collections import OrderedDict
+from distutils.version import LooseVersion
 
 # Numpy library:
 import numpy as np
@@ -124,32 +125,28 @@ def setup_logger():
     
     return logger
 
-def parse_jwst_data_name(input_str, raise_exception=True):
-    regex_format = r'^jw([0-9]{5})([0-9]{3})([0-9]{3})_([0-9]{2})([0-9]{1})([0-9]{2})_([0-9]{5})_([a-z0-9]+)(.*)$'
-    regex_match = re.match(regex_format, input_str)
-    if regex_match is not None:
-        return dict(zip(['program', 'obs_num', 'visit_num', 
-                         'visit_group', 'parallel', 'activity', 
-                         'exposure', 'detector', 'extra'], 
-                        regex_match.groups()
-               ))
-    else:
-        if raise_exception:
-            raise Exception('Error! The input prefix does not seem to have the right format: {}'.format(regex_format))
-        return None
-
 
 
 
 # Main
 @click.command()
-@click.argument('input_cal_files', nargs=-1, type=click.Path(exists=True))
-@click.argument('output_cal_file', type=click.Path(exists=False))
+@click.argument('input_cal_files', nargs=-1, type=str)
+@click.argument('output_dir', type=click.Path(exists=False))
+@click.option('--program', type=str, default='', help='Specify a program.')
+@click.option('--obsnum', type=str, default='', help='Specify a obsnum.')
+@click.option('--instrument', type=str, default='', help='Specify an instrument.')
+@click.option('--filter', 'infilter', type=str, default='', help='Specify a filter.')
+@click.option('--group-filter/--no-group-filter', is_flag=True, default=True, help='Process groups of data of the same filter.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 def main(
         input_cal_files, 
-        output_cal_file, 
-        overwrite = False, 
+        output_dir, 
+        program, 
+        obsnum, 
+        instrument, 
+        infilter, 
+        check_filter, 
+        overwrite, 
     ):
     
     # Add script dir to sys path
@@ -175,120 +172,158 @@ def main(
         logger.error("Error! CRDS_SERVER_URL environment variable not set!")
         sys.exit(-1)
     
-    # Read command line input arguments
-    overwrite = False
-    prefix = None
-    iarg = 1
-    while iarg < len(sys.argv):
-        if sys.argv[iarg] == '--overwrite' or sys.argv[iarg] == '-overwrite':
-            overwrite = True
-        elif prefix is None:
-            prefix = sys.argv[iarg]
-        iarg += 1
     
-    if prefix is None:
-        prefix = 'jw'
-        suffix_str = ''
-    else:
-        suffix_str = '_'+prefix
-    
-    # Find all "jw*/calibrated2_cals/jw*_cal.fits"
-    input_files = glob.glob(f"{prefix}*/calibrated2_cals/{prefix}*_cal.fits")
-    input_files = [input_file for input_file in input_files if input_file.find('remstriping') < 0]
+    # Check output_dir
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
     
     
-    # find files to make mosaic
-    if (len(input_files) == 0):
-        logger.error(f"Error! No input file \"{prefix}*/calibrated2_cals/{prefix}*_cal.fits\" is found!")
-        sys.exit(-1)
+    # expand input file list if there is a wildcard
+    input_files = []
+    for input_file in input_cal_files:
+        if input_file.find('*')>=0:
+            for found_file in glob.glob(input_file):
+                input_files.append(os.path.abspath(found_file))
+        else:
+            if not os.path.isfile(input_file):
+                raise Exception('Error! File does not exist: {!r}'.format(input_file))
+            input_files.append(os.path.abspath(input_file))
     
-    input_files = sorted(input_files)
+    
+    # sort input files
+    input_files.sort(key=LooseVersion)
     
     
-    # loop individual files, find unique 'obs_id' and 'target_name'
-    info_dict = OrderedDict()
-    info_dict['program'] = []
-    info_dict['obs_id'] = []
-    info_dict['target_group'] = []
-    info_dict['target_name'] = []
-    info_dict['target_RA'] = []
-    info_dict['target_Dec'] = []
-    info_dict['instrument'] = []
-    info_dict['filter'] = []
-    info_dict['pupil'] = []
-    info_dict['file_path'] = []
+    # get info_list filtered by program, instrument, filter
+    info_list = []
     for input_filepath in input_files:
         # read fits header
         header = fits.getheader(input_filepath, 0)
-        info_dict['program'].append(header['PROGRAM'].strip())
-        info_dict['obs_id'].append(header['OBSERVTN'].strip())
-        info_dict['target_group'].append(header['TARGPROP'].strip())
-        info_dict['target_name'].append('"{}"'.format(header['TARGNAME'].strip()))
-        info_dict['target_RA'].append(header['TARG_RA'])
-        info_dict['target_Dec'].append(header['TARG_DEC'])
-        info_dict['instrument'].append(header['INSTRUME'].strip())
-        info_dict['filter'].append(header['FILTER'].strip())
+        # store into info_dict
+        info_dict = OrderedDict()
+        info_dict['program'] = header['PROGRAM'].strip()
+        info_dict['obs_num'] = header['OBSERVTN'].strip()
+        info_dict['target_group'] = header['TARGPROP'].strip()
+        info_dict['target_name'] = '"'+header['TARGNAME'].strip()+'"'
+        info_dict['target_RA'] = header['TARG_RA']
+        info_dict['target_Dec'] = header['TARG_DEC']
+        info_dict['instrument'] = header['INSTRUME'].strip()
+        info_dict['visit_num'] = header['VISIT'].strip()
+        info_dict['visit_group'] = header['VISITGRP'].strip()
+        info_dict['seq_id'] = header['SEQ_ID'].strip()
+        info_dict['act_id'] = header['ACT_ID'].strip()
+        info_dict['exposure'] = header['EXPOSURE'].strip()
+        info_dict['filter'] = header['FILTER'].strip()
         if 'PUPIL' in header:
-            info_dict['pupil'].append(header['PUPIL'].strip())
+            info_dict['pupil'] = header['PUPIL'].strip()
         else:
-            info_dict['pupil'].append('""')
+            info_dict['pupil'] = '""'
+        # check instrument and infilter
+        if program != '':
+            if program != info_dict['program']:
+                continue
+        if obsnum != '':
+            if obsnum != info_dict['obs_num']:
+                continue
+        if instrument != '':
+            if instrument != info_dict['instrument']:
+                continue
+        if infilter != '':
+            if infilter != info_dict['filter']:
+                continue
         info_dict['file_path'].append(input_filepath)
+        info_list.append(info_dict)
     
-    info_table = Table(info_dict)
     
-    # sort by '{program}_{obs_id}_{instrument}_{filter}'
-    info_table.sort(['program', 'obs_id', 'instrument', 'filter'])
+    # check len(info_list)
+    if len(info_list) == 0:
+        if program != '' or obsnum != '' or instrument != '' or infilter != '':
+            raise Exception('Error! No input file matching the specified ' + \
+                'program {!r} obsnum {!r} instrument {!r} and filter {!r}'.format(
+                program, obsnum, instrument, infilter))
+        else:
+            logger.error('Error! No input file to process!')
+            sys.exit(255)
     
-    if not os.path.isdir('calibrated3_mosaics'):
-        os.makedirs('calibrated3_mosaics')
-    if os.path.isfile(f'calibrated3_mosaics/info_table{suffix_str}.txt'):
-        shutil.move(f'calibrated3_mosaics/info_table{suffix_str}.txt', f'calibrated3_mosaics/info_table{suffix_str}.txt.backup')
-    if os.path.isfile(f'calibrated3_mosaics/info_table{suffix_str}.csv'):
-        shutil.move(f'calibrated3_mosaics/info_table{suffix_str}.csv', f'calibrated3_mosaics/info_table{suffix_str}.csv.backup')
-    info_table.write(f'calibrated3_mosaics/info_table{suffix_str}.txt', format='ascii.fixed_width', delimiter=' ', bookend=True)
-    with open(f'calibrated3_mosaics/info_table{suffix_str}.txt', 'r+') as fp:
+    
+    # compile info table
+    info_table_dict = OrderedDict()
+    for i, info_dict in enumerate(info_list):
+        if i == 0:
+            for key in info_dict:
+                info_table_dict[key] = []
+        info_table_dict[key].append(info_dict[key])
+    info_table = Table(info_table_dict)
+    
+    
+    # sort by '{instrument}_{filter}_{program}_{obs_num}'
+    #info_table.sort(['instrument', 'filter', 'program', 'obs_num', 'visit_num'])
+    
+    
+    # output info table
+    info_table_file = os.path.join(output_dir, 'info_table')
+    if not os.path.isdir(os.path.dirname(info_table_file)):
+        os.makedirs(os.path.dirname(info_table_file))
+    if os.path.isfile(f'{info_table_file}.txt'):
+        shutil.move(f'{info_table_file}.txt', f'{info_table_file}.txt.backup')
+    if os.path.isfile(f'{info_table_file}.csv'):
+        shutil.move(f'{info_table_file}.csv', f'{info_table_file}.csv.backup')
+    info_table.write(f'{info_table_file}.txt', format='ascii.fixed_width', delimiter=' ', bookend=True)
+    with open(f'{info_table_file}.txt', 'r+') as fp:
         fp.seek(0)
         fp.write('#')
-    info_table.write(f'calibrated3_mosaics/info_table{suffix_str}.csv', format='csv')
+    info_table.write(f'{info_table_file}.csv', format='csv')
     
     
-    # group by '{program}_{obs_id}_{instrument}_{filter}'
-    unique_groups = info_table.group_by(['program', 'obs_id', 'instrument', 'filter', 'target_group'])
+    # group by '{instrument}_{filter}' # '{program}_{obs_num}_{instrument}_{filter}'
+    groupped_table = info_table.group_by(['instrument', 'filter'])
     
     
     # prepare association file to process all rate files into one single output file
-    for subgroup_key, subgroup_table in zip(unique_groups.groups.keys, unique_groups.groups):
+    for subgroup_key, subgroup_table in zip(groupped_table.groups.keys, groupped_table.groups):
         
-        input_files = subgroup_table['file_path'].data.tolist()
+        unique_programs = np.unique(subgroup_table['program'])
+        groupped_program_str = '+'.join(unique_programs)
+        
+        unique_obsnums = np.unique(subgroup_table['obs_num'])
+        groupped_obsnum_str = '+'.join(unique_obsnums)
+        
+        subgroup_files = subgroup_table['file_path'].data.tolist()
+        
         output_name = 'jw{}_obs{}_{}_{}'.format(
-            subgroup_key['program'], 
-            subgroup_key['obs_id'], 
+            groupped_program_str, 
+            groupped_obsnum_str, 
             subgroup_key['instrument'],
             subgroup_key['filter'])
-        output_dir = os.path.join('calibrated3_mosaics', output_name) # directly output to "calibrated3_mosaics" under current directory.
-        output_file = output_name+'_i2d.fits'
-        output_filepath = os.path.join(output_dir, output_file)
-        if not os.path.isdir(output_dir):
-            os.makedirs(output_dir)
+        
+        output_subdir = output_name
+        output_file = output_name + '_i2d.fits'
+        output_filepath = os.path.join(output_dir, output_subdir, output_file)
+        
+        # check existing output file, skip the processing or backup and overwrite it. 
+        if not os.path.isdir(output_subdir):
+            os.makedirs(output_subdir)
         else:
-            # check existing output file, skip the processing or backup and overwrite it. 
             if os.path.isfile(output_filepath):
                 if not overwrite:
-                    logger.info("Found processed {} -> {} and overwrite is set to False. We will skip the processing.".format(input_files, output_filepath))
+                    logger.warning(f"Found processed data file {output_filepath!r} and overwrite is set to False. " + 
+                                    "We will skip the processing.")
                     continue
         
         # check if another script is processing this data
-        if os.path.exists(output_dir+'.touch'):
-            logger.info("Found another script processing {} -> {}. We will skip processing it.".format(input_files, output_filepath))
+        if os.path.exists(output_subdir + '.touch'):
+            logger.warning(f"Found another script processing data dir {output_subdir!r}. " + 
+                            "We will skip processing it.")
             continue
         
         # create touch file
-        with open(output_dir+'.touch', 'a'):
-            os.utime(output_dir+'.touch', None)
+        with open(output_subdir + '.touch', 'a'):
+            os.utime(output_subdir + '.touch', None)
         
         # backup existing file
         if os.path.isfile(output_filepath):
             shutil.move(output_filepath, output_filepath+'.backup')
+        
         
         # prepare the json-format "association" file
         asn_dict = OrderedDict()
@@ -297,24 +332,23 @@ def main(
         asn_dict['version_id'] = None
         asn_dict['code_version'] = jwst.__version__
         asn_dict['degraded_status'] = 'No known degraded exposures in association.'
-        asn_dict['program'] = subgroup_key['program'] # TODO
-        asn_dict['constraints'] = 'No constraints' # TODO
-        asn_dict['asn_id'] = subgroup_key['obs_id'] # TODO
+        asn_dict['program'] = groupped_program_str
+        asn_dict['constraints'] = 'No constraints'
+        asn_dict['asn_id'] = groupped_obsnum_str
         asn_dict['asn_pool'] = 'none'
         asn_dict['products'] = []
         product_dict = OrderedDict()
         product_dict['name'] = output_name
         product_dict['members'] = []
         asn_dict['products'].append(product_dict)
-        for input_filepath in input_files:
-            input_filename = os.path.basename(input_filepath)
-            input_suffix = '_cal'
+        for subgroup_file in subgroup_files:
             product_dict['members'].append(
-                {'expname': os.path.join('..', input_filepath),
-                 'exptype': 'science'}
+                {'expname': subgroup_file,
+                 'exptype': 'science'
+                }
             )
         
-        asn_file = os.path.join('calibrated3_mosaics', output_name+'_asn.json')
+        asn_file = output_subdir + '_asn.json'
         
         if os.path.isfile(asn_file):
             shutil.move(asn_file, asn_file+'.backup')
@@ -323,16 +357,16 @@ def main(
             json.dump(asn_dict, fp, indent=4)
         
         
-        # prepare a single output file 
-        
-        logger.info("Processing {} -> {}".format(input_files, output_filepath))
+        # Print progress
+        logger.info("Processing {} -> {}".format(subgroup_files, output_filepath))
         
         
         # prepare to run
         pipeline_object = calwebb_image3.Image3Pipeline()
+        
 
         # Set some parameters that pertain to the entire pipeline
-        pipeline_object.output_dir = output_dir
+        pipeline_object.output_dir = output_subdir
         pipeline_object.output_file = output_name # os.path.splitext(output_file)[0]
         pipeline_object.output_ext = ".fits" # default
         pipeline_object.save_results = True
@@ -358,23 +392,26 @@ def main(
         # Set the ratio of input to output pixels to create an output mosaic 
         # on a 0.015"/pixel scale
         pipeline_object.resample.pixel_scale_ratio = 0.48
-
+        
+        
         # run
         pipeline_object.run(asn_file)
         
+        
         # remove touch file
-        os.remove(output_dir+'.touch')
+        os.remove(output_subdir + '.touch')
+        
         
         # check
         assert os.path.isfile(output_filepath)
         
+        
         # log
-        logger.info("Processed {} -> {}".format(input_files, output_filepath))
+        logger.info("Processed {} -> {}".format(subgroup_files, output_filepath))
     
     
-    
-    
-    
+    # log
+    logger.info("All done!")
 
 
 
