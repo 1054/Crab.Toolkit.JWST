@@ -157,7 +157,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     fi
     
     # Optionally run step 3
-    file_in1="calibrated2_cals/${dataset_name}_cal.fits"
+    file_in1="calibrated1_rates/${dataset_name}_rate.fits"
     file_in2="calibrated1_rates/merged_other_visits_mirimage_rate_masked_source_emission.fits"
     file_out="calibrated2_cals/${dataset_name}_cal_bkgsub_with_source_emission_mask.fits"
     if [[ -f "$file_in2" ]]; then
