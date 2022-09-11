@@ -51,6 +51,7 @@ from jwst.datamodels.dqflags import pixel as dqflags_pixel
 from jwst.datamodels import ImageModel, FlatModel
 
 # logging
+import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
