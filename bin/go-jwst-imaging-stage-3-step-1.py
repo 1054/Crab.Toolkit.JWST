@@ -229,16 +229,16 @@ def main(
             info_dict['pupil'] = '""'
         info_dict['file_path'] = input_filepath
         # check selecting instrument and filter
-        if select_program is not None:
+        if len(select_program) > 0:
             if info_dict['program'] not in select_program:
                 continue
-        if select_obsnum is not None:
+        if len(select_obsnum) > 0:
             if info_dict['obs_num'] not in select_obsnum:
                 continue
-        if select_instrument is not None:
+        if len(select_instrument) > 0:
             if info_dict['instrument'] not in select_instrument:
                 continue
-        if select_filter is not None:
+        if len(select_filter) > 0:
             if info_dict['filter'] not in select_filter:
                 continue
         info_list.append(info_dict)
@@ -246,10 +246,10 @@ def main(
     
     # check len(info_list)
     if len(info_list) == 0:
-        if select_program is not None or \
-           select_obsnum is not None or \
-           select_instrument is not None or \
-           select_filter is not None:
+        if len(select_program) > 0 or \
+           len(select_obsnum) > 0 or \
+           len(select_instrument) > 0 or \
+           len(select_filter) > 0:
             raise Exception('Error! No input file matching the specified ' + \
                 'program {!r} obsnum {!r} instrument {!r} and filter {!r}'.format(
                 select_program, select_obsnum, select_instrument, select_filter))
