@@ -50,6 +50,10 @@ from jwst.datamodels.dqflags import pixel as dqflags_pixel
 
 from jwst.datamodels import ImageModel, FlatModel
 
+# logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 def make_seed_image_for_rate_image(
         fits_image, 
@@ -97,10 +101,10 @@ def make_seed_image_for_rate_image(
             output_fits_image = fits_name + '_{}_{}_galaxy_seed_image.fits'.format(
                 pheader['INSTRUME'].strip(), pheader['FILTER'].strip())
     
-    print('output_fits_image: {!r}'.format(output_fits_image))
+    logger.info('output_fits_image: {!r}'.format(output_fits_image))
     if os.path.isfile(output_fits_image): 
         if not overwrite:
-            print('Found existing output file: "{}" and overwrite is set to False. Will do nothing.'.format(output_fits_image))
+            logger.info('Found existing output file: "{}" and overwrite is set to False. Will do nothing.'.format(output_fits_image))
             return
         else:
             shutil.move(output_fits_image, output_fits_image+'.backup')
@@ -120,7 +124,7 @@ def make_seed_image_for_rate_image(
     elif fits_image.find('_miri_flat') >= 0:
         #error = fits.getdata(fits_image, header=False, extname='ERR')
         #dqmask = np.isfinite(error).astype(int)
-        print('The input is a MIRI flat! Directly reading the DQ.')
+        logger.info('The input is a MIRI flat! Directly reading the DQ.')
         dqarr = fits.getdata(fits_image, header=False, extname='DQ')
         dqmask = bitfield_to_boolean_mask(
                     dqarr,
@@ -129,9 +133,9 @@ def make_seed_image_for_rate_image(
                     good_mask_value=1,
                     dtype=np.uint8
                 ) * np.isfinite(image) # >0 means good data
-        #print('dqmask[623,532]', dqmask[623,532], 1)
-        #print('dqmask[981,412]', dqmask[981,412], 0) # UNRELIABLE_FLAT
-        print('Turning off smoothing for MIRI')
+        #logger.debug('dqmask[623,532]', dqmask[623,532], 1)
+        #logger.debug('dqmask[981,412]', dqmask[981,412], 0) # UNRELIABLE_FLAT
+        logger.info('Turning off smoothing for MIRI')
         smooth = 0.0
     # deal with masked data using jwst.datamodels
     else:
@@ -153,7 +157,7 @@ def make_seed_image_for_rate_image(
                              'SUBARRAY':image_model.meta.subarray.name, 
                              'DATE-OBS':image_model.meta.observation.date,
                              'TIME-OBS':image_model.meta.observation.time}
-                print('crds_dict:', crds_dict) #<DZLIU>#
+                logger.info('crds_dict:', crds_dict) #<DZLIU>#
                 import crds
                 try:
                     crds_context = os.environ['CRDS_CONTEXT']
@@ -166,15 +170,15 @@ def make_seed_image_for_rate_image(
                 try:
                     miri_flat_file = flats['flat']
                 except KeyError:
-                    print('Flat reference file was not found in CRDS with the parameters: {}'.format(crds_dict))
+                    logger.info('Flat reference file was not found in CRDS with the parameters: {}'.format(crds_dict))
                     exit()
             
-            print('Combining DQ flags from flat reference file: %s'%(os.path.basename(miri_flat_file)))
+            logger.info('Combining DQ flags from flat reference file: {}'.format(os.path.basename(miri_flat_file)))
             with FlatModel(miri_flat_file) as flat:
                 image_model.dq = np.bitwise_or(image_model.dq, flat.dq)
             
             # 
-            print('Turning off smoothing for MIRI')
+            logger.info('Turning off smoothing for MIRI')
             smooth = 0.0
         # 
         dqmask = bitfield_to_boolean_mask(
@@ -200,7 +204,7 @@ def make_seed_image_for_rate_image(
     valid_mask = (dqmask > 0)
     output_mask_fits_image = re.sub(r'\.fits$', '_valid_pixels.fits', output_fits_image) # 1 means valid pixel
     fits.PrimaryHDU(data=valid_mask.astype(int), header=header).writeto(output_mask_fits_image, overwrite=True)
-    print('Output to "{}"'.format(output_mask_fits_image))
+    logger.info('Output to "{}"'.format(output_mask_fits_image))
     
     #print('valid_mask.shape', valid_mask.shape)
     #print('image.shape', image.shape)
@@ -249,13 +253,13 @@ def make_seed_image_for_rate_image(
             bin_min = max((pixval_median - 7.*pixval_rms), pixval_min)
         if bin_max is None:
             bin_max = min((pixval_median + 7.*pixval_rms), pixval_max)
-        print('pixval_median:', pixval_median)
-        print('pixval_rms:', pixval_rms)
-        print('bin_min:', bin_min)
-        print('bin_max:', bin_max)
+        logger.info('pixval_median: {}'.format(pixval_median))
+        logger.info('pixval_rms: {}'.format(pixval_rms))
+        logger.info('bin_min: {}'.format(bin_min))
+        logger.info('bin_max: {}'.format(bin_max))
         hist, bin_edges = np.histogram(valid_data, bins=np.linspace(bin_min, bin_max, num=nbin+1, endpoint=True))
-        print('bin_edges:', bin_edges)
-        print('hist:', hist)
+        logger.info('bin_edges: {}'.format(bin_edges))
+        logger.info('hist: {}'.format(hist))
         bin_centers = (bin_edges[1:]+bin_edges[0:-1])/2.0
         dynamical_range_1 = pixval_median / bin_min
         dynamical_range_2 = bin_max / pixval_median
@@ -302,7 +306,7 @@ def make_seed_image_for_rate_image(
     
     model_init = apy_models.Gaussian1D(amplitude=np.max(hist), mean=pixval_mode, stddev=hist_fwhm_init/2.35482)
     fitter = apy_fitting.LevMarLSQFitter()
-    print('Fitting with bins from min {} to max {}'.format(fit_min, fit_max))
+    logger.info('Fitting with bins from min {} to max {}'.format(fit_min, fit_max))
     bin_mask = np.logical_and(bin_centers >= fit_min, bin_centers <= fit_max)
     if np.count_nonzero(bin_mask) > 0:
         model_fitted = fitter(model_init, bin_centers[bin_mask], hist[bin_mask])
@@ -316,14 +320,14 @@ def make_seed_image_for_rate_image(
         pixval_2sigma = pixval_mean_fitted + 2.0 * pixval_stddev_fitted
         pixval_3sigma = pixval_mean_fitted + 3.0 * pixval_stddev_fitted
     else:
-        print('Error! no valid bins from min {} to max {}?!'.format(fit_min, fit_max))
+        logger.info('Error! no valid bins from min {} to max {}?!'.format(fit_min, fit_max))
     
     # refit with the core part of the histogram
     #if fit_half and pixval_stddev_fitted < 1e-10:
     #    print('Warning! Fitting with bins from min {} to max {} failed!'.format(fit_min, fit_max))
     #    fit_core = True
     if fit_core:
-        print('Refitting with bins from -1 sigma {} to +1 sigma {}'.format(pixval_m1sigma, pixval_1sigma))
+        logger.info('Refitting with bins from -1 sigma {} to +1 sigma {}'.format(pixval_m1sigma, pixval_1sigma))
         bin_mask = np.logical_and.reduce((bin_mask, bin_centers >= pixval_m3sigma, bin_centers <= pixval_3sigma))
         if np.count_nonzero(bin_mask) > 0:
             model_fitted = fitter(model_init, bin_centers[bin_mask], hist[bin_mask])
@@ -337,7 +341,7 @@ def make_seed_image_for_rate_image(
             pixval_2sigma = pixval_mean_fitted + 2.0 * pixval_stddev_fitted
             pixval_3sigma = pixval_mean_fitted + 3.0 * pixval_stddev_fitted
         else:
-            print('Error! no valid bins from -1 sigma {} to +1 sigma {}?!'.format(pixval_m1sigma, pixval_1sigma))
+            logger.info('Error! no valid bins from -1 sigma {} to +1 sigma {}?!'.format(pixval_m1sigma, pixval_1sigma))
     
     # plot vertical lines
     ax.plot([pixval_mean_fitted]*2, ax.get_ylim(), ls='dotted', color='red')
@@ -372,7 +376,7 @@ def make_seed_image_for_rate_image(
     
     # save figure
     fig.savefig(output_histogram_figure)
-    print('Output to "{}"'.format(output_histogram_figure))
+    logger.info('Output to "{}"'.format(output_histogram_figure))
     
     # get reduced chisq
     chisq_fitted = (hist_fitted - hist) / np.max(hist) / nbin
@@ -391,12 +395,12 @@ def make_seed_image_for_rate_image(
     # save fits file
     hdu = fits.PrimaryHDU(data=arr, header=header)
     hdu.writeto(output_fits_image, overwrite=True)
-    print('Output to "{}"'.format(output_fits_image))
+    logger.info('Output to "{}"'.format(output_fits_image))
     
     # save fits file
     hdu = fits.PrimaryHDU(data=arr, header=header)
     hdu.writeto(output_fits_image, overwrite=True)
-    print('Output to "{}"'.format(output_fits_image))
+    logger.info('Output to "{}"'.format(output_fits_image))
 
 
 

@@ -140,7 +140,7 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
     for entry in model.history:
         for k,v in entry.items():
             if 'Removed horizontal,vertical striping; remstriping.py' in v:
-                print('%s already cleaned. Skipping!'%os.path.basename(image))
+                log.info('%s already cleaned. Skipping!'%os.path.basename(image))
                 return
 
     # apply the flat to get a cleaner meausurement of the striping
@@ -167,7 +167,7 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
                          'TIME-OBS':model.meta.observation.time}
         else:
             raise ValueError("Error! The `instrument_name` (model.meta.instrument.name) can only be NIRCAM and MIRI!")
-        print('crds_dict:', crds_dict) #<DZLIU>#
+        log.info('crds_dict: {}'.format(crds_dict)) #<DZLIU>#
         flats = crds.getreferences(crds_dict, reftypes=['flat'], 
                                    context=crds_context)
         # if the CRDS loopup fails, should return a CrdsLookupError, but 
@@ -190,7 +190,7 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
     # construct mask for median calculation
     mask = np.zeros(model.data.shape, dtype=bool)
     #<DZLIU># mask[model.dq > 0] = True
-    print('instrument_name.upper()', instrument_name.upper())
+    log.debug('instrument_name.upper(): {}'.format(instrument_name.upper()))
     if instrument_name.upper() == 'NIRCAM':
         mask[model.dq > 0] = True
     
@@ -269,7 +269,7 @@ def measure_striping(image, apply_flat=True, mask_sources=True, seedim_directory
         immodel.dq[wnan] = np.bitwise_or(immodel.dq[wnan], bpflag)
         
         # dzliu fixing "NotImplementedError: MaskedArray.tofile() not implemented yet."
-        print('type(outsci)', type(outsci))
+        log.debug('type(outsci): {}'.format(type(outsci)))
         if isinstance(outsci, np.ma.core.MaskedArray):
            outsci = outsci.filled()
 

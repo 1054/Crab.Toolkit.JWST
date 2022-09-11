@@ -55,6 +55,10 @@ from jwst.datamodels.dqflags import pixel as dqflags_pixel
 
 from jwst.datamodels import ImageModel, FlatModel
 
+# logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 def merge_source_emission_masked_rate_data(
         rate_image_files, 
@@ -65,13 +69,13 @@ def merge_source_emission_masked_rate_data(
     ):
 
     # 
-    print('Running merge_source_emission_masked_rate_data')
-    print('rate_image_files: {!r} ({})'.format(rate_image_files, len(rate_image_files)))
-    print('out_image_file: {!r}'.format(out_image_file))
+    logger.info('Running merge_source_emission_masked_rate_data')
+    logger.info('rate_image_files: {!r} ({})'.format(rate_image_files, len(rate_image_files)))
+    logger.info('out_image_file: {!r}'.format(out_image_file))
         
     # check out_image_file
     if os.path.isfile(out_image_file) and not overwrite:
-        print('Found existing output image {!r} and overwrite is set to False. Will not do anything.'.format(out_image_file))
+        logger.info('Found existing output image {!r} and overwrite is set to False. Will not do anything.'.format(out_image_file))
         return
     
     # prepare mask_source_emission_dq
@@ -111,7 +115,7 @@ def merge_source_emission_masked_rate_data(
             sigma_clip_median = np.median(rate_image_sci[mask].ravel())
             sigma_clip_stddev = np.std(rate_image_sci[mask].ravel() - sigma_clip_median)
             sigma_clip_thresh = sigma_clip_median + sigma * sigma_clip_stddev
-            print('sigma clipping: median {}, stddev {}, median+sigma*stddev {}'.format(
+            logger.info('sigma clipping: median {}, stddev {}, median+sigma*stddev {}'.format(
                 sigma_clip_median, sigma_clip_stddev, sigma_clip_thresh
                 ))
             sigma_clip_mask = np.logical_and(mask, rate_image_sci>sigma_clip_thresh)
@@ -151,7 +155,7 @@ def merge_source_emission_masked_rate_data(
             os.makedirs(os.path.dirname(out_image_file))
         image_model.write(out_image_file)
         
-        print('Output to {!r}'.format(out_image_file))
+        logger.info('Output to {!r}'.format(out_image_file))
 
 
 

@@ -102,7 +102,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     echo "*** Processing $dataset_name ***"
     
     if [[ ! -d $dataset_name ]]; then
-        echo "Error! Dataset directory does not exist: \"$dataset_name\"! Current directory: \"$(pwd)\"."
+        echo "Error! Dataset directory does not exist: \"$(pwd)/$dataset_name\"!"
         exit 255
     fi
     
@@ -111,13 +111,13 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     
     # check input directory: calibrated2_cals
     if [[ ! -d calibrated2_cals ]]; then
-        echo "Error! Dataset directory does not exist: \"$calibrated2_cals\"! Current directory: \"$(pwd)\"."
+        echo "Error! Dataset directory does not exist: \"$(pwd)/$calibrated2_cals\"!"
         exit 255
     fi
     
     # check input file: ${dataset_name}_cal.fits
-    if [[ ! -f ${dataset_name}_cal.fits ]] && [[ ! -L ${dataset_name}_cal.fits ]]; then
-        echo "Error! Data file does not exist: \"${dataset_name}_cal.fits\"! Current directory: \"$(pwd)\"."
+    if [[ ! -f calibrated2_cals/${dataset_name}_cal.fits ]] && [[ ! -L ${dataset_name}_cal.fits ]]; then
+        echo "Error! Data file does not exist: \"$(pwd)/calibrated2_cals/${dataset_name}_cal.fits\"!"
         exit 255
     fi
     

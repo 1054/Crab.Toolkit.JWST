@@ -55,6 +55,10 @@ from jwst.datamodels.dqflags import pixel as dqflags_pixel
 
 from jwst.datamodels import ImageModel, FlatModel
 
+# logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 def mask_rate_data_with_seed_image(
         rate_image_file, 
@@ -66,10 +70,10 @@ def mask_rate_data_with_seed_image(
     ):
 
     # 
-    print('Running mask_rate_data_with_seed_image')
-    print('rate_image_file: {!r}'.format(rate_image_file))
-    print('seed_image_file: {!r}'.format(seed_image_file))
-    print('out_image_file: {!r}'.format(out_image_file))
+    logger.info('Running mask_rate_data_with_seed_image')
+    logger.info('rate_image_file: {!r}'.format(rate_image_file))
+    logger.info('seed_image_file: {!r}'.format(seed_image_file))
+    logger.info('out_image_file: {!r}'.format(out_image_file))
     
     # check input rate image
     if check_rate_image:
@@ -81,7 +85,7 @@ def mask_rate_data_with_seed_image(
         
     # check out_image_file
     if os.path.isfile(out_image_file) and not overwrite:
-        print('Found existing output image {!r} and overwrite is set to False. Will not do anything.'.format(out_image_file))
+        logger.info('Found existing output image {!r} and overwrite is set to False. Will not do anything.'.format(out_image_file))
         return
     
     # read input rate image header
@@ -95,7 +99,7 @@ def mask_rate_data_with_seed_image(
     if source_image.shape == rate_image.shape:
         source_mask = (source_image>1e-6)
     else:
-        print('Reprojecting seed image to rate image')
+        logger.info('Reprojecting seed image to rate image')
         source_image_reproj = reproject_interp(
             (source_image, source_image_header), 
             rate_image_header,
@@ -112,10 +116,10 @@ def mask_rate_data_with_seed_image(
     # read input rate image as ImageModel
     with datamodels.open(rate_image_file) as image_model:
         
-        print(type(image_model.dq))
+        #logger.debug(type(image_model.dq))
         
-        print('image_model.dq[884,145]', image_model.dq[884,145]) # Lyot CoronGraph
-        print('image_model.dq[688,666]', image_model.dq[688,666]) # source emission
+        #logger.debug('image_model.dq[884,145]', image_model.dq[884,145]) # Lyot CoronGraph
+        #logger.debug('image_model.dq[688,666]', image_model.dq[688,666]) # source emission
         
         # set DQ to the pixels with source emission mask
         image_model.dq[source_mask] = np.bitwise_or(
@@ -125,8 +129,8 @@ def mask_rate_data_with_seed_image(
         
         image_model.data[source_mask] = 0.0
         
-        print('image_model.dq[884,145]', image_model.dq[884,145]) # Lyot CoronGraph
-        print('image_model.dq[688,666]', image_model.dq[688,666]) # source emission
+        #logger.debug('image_model.dq[884,145]', image_model.dq[884,145]) # Lyot CoronGraph
+        #logger.debug('image_model.dq[688,666]', image_model.dq[688,666]) # source emission
         
         # write out_image_file
         if os.path.isfile(out_image_file):
@@ -135,7 +139,7 @@ def mask_rate_data_with_seed_image(
             os.makedirs(os.path.dirname(out_image_file))
         image_model.write(out_image_file)
         
-        print('Output to {!r}'.format(out_image_file))
+        logger.info('Output to {!r}'.format(out_image_file))
 
 
 
