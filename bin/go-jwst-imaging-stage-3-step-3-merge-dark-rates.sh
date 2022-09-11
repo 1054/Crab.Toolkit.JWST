@@ -46,7 +46,7 @@ multiobs_rate_images=()
 multiobs_masked_rate_images=()
 for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
     temp_mosaic_asn="${mosaic_asn_files[i]}"
-    temp_cal_images=($(cat "$temp_mosaic_asn" | grep "expname" | perl -p -e 's%[^0-9a-zA-Z_/.+-]% %g' | awk '{print $2}'))
+    temp_cal_images=($(cat "$temp_mosaic_asn" | grep "expname" | perl -p -e 's/^.*: ["](.*)["].*/\1/g'))
     for (( m = 0; m < ${#temp_cal_images[@]}; m++ )); do
         cal_image="${temp_cal_images[m]}"
         rate_image=$(echo "$cal_image" | perl -p -e 's%/calibrated2_cals/%/calibrated1_rates/%g' | perl -p -e 's%_cal.fits$%_rate.fits%g')
@@ -59,7 +59,6 @@ for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
 done
 
 echo "multiobs_masked_rate_images = ${multiobs_masked_rate_images[@]} (${#multiobs_masked_rate_images[@]})"
-exit
 
 
 # loop each cal/rate image dir, merge all other source-emission-masked rates

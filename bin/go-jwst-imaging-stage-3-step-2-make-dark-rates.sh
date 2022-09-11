@@ -18,7 +18,7 @@ script_dir=$(dirname "${BASH_SOURCE[0]}")
 # Read user input
 if [[ $# -lt 2 ]]; then
     echo "Please input:"
-    echo "    mosaic_image_i2d.fits"
+    echo "    mosaic_image_.fits"
     echo "    mosaic_image_i2d_asn.json"
     echo "Notes:"
     echo "    The second input JWST association file should contain many cal images, "
@@ -71,7 +71,7 @@ fi
 seed_image="$this_file_out"
 
 # find all associated cal.fits and rate.fits, mask them with source emission mask
-cal_images=($(cat "$mosaic_asn" | grep "expname" | perl -p -e 's%[^0-9a-zA-Z_/.+-]% %g' | awk '{print $2}'))
+cal_images=($(cat "$mosaic_asn" | grep "expname" | perl -p -e 's/^.*: ["](.*)["].*/\1/g'))
 rate_images=()
 masked_rate_images=()
 for (( k = 0; k < ${#cal_images[@]}; k++ )); do
