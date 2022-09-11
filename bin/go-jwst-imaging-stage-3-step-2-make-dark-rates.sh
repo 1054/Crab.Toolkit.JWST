@@ -55,13 +55,13 @@ if [[ ! -f "$this_file_out" ]] || [[ $overwrite -gt 0 ]]; then
         --no-inplace \
         --output-dir "$this_dir_out" \
         --output-suffix "remstriping" \
-        --smooth 3.0
+        --smooth 1.0
     $script_dir/remstriping "$this_file_in" \
         --no-apply-flat \
         --no-inplace \
         --output-dir "$this_dir_out" \
         --output-suffix "remstriping" \
-        --smooth 3.0
+        --smooth 1.0
 fi
 if [[ ! -f "$this_file_out" ]]; then
     echo "Error! Failed to produce the output files: \"$this_file_out\""
