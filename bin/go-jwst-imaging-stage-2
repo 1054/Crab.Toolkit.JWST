@@ -161,12 +161,12 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     file_in2="calibrated1_rates/merged_other_visits_mirimage_rate_masked_source_emission.fits"
     file_out="calibrated2_cals/${dataset_name}_cal_bkgsub_with_source_emission_mask.fits"
     if [[ -f "$file_in2" ]]; then
-        proc_args=()
+        proc_args=(--darkobs "$file_in2")
         if [[ $overwrite -gt 0 ]]; then
             proc_args+=(--overwrite)
         fi
-        echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_in2" "$file_out" "${proc_args[@]}"
-        python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_in2" "$file_out" "${proc_args[@]}"
+        echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_out" "${proc_args[@]}"
+        python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_out" "${proc_args[@]}"
         ret=$?
         if [[ $ret -ne 0 ]]; then
             echo "Error occurred?!"
