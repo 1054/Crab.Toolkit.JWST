@@ -143,7 +143,7 @@ def setup_logger():
 @click.option('--filter', 'select_filter', type=str, multiple=True, default=None, help='Specify a filter.')
 @click.option('--combine-program/--no-combine-program', is_flag=True, default=False, help='Combine all programs into one.')
 @click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
-@click.option('--combine-filter/--no-combine-filter', is_flag=True, default=True, help='Combine all filters into one.')
+@click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 def main(
         input_cal_files, 
