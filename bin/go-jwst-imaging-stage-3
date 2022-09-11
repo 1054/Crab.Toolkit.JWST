@@ -126,7 +126,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
 
     files_in+=("$dataset_name/calibrated2_cals/${dataset_name}_cal.fits")
     
-fi
+done
 
 # Run step 1
 dir_out="calibrated3_mosaics"
