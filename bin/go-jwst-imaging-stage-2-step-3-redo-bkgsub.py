@@ -120,7 +120,7 @@ def main(
     if os.path.isfile(output_filepath):
         if overwrite:
             shutil.move(output_filepath, output_filepath+'.backup')
-        else
+        else:
             logger.info('Found existing output file {!r} and overwrite is False. Do nothing.'.format(
                         output_filepath))
             return
