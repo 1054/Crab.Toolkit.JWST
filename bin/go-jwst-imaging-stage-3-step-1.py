@@ -262,10 +262,6 @@ def main(
     info_table = Table(info_table_dict)
     
     
-    # sort by '{instrument}_{filter}_{program}_{obs_num}'
-    #info_table.sort(['instrument', 'filter', 'program', 'obs_num', 'visit_num'])
-    
-    
     # output info table
     info_table_file = os.path.join(output_dir, 'info_table')
     if not os.path.isdir(os.path.dirname(info_table_file)):
@@ -320,9 +316,9 @@ def main(
             groupped_filter_str,
         )
         
-        output_subdir = output_name
+        output_subdir = os.path.join(output_dir, output_name)
         output_file = output_name + '_i2d.fits'
-        output_filepath = os.path.join(output_dir, output_subdir, output_file)
+        output_filepath = os.path.join(output_subdir, output_file)
         
         # check existing output file, skip the processing or backup and overwrite it. 
         if not os.path.isdir(output_subdir):
@@ -398,7 +394,7 @@ def main(
         # Set some parameters that pertain to some of the individual steps
         # Set OutlierDetection
         #pipeline_object.outlier_detection.skip = True
-        pipeline_object.outlier_detection.output_dir = output_dir
+        pipeline_object.outlier_detection.output_dir = output_subdir
         # Turn on TweakRegStep
         #pipeline_object.tweakreg.skip = True
         #pipeline_object.tweakreg.save_catalogs = True
