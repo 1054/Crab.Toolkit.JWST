@@ -46,13 +46,18 @@ work_dir="."
 current_dir=$(pwd)
 overwrite=0
 dataset_names=()
+unused_args=()
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
-    if [[ "$argstr"x == "--work-dir"x ]]; then
-        iarg=$((iarg+1))
-        if [[ $iarg -le $# ]]; then
-            work_dir=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
-            echo "work_dir = \"$work_dir\""
+    if [[ "$argstr" == "--"* ]]; then
+        if [[ "$argstr" == "--work-dir" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                work_dir=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
+                echo "work_dir = \"$work_dir\""
+            fi
+        else
+            unused_args+=("${!iarg}")
         fi
     else
         dataset_names+=("${!iarg}")
