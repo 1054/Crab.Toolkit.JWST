@@ -209,7 +209,9 @@ done
 redo_files_in=()
 for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     dataset_name="${dataset_names[i]}"
-    redo_files_in+=("$dataset_name/calibrated2_cals/${dataset_name}_cal_bkgsub_with_source_emission_mask.fits")
+    if [[ -f "$dataset_name/calibrated2_cals/${dataset_name}_cal_bkgsub_with_source_emission_mask.fits" ]]; then
+        redo_files_in+=("$dataset_name/calibrated2_cals/${dataset_name}_cal_bkgsub_with_source_emission_mask.fits")
+    fi
 done
 
 
