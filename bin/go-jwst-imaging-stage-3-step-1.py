@@ -61,6 +61,7 @@ From ceers_nircam_reduction.ipynb
 
 # Packages that allow us to get information about objects:
 import os, sys, re, json, copy, datetime, time, glob, shutil
+import click
 from collections import OrderedDict
 from distutils.version import LooseVersion
 
