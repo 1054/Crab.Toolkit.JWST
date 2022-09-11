@@ -129,7 +129,7 @@ for (( i = 0; i < ${#input_files[@]}; i++ )); do
         output_file="$output_dir_active/${output_name}.fits"
         
         # copy input file to output_dir
-        if [[ "$input_dir" != "$output_dir_active" ]]; then
+        if [[ "$input_file" != "$output_file" ]]; then
             echo cp "$input_file" "$output_file"
             \cp "$input_file" "$output_file"
         fi
