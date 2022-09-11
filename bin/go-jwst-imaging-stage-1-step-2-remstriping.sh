@@ -20,7 +20,7 @@ if [[ $# -eq 0 ]]; then
     echo "    ./this_script jw01837022001_02201_00002_nrca1_rate.fits"
     exit 255
 fi
-if [[ "$1" == *"ncr"* ]] && [[ "$1" != *"miri"* ]]; then
+if [[ "$1" == *"nrc"* ]] && [[ "$1" != *"miri"* ]]; then
     echo $script_dir/remstriping $@ --apply-flat --inplace
     $script_dir/remstriping $@ --apply-flat --inplace
 else

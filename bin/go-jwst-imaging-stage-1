@@ -111,6 +111,7 @@ fi
 for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     
     dataset_name="${dataset_names[i]}"
+    echo "*** Processing $dataset_name ***"
     
     if [[ ! -d $dataset_name ]]; then
         echo mkdir $dataset_name
@@ -132,9 +133,9 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         # download it using the script "go-jwst-query-by-dataset-name.py"
         if [[ ! -f "$MAST_DOWNLOAD_DIR/${dataset_name}/${dataset_name}_uncal.fits" ]]; then
             echo $script_dir/go-jwst-query-by-dataset-name.py ${dataset_name} \
-                --download --dowload-dir=$(dirname $(dirname "$MAST_DOWNLOAD_DIR"))
+                --download --download-dir=$(dirname $(dirname "$MAST_DOWNLOAD_DIR"))
             $script_dir/go-jwst-query-by-dataset-name.py ${dataset_name} \
-                --download --dowload-dir=$(dirname $(dirname "$MAST_DOWNLOAD_DIR"))
+                --download --download-dir=$(dirname $(dirname "$MAST_DOWNLOAD_DIR"))
             if [[ ! -f "$MAST_DOWNLOAD_DIR/${dataset_name}/${dataset_name}_uncal.fits" ]]; then
                 echo "Error! Cannot find or download data file: \"$MAST_DOWNLOAD_DIR/${dataset_name}/${dataset_name}_uncal.fits\""
                 exit 3
