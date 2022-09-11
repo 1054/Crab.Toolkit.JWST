@@ -66,6 +66,7 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     rate_image="${multiobs_rate_images[i]}"
     masked_rate_image="${multiobs_masked_rate_images[i]}"
     merged_masked_rate=$(dirname "$masked_rate_image")"/merged_other_visit_rates_with_source_emission_mask.fits"
+    merged_masked_rate_list_file=$(dirname "$masked_rate_image")"/merged_other_visit_rates_with_source_emission_mask.list.txt"
     output_cal_image=$(echo "$cal_image" | perl -p -e 's/_cal.fits$/_cal_bkgsub_with_source_emission_mask.fits/g')
     
     if [[ ! -f "$merged_masked_rate" ]] || [[ $overwrite -gt 0 ]]; then
