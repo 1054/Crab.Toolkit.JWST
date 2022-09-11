@@ -48,24 +48,24 @@ while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
     if [[ "$argstr"x == "--test"x ]]; then
         test=1
-        echo "test=$test"
+        #echo "test=$test"
     elif [[ "$argstr"x == "--overwrite"x ]]; then
         overwrite=1
-        echo "overwrite = $overwrite"
+        #echo "overwrite = $overwrite"
     elif [[ "$argstr"x == "--inplace"x ]]; then
         inplace=1
-        echo "inplace = $inplace"
+        #echo "inplace = $inplace"
     elif [[ "$argstr"x == "--apply-flat"x ]]; then
         apply_flat=1
-        echo "apply_flat = $apply_flat"
+        #echo "apply_flat = $apply_flat"
     elif [[ "$argstr"x == "--no-apply-flat"x ]]; then
         apply_flat=0
-        echo "apply_flat = $apply_flat"
+        #echo "apply_flat = $apply_flat"
     elif [[ "$argstr"x == "--smooth"x ]]; then
         iarg=$((iarg+1))
         if [[ $iarg -le $# ]]; then
             smooth="${!iarg}"
-            echo "smooth = $smooth"
+            #echo "smooth = $smooth"
         fi
     elif [[ "$argstr"x == "--output-suffix"x ]]; then
         iarg=$((iarg+1))

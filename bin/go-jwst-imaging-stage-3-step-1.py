@@ -146,7 +146,7 @@ def main(
         obsnum, 
         instrument, 
         infilter, 
-        check_filter, 
+        group_filter, 
         overwrite, 
     ):
     
@@ -277,7 +277,12 @@ def main(
     
     
     # group by '{instrument}_{filter}' # '{program}_{obs_num}_{instrument}_{filter}'
-    groupped_table = info_table.group_by(['instrument', 'filter'])
+    if group_filter:
+        groupped_table = info_table.group_by(['instrument', 'filter'])
+    else:
+        if len(np.unique(info_table['filter'])) > 0:
+            logger.warning('We are not groupping filters!')
+        groupped_table = info_table.group_by(['instrument'])
     
     
     # prepare association file to process all rate files into one single output file
@@ -289,13 +294,26 @@ def main(
         unique_obsnums = np.unique(subgroup_table['obs_num'])
         groupped_obsnum_str = '+'.join(unique_obsnums)
         
+        if group_filter:
+            groupped_instrument_str = subgroup_key['instrument']
+            groupped_filter_str = subgroup_key['filter']
+        else:
+            unique_instruments = np.unique(subgroup_table['instrument'])
+            groupped_instrument_str = '+'.join(unique_instruments)
+            unique_filters = np.unique(subgroup_table['filter'])
+            groupped_filter_str = '+'.join(unique_filters)
+        
+        unique_obsnums = np.unique(subgroup_table['obs_num'])
+        groupped_obsnum_str = '+'.join(unique_obsnums)
+        
         subgroup_files = subgroup_table['file_path'].data.tolist()
         
         output_name = 'jw{}_obs{}_{}_{}'.format(
             groupped_program_str, 
             groupped_obsnum_str, 
-            subgroup_key['instrument'],
-            subgroup_key['filter'])
+            groupped_instrument_str,
+            groupped_filter_str,
+        )
         
         output_subdir = output_name
         output_file = output_name + '_i2d.fits'
