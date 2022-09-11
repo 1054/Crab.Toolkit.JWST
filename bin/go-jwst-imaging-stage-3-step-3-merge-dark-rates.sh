@@ -57,13 +57,15 @@ for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
     done
 done
 
+echo "multiobs_masked_rate_images = ${multiobs_masked_rate_images[@]} (${#multiobs_masked_rate_images[@]})"
+
 
 # loop each cal/rate image dir, merge all other source-emission-masked rates
 for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     cal_image="${multiobs_cal_images[i]}"
     rate_image="${multiobs_rate_images[i]}"
     masked_rate_image="${multiobs_masked_rate_images[i]}"
-    merged_masked_rate=$(dirname "$masked_rate_image")"/merged_other_visits_rate_masked_source_emission.fits"
+    merged_masked_rate=$(dirname "$masked_rate_image")"/merged_other_visit_rates_with_source_emission_mask.fits"
     output_cal_image=$(echo "$cal_image" | perl -p -e 's/_cal.fits$/_cal_bkgsub_with_source_emission_mask.fits/g')
     
     if [[ ! -f "$merged_masked_rate" ]] || [[ $overwrite -gt 0 ]]; then
@@ -73,6 +75,10 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
                 applicable_masked_rate_images+=("${multiobs_masked_rate_images[m]}")
             fi
         done
+        if [[ ${#applicable_masked_rate_images[@]} -eq 0 ]]; then
+            echo "Error! No applicable_masked_rate_images?"
+            exit 255
+        fi
         
         echo $script_dir/util_merge_source_emission_masked_rate_data.py \
             ${applicable_masked_rate_images[@]} \

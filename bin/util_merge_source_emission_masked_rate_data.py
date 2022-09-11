@@ -7,7 +7,7 @@ Usage:
     ./util_merge_source_emission_masked_rate_data.py \
         jw01837014001_02101_00002_mirimage/calibrated1_rates/jw01837014001_02101_00002_mirimage_rate_masked_source_emission.fits \
         jw01837023001_02101_00002_mirimage/calibrated1_rates/jw01837023001_02101_00002_mirimage_rate_masked_source_emission.fits \
-        jw01837022001_02101_00002_mirimage/calibrated1_rates/merged_other_visits_mirimage_rate_masked_source_emission.fits
+        jw01837022001_02101_00002_mirimage/calibrated1_rates/merged_other_visit_rates_with_source_emission_mask.fits
 
 By Daizhong Liu @MPE. 
 
