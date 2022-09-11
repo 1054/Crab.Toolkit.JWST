@@ -196,6 +196,10 @@ def main(
     run_output = pipeline_object.run(asn_filepath)
     
     
+    # rename
+    os.rename(re.sub(r'\.fits$', r'_cal.fits', output_filepath), output_filepath)
+    
+    
     # check output file existence
     assert os.path.isfile(output_filepath)
     
