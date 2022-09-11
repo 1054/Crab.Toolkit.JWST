@@ -66,10 +66,10 @@ done
 if [[ ${#dataset_names[@]} -eq 0 ]]; then
     if [[ "$work_dir" != "." ]]; then
         echo "Searching for JWST dataset under working directory: $work_dir"
-        found_dirs=($(find $work_dir -type d -maxdepth 1 -mindepth 1 -name "jw*_*"))
+        found_dirs=($(find $work_dir -maxdepth 1 -mindepth 1 -type d -name "jw*_*" | sort -V))
     else
         echo "Searching for JWST dataset under current directory: $current_dir"
-        found_dirs=($(find . -type d -maxdepth 1 -mindepth 1 -name "jw*_*"))
+        found_dirs=($(find . -maxdepth 1 -mindepth 1 -type d -name "jw*_*" | sort -V))
     fi
     for (( i = 0; i < ${#found_dirs}; i++ )); do
         found_dirname=$(basename "${found_dirs[i]}")
