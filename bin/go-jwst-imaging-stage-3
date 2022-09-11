@@ -248,11 +248,11 @@ for (( i = 0; i < ${#files_out[@]}; i++ )); do
             if [[ $overwrite -gt 0 ]]; then
                 proc_args+=(--overwrite)
             fi
-            echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
+            echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
                 "$asn_rate" \
                 "$output_recal" \
                 "${proc_args[@]}"
-            python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
+            $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
                 "$asn_rate" \
                 "$output_recal" \
                 "${proc_args[@]}"
