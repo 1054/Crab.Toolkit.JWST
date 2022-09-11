@@ -84,16 +84,14 @@ if [[ ${#dataset_names[@]} -eq 0 ]]; then
     fi
     for (( i = 0; i < ${#found_dirs[@]}; i++ )); do
         found_dirname=$(basename "${found_dirs[i]}")
-        $script_dir/go-jwst-parse-dataset-name.py "$found_dirname" > /dev/null 2>&1
-        if [[ $? -eq 0 ]]; then
+        if [[ $($script_dir/go-jwst-parse-dataset-name.py "$found_dirname" 2>/dev/null | tail -n 1) == "JWST_Dataset_Name"* ]]; then
             dataset_names+=("$found_dirname")
         fi
     done
 else
     for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         dataset_name="${dataset_names[i]}"
-        $script_dir/go-jwst-parse-dataset-name.py "$dataset_name" > /dev/null 2>&1
-        if [[ $? -ne 0 ]]; then
+        if [[ $($script_dir/go-jwst-parse-dataset-name.py "$dataset_name" 2>/dev/null | tail -n 1) != "JWST_Dataset_Name"* ]]; then
             echo "Error! The input dataset name \"$dataset_name\" seems incorrect?"
             exit 255
         fi
