@@ -10,6 +10,7 @@ This requires some --dark-obs rate data.
 # Packages that allow us to get information about objects:
 import os, sys, re, json, copy, datetime, time, glob, shutil
 import click
+from astropy.io import fits
 
 # Set CRDS
 if not ('CRDS_PATH' in os.environ):
