@@ -101,14 +101,15 @@ def merge_source_emission_masked_rate_data(
             rate_images_count = np.full(rate_image_sci.shape, fill_value=0.0)
             rate_images_dq = copy.copy(rate_image_dq)
         # 
-        #mask_good_pixels = bitfield_to_boolean_mask(
+        # mask_dynamically_bad_pixels = bitfield_to_boolean_mask(
         #    rate_image_dq, 
-        #    interpret_bit_flags('GOOD',
+        #    interpret_bit_flags('SATURATED|JUMP_DET|DROPOUT',
         #        flag_name_map=dqflags_pixel
         #    ),
         #    good_mask_value=True,
         #    dtype=bool
-        #)
+        # )
+        # 
         mask_good_pixels = (rate_image_dq == 0)
         # 
         if do_sigma_clip:
@@ -128,7 +129,9 @@ def merge_source_emission_masked_rate_data(
         rate_images_sci[mask] += rate_image_sci[mask]
         rate_images_err[mask] += rate_image_err[mask]
         rate_images_count[mask] += 1.0
-        rate_images_dq = np.bitwise_or(rate_images_dq, rate_image_dq)
+        rate_image_dq[np.logical_and(mask, rate_image_dq == mask_source_emission_dq)] = 0 # reset mask_source_emission_dq and only combine original dq
+        #rate_image_dq[np.logical_and(mask, mask_dynamically_bad_pixels)] = 0 # reset mask_source_emission_dq and only combine original dq
+        rate_images_dq = np.bitwise_and(rate_images_dq, rate_image_dq)
     
     # compute output rate image
     out_image_sci = rate_images_sci * 0.0
@@ -141,6 +144,7 @@ def merge_source_emission_masked_rate_data(
     out_image_dq = copy.copy(rate_images_dq)
     mask = np.logical_and(out_image_dq == mask_source_emission_dq, out_image_sci > 0.0)
     out_image_dq[mask] = 0 # good
+    #out_image_dq[rate_images_count > 0] = 0 # good
     
     # read the first input rate image as a ImageModel template and save output rate data
     with datamodels.open(rate_image_file) as image_model:
@@ -152,7 +156,7 @@ def merge_source_emission_masked_rate_data(
         # write out_image_file
         if os.path.isfile(out_image_file):
             shutil.move(out_image_file, out_image_file+'.backup')
-        elif not os.path.isdir(os.path.dirname(out_image_file)):
+        elif out_image_file.find(os.sep)>=0 and not os.path.isdir(os.path.dirname(out_image_file)):
             os.makedirs(os.path.dirname(out_image_file))
         image_model.write(out_image_file)
         

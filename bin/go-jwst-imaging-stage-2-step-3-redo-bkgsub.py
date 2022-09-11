@@ -149,7 +149,7 @@ def main(
     # prepare association content
     asn_dict = OrderedDict()
     asn_dict['asn_type'] = 'None'
-    asn_dict['asn_rule'] = 'DMS_Level3_Base'
+    asn_dict['asn_rule'] = 'DMS_Level2_Base'
     asn_dict['version_id'] = None
     asn_dict['code_version'] = jwst.__version__
     asn_dict['degraded_status'] = 'No known degraded exposures in association.'
