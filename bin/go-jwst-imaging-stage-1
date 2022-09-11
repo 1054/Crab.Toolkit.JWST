@@ -71,7 +71,7 @@ if [[ ${#dataset_names[@]} -eq 0 ]]; then
         echo "Searching for JWST dataset under current directory: $current_dir"
         found_dirs=($(find . -maxdepth 1 -mindepth 1 -type d -name "jw*_*" | sort -V))
     fi
-    for (( i = 0; i < ${#found_dirs}; i++ )); do
+    for (( i = 0; i < ${#found_dirs[@]}; i++ )); do
         found_dirname=$(basename "${found_dirs[i]}")
         $script_dir/go-jwst-parse-dataset-name.py "$found_dirname" > /dev/null 2>&1
         if [[ $? -eq 0 ]]; then
