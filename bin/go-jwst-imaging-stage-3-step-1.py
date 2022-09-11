@@ -137,20 +137,24 @@ def setup_logger():
 @click.command()
 @click.argument('input_cal_files', nargs=-1, type=str)
 @click.argument('output_dir', type=click.Path(exists=False))
-@click.option('--program', type=str, default='', help='Specify a program.')
-@click.option('--obsnum', type=str, default='', help='Specify a obsnum.')
-@click.option('--instrument', type=str, default='', help='Specify an instrument.')
-@click.option('--filter', 'infilter', type=str, default='', help='Specify a filter.')
-@click.option('--group-filter/--no-group-filter', is_flag=True, default=True, help='Process groups of data of the same filter.')
+@click.option('--program', 'select_program', type=str, multiple=True, default=None, help='Specify a program.')
+@click.option('--obsnum', 'select_obsnum', type=str, multiple=True, default=None, help='Specify a obsnum.')
+@click.option('--instrument', 'select_instrument', type=str, multiple=True, default=None, help='Specify an instrument.')
+@click.option('--filter', 'select_filter', type=str, multiple=True, default=None, help='Specify a filter.')
+@click.option('--combine-program/--no-combine-program', is_flag=True, default=False, help='Combine all programs into one.')
+@click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
+@click.option('--combine-filter/--no-combine-filter', is_flag=True, default=True, help='Combine all filters into one.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 def main(
         input_cal_files, 
         output_dir, 
-        program, 
-        obsnum, 
-        instrument, 
-        infilter, 
-        group_filter, 
+        select_program, 
+        select_obsnum, 
+        select_instrument, 
+        select_filter, 
+        combine_program, 
+        combine_obsnum, 
+        combine_filter, 
         overwrite, 
     ):
     
@@ -224,28 +228,31 @@ def main(
         else:
             info_dict['pupil'] = '""'
         info_dict['file_path'] = input_filepath
-        # check instrument and infilter
-        if program != '':
-            if program != info_dict['program']:
+        # check selecting instrument and filter
+        if select_program is not None:
+            if info_dict['program'] not in select_program:
                 continue
-        if obsnum != '':
-            if obsnum != info_dict['obs_num']:
+        if select_obsnum is not None:
+            if info_dict['obs_num'] not in select_obsnum:
                 continue
-        if instrument != '':
-            if instrument != info_dict['instrument']:
+        if select_instrument is not None:
+            if info_dict['instrument'] not in select_instrument:
                 continue
-        if infilter != '':
-            if infilter != info_dict['filter']:
+        if select_filter is not None:
+            if info_dict['filter'] not in select_filter:
                 continue
         info_list.append(info_dict)
     
     
     # check len(info_list)
     if len(info_list) == 0:
-        if program != '' or obsnum != '' or instrument != '' or infilter != '':
+        if select_program is not None or \
+           select_obsnum is not None or \
+           select_instrument is not None or \
+           select_filter is not None:
             raise Exception('Error! No input file matching the specified ' + \
                 'program {!r} obsnum {!r} instrument {!r} and filter {!r}'.format(
-                program, obsnum, instrument, infilter))
+                select_program, select_obsnum, select_instrument, select_filter))
         else:
             logger.error('Error! No input file to process!')
             sys.exit(255)
@@ -278,12 +285,21 @@ def main(
     
     
     # group by '{instrument}_{filter}' # '{program}_{obs_num}_{instrument}_{filter}'
-    if group_filter:
-        groupped_table = info_table.group_by(['instrument', 'filter'])
-    else:
+    group_by_columns = ['instrument', 'filter', 'program', 'obs_num']
+    if combine_filter:
         if len(np.unique(info_table['filter'])) > 0:
-            logger.warning('We are not groupping filters!')
-        groupped_table = info_table.group_by(['instrument'])
+            logger.warning('We are combining different filters!')
+        group_by_columns.remove('filter')
+    if combine_program:
+        if len(np.unique(info_table['program'])) > 0:
+            logger.warning('We are combining different programs!')
+        group_by_columns.remove('program')
+    if combine_obsnum:
+        if len(np.unique(info_table['obs_num'])) > 0:
+            logger.warning('We are combining different obs_num!')
+        group_by_columns.remove('obs_num')
+    logger.info('group_by_columns: {}'.format(group_by_columns))
+    groupped_table = info_table.group_by(group_by_columns)
     
     
     # prepare association file to process all rate files into one single output file
