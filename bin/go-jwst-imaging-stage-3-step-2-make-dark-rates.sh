@@ -36,10 +36,10 @@ while [[ $iarg -le $# ]]; do
         overwrite=1
     elif [[ "$mosaic_image"x == ""x ]]; then
         mosaic_image="${!iarg}"
-        echo "mosaic_image = \"mosaic_image\""
+        echo "mosaic_image = \"$mosaic_image\""
     elif [[ "$mosaic_asn"x == ""x ]]; then
         mosaic_asn="${!iarg}"
-        echo "mosaic_asn = \"mosaic_asn\""
+        echo "mosaic_asn = \"$mosaic_asn\""
     fi
     iarg=$((iarg+1))
 done

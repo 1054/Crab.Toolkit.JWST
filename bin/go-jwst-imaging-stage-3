@@ -135,7 +135,7 @@ if [[ $ret -ne 0 ]]; then
     echo "Error occurred?!"
     exit 255
 fi
-files_out=($(find $dir_out -maxdepth 2 -mindepth 2 -type f -name "jw*_obs*_*_i2d.fits" | sort -V | grep -v '+'))
+files_out=($(find $dir_out -maxdepth 2 -mindepth 2 -type f -name "jw*_obs*_*_i2d.fits" | sort -V | grep -v '+' | grep -v 'outlier'))
 if [[ ${#files_out[@]} -eq 0 ]]; then
     echo "Error! Failed to produce the output files: \"$dir_out/jw*_obs*_*/jw*_obs*_*_i2d.fits\""
     exit 255
@@ -222,7 +222,7 @@ if [[ $ret -ne 0 ]]; then
     echo "Error occurred?!"
     exit 255
 fi
-redo_files_out=($(find $redo_dir_out -maxdepth 2 -mindepth 2 -type f -name "jw*_obs*_*_i2d.fits" | sort -V | grep -v '+'))
+redo_files_out=($(find $redo_dir_out -maxdepth 2 -mindepth 2 -type f -name "jw*_obs*_*_i2d.fits" | sort -V | grep -v '+' | grep -v 'outlier'))
 if [[ ${#redo_files_out[@]} -eq 0 ]]; then
     echo "Error! Failed to produce the output files: \"$redo_dir_out/jw*_obs*_*/jw*_obs*_*_i2d.fits\""
     exit 255
