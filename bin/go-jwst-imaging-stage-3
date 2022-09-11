@@ -207,7 +207,8 @@ for (( i = 0; i < ${#files_out[@]}; i++ )); do
     # loop rate image dir, merge all other source-emission-masked rate in this mosaic
     for (( k = 0; k < ${#asn_rate_images[@]}; k++ )); do
         asn_rate="${asn_rate_images[k]}"
-        merged_masked_rate=$(dirname "$asn_rate")"/merged_other_visits_mirimage_rate_masked_source_emission.fits"
+        merged_masked_rate=$(dirname "$asn_rate")"/merged_other_visits_rate_masked_source_emission.fits"
+        merged_masked_rate_list_file=$(echo "$merged_masked_rate" | perl -p -e 's/\.fits$/.list.txt/g')
         # merge source-emission-masked rate images
         if [[ ! -f "$merged_masked_rate" ]] || [[ $overwrite -gt 0 ]]; then
             this_dataset_name=$(basename "$asn_rate" | perl -p -e 's/_rate.fits//g')
@@ -223,6 +224,10 @@ for (( i = 0; i < ${#files_out[@]}; i++ )); do
             $script_dir/util_merge_source_emission_masked_rate_data.py \
                 ${other_masked_rates[@]} \
                 "$merged_masked_rate"
+            echo "# $script_dir/util_merge_source_emission_masked_rate_data.py" > "$merged_masked_rate_list_file"
+            for (( m = 0; m < ${#other_masked_rates[@]}; m++ )); do
+                echo "${other_masked_rates[m]}" >> "$merged_masked_rate_list_file"
+            done
             if [[ ! -f "$merged_masked_rate" ]]; then
                 echo "Error! Failed to produce the output files: \"$merged_masked_rate\""
                 exit 255
