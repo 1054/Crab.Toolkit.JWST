@@ -109,13 +109,8 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     echo cd $dataset_name
     cd $dataset_name
     
-    # check input directory: calibrated2_cals
-    if [[ ! -d calibrated2_cals ]]; then
-        echo "Error! Dataset directory does not exist: \"$(pwd)/$calibrated2_cals\"!"
-        exit 255
-    fi
-    
     # check input file: ${dataset_name}_cal.fits
+    echo "Checking calibrated2_cals/${dataset_name}_cal.fits"
     if [[ ! -f calibrated2_cals/${dataset_name}_cal.fits ]] && [[ ! -L ${dataset_name}_cal.fits ]]; then
         echo "Error! Data file does not exist: \"$(pwd)/calibrated2_cals/${dataset_name}_cal.fits\"!"
         exit 255
