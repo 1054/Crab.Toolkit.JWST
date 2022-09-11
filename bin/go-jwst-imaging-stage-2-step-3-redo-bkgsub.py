@@ -11,6 +11,7 @@ This requires some --dark-obs rate data.
 import os, sys, re, json, copy, datetime, time, glob, shutil
 import click
 from astropy.io import fits
+from collections import OrderedDict
 
 # Set CRDS
 if not ('CRDS_PATH' in os.environ):
