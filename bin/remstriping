@@ -55,6 +55,9 @@ while [[ $iarg -le $# ]]; do
     elif [[ "$argstr"x == "--inplace"x ]]; then
         inplace=1
         #echo "inplace = $inplace"
+    elif [[ "$argstr"x == "--no-inplace"x ]]; then
+        inplace=0
+        #echo "inplace = $inplace"
     elif [[ "$argstr"x == "--apply-flat"x ]]; then
         apply_flat=1
         #echo "apply_flat = $apply_flat"
