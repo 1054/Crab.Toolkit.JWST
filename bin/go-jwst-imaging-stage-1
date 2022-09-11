@@ -36,7 +36,7 @@ fi
 
 
 # Get script_dir
-script_dir=$(dirname "${BASH_SOURCE[0]}")
+script_dir=$(perl -MCwd -e 'print Cwd::abs_path shift' $(dirname "${BASH_SOURCE[0]}"))
 
 
 # Read user input
@@ -48,7 +48,7 @@ overwrite=0
 dataset_names=()
 unused_args=()
 while [[ $iarg -le $# ]]; do
-    argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
+    argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^[-]+/--/g')
     if [[ "$argstr" == "--"* ]]; then
         if [[ "$argstr" == "--work-dir" ]]; then
             iarg=$((iarg+1))
