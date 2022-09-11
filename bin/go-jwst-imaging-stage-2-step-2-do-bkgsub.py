@@ -292,6 +292,7 @@ def main(
     # update "_cal.fits"
     # directly copy "_skymatchstep.fits" to "_cal.fits"
     if inplace:
+        logger.info('Updating {} inplace'.format(input_filepath))
         shutil.copy2(skymatchstep_filepath, input_filepath)
     
     

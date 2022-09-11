@@ -4,11 +4,16 @@
 # 
 #    jwst dataset names ("jwpppppooovvv_ggsaa_eeeee_detector_prodType")
 # 
+#    For each input jwst dataset name, the following file will be processed:
+#        {dataset_name}/uncals/{dataset_name}_uncal.fits
+#    If it is does not exist, the code will search 'MAST_DOWNLOAD_DIR' for it.
+#    If it is not found in 'MAST_DOWNLOAD_DIR', then we will download it into 'MAST_DOWNLOAD_DIR', 
+#    then link it from the 'MAST_DOWNLOAD_DIR' to the 'uncals' directory.
+# 
 # Outputs:
 # 
-#    (for each input jwst dataset name)
-#    uncals/uncal.fits
-#    calibrated1_rates/rate.fits
+#    For each input jwst dataset name, the main output file is: 
+#        {dataset_name}/calibrated1_rates/{dataset_name}_rate.fits
 # 
 # 
 set -e
@@ -68,6 +73,7 @@ done
 
 
 # Check user input
+# If dataset_names is not given, then we will search under current or specified working directory.
 if [[ ${#dataset_names[@]} -eq 0 ]]; then
     if [[ "$work_dir" != "." ]]; then
         echo "Searching for JWST dataset under working directory: $work_dir"
@@ -121,7 +127,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     echo cd $dataset_name
     cd $dataset_name
     
-    # check uncals
+    # check input directory: uncals
     if [[ ! -d uncals ]]; then
         echo "mkdir uncals"
         mkdir uncals
