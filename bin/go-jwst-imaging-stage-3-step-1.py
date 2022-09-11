@@ -63,7 +63,11 @@ From ceers_nircam_reduction.ipynb
 import os, sys, re, json, copy, datetime, time, glob, shutil
 import click
 from collections import OrderedDict
-from distutils.version import LooseVersion
+try:
+    from packaging.version import parse as LooseVersion
+except:
+    from distutils.version import LooseVersion
+
 
 # Numpy library:
 import numpy as np
@@ -253,7 +257,8 @@ def main(
         if i == 0:
             for key in info_dict:
                 info_table_dict[key] = []
-        info_table_dict[key].append(info_dict[key])
+        for key in info_dict:
+            info_table_dict[key].append(info_dict[key])
     info_table = Table(info_table_dict)
     
     
