@@ -178,6 +178,17 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         fi
     fi
     
+    echo cd ../
+    cd ../
+    
 done
+
+
+
+
+echo "All done!"
+
+
+
 
 
