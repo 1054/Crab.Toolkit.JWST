@@ -66,6 +66,7 @@ def merge_source_emission_masked_rate_data(
         out_image_file, 
         do_sigma_clip = False, 
         sigma = 3.0, 
+        use_median = False,
         overwrite = True, 
     ):
 
@@ -87,6 +88,8 @@ def merge_source_emission_masked_rate_data(
                                 )
     
     # read input rate image header
+    rate_images_sci_3D = None # for median calculation, 3D
+    rate_images_err_3D = None # for median calculation, 3D
     rate_images_sci = None
     rate_images_err = None
     rate_images_count = None
@@ -100,6 +103,9 @@ def merge_source_emission_masked_rate_data(
             rate_images_err = np.full(rate_image_sci.shape, fill_value=0.0)
             rate_images_count = np.full(rate_image_sci.shape, fill_value=0.0)
             rate_images_dq = copy.copy(rate_image_dq)
+            if use_median:
+                rate_images_sci_3D = np.full([len(rate_image_files)]+list(rate_image_sci.shape), fill_value=np.nan)
+                rate_images_err_3D = np.full([len(rate_image_files)]+list(rate_image_sci.shape), fill_value=np.nan)
         # 
         # mask_dynamically_bad_pixels = bitfield_to_boolean_mask(
         #    rate_image_dq, 
@@ -131,7 +137,14 @@ def merge_source_emission_masked_rate_data(
         rate_images_count[mask] += 1.0
         rate_image_dq[np.logical_and(mask, rate_image_dq == mask_source_emission_dq)] = 0 # reset mask_source_emission_dq and only combine original dq
         #rate_image_dq[np.logical_and(mask, mask_dynamically_bad_pixels)] = 0 # reset mask_source_emission_dq and only combine original dq
-        rate_images_dq = np.bitwise_and(rate_images_dq, rate_image_dq)
+        rate_images_dq = np.bitwise_and(rate_images_dq, rate_image_dq) # bitwise_and so that a bad pixel has to be 'bad' in all datasets
+        # 
+        if use_median:
+            rate_image_sci[~mask] = np.nan
+            rate_image_err[~mask] = np.nan
+            rate_images_sci_3D[i] = rate_image_sci
+            rate_images_err_3D[i] = rate_image_err
+        
     
     # compute output rate image
     out_image_sci = rate_images_sci * 0.0
@@ -139,6 +152,12 @@ def merge_source_emission_masked_rate_data(
     mask = (rate_images_count > 0)
     out_image_sci[mask] = rate_images_sci[mask]/rate_images_count[mask]
     out_image_err[mask] = rate_images_err[mask]/rate_images_count[mask] #<TODO># error propagation?
+    
+    if use_median:
+        out_image_sci = np.nanmedian(rate_images_sci_3D, axis=0)
+        out_image_sci[np.isnan(out_image_sci)] = 0.0
+        out_image_err = np.nanmedian(rate_images_err_3D, axis=0)
+        out_image_err[np.isnan(out_image_err)] = 0.0 #<TODO># error propagation?
     
     # restore dq to good pixel if the masked source emission dq has valid pixel values
     out_image_dq = copy.copy(rate_images_dq)
@@ -170,11 +189,13 @@ def merge_source_emission_masked_rate_data(
 @click.argument('out_image_file', nargs=1, type=click.Path(exists=False))
 @click.option('--do-sigma-clip/--no-sigma-clip', is_flag=True, default=False)
 @click.option('--sigma', type=float, default=3.0, help='Clipping sigma. Only clipping rate image pixels brighter than this sigma.')
+@click.option('--use-median/--no-use-median', is_flag=True, default=True)
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=True)
 def main(rate_image_files, 
          out_image_file, 
          do_sigma_clip, 
          sigma, 
+         use_median, 
          overwrite):
     
     merge_source_emission_masked_rate_data(
@@ -182,6 +203,7 @@ def main(rate_image_files,
         out_image_file, 
         do_sigma_clip = do_sigma_clip, 
         sigma = sigma, 
+        use_median = use_median, 
         overwrite = overwrite, 
     )
 
