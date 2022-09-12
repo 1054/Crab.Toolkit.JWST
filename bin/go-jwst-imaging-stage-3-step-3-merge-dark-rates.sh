@@ -52,7 +52,7 @@ for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
         cal_image="${temp_cal_images[m]}"
         # fix relative path
         if [[ "$cal_image" == "../"* ]]; then
-            cal_image=$(dirname "$temp_mosaic_asn")/"${temp_cal_images[m]}" # $(echo "${temp_cal_images[m]}" | perl -p -e 's%^../%%g')
+            cal_image=$(dirname "$temp_mosaic_asn")/"${temp_cal_images[m]}" # paths in asn are relative to asn dir.
         fi
         rate_image=$(echo "$cal_image" | perl -p -e 's%/calibrated2_cals/%/calibrated1_rates/%g' | perl -p -e 's%_cal.fits$%_rate.fits%g')
         echo "rate_image = \"$rate_image\""
