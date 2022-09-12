@@ -192,11 +192,11 @@ def main(
     for input_file in input_cal_files:
         if input_file.find('*')>=0:
             for found_file in glob.glob(input_file):
-                input_files.append(os.path.abspath(found_file))
+                input_files.append(found_file)
         else:
             if not os.path.isfile(input_file):
                 raise Exception('Error! File does not exist: {!r}'.format(input_file))
-            input_files.append(os.path.abspath(input_file))
+            input_files.append(input_file)
     
     
     # sort input files
@@ -376,7 +376,7 @@ def main(
         asn_dict['products'].append(product_dict)
         for subgroup_file in subgroup_files:
             product_dict['members'].append(
-                {'expname': os.path.relpath(subgroup_file, output_subdir),
+                {'expname': subgroup_file, # os.path.relpath(subgroup_file, os.getcwd())
                  'exptype': 'science'
                 }
             )
