@@ -376,7 +376,7 @@ def main(
         asn_dict['products'].append(product_dict)
         for subgroup_file in subgroup_files:
             product_dict['members'].append(
-                {'expname': subgroup_file,
+                {'expname': os.path.relpath(subgroup_file, os.getcwd()),
                  'exptype': 'science'
                 }
             )

@@ -162,13 +162,13 @@ def main(
     product_dict = OrderedDict()
     product_dict['name'] = output_filename
     product_dict['members'] = [
-            {'expname': input_filepath, 
+            {'expname': os.path.relpath(input_filepath, os.getcwd()), 
              'exptype': 'science'
             }
         ]
     for input_dark_file in input_dark_files:
         product_dict['members'].append(
-            {'expname': input_dark_file, 
+            {'expname': os.path.relpath(input_dark_file, os.getcwd()), 
              'exptype': 'background'
             }
         )

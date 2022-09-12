@@ -44,17 +44,24 @@ done
 multiobs_cal_images=()
 multiobs_rate_images=()
 multiobs_masked_rate_images=()
+multiobs_dataset_names=()
 for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
     temp_mosaic_asn="${mosaic_asn_files[i]}"
     temp_cal_images=($(cat "$temp_mosaic_asn" | grep "expname" | perl -p -e 's/^.*: ["](.*)["].*/\1/g'))
     for (( m = 0; m < ${#temp_cal_images[@]}; m++ )); do
         cal_image="${temp_cal_images[m]}"
+        # fix relative path
+        if [[ "$cal_image" == "../"* ]]; then
+            cal_image=$(dirname "$temp_mosaic_asn")/$(echo "${temp_cal_images[m]}" | perl -p -e 's%^../%%g')
+        fi
         rate_image=$(echo "$cal_image" | perl -p -e 's%/calibrated2_cals/%/calibrated1_rates/%g' | perl -p -e 's%_cal.fits$%_rate.fits%g')
         echo "rate_image = \"$rate_image\""
         masked_rate=$(echo "$rate_image" | perl -p -e 's%_rate.fits$%%g')"_masked_source_emission_rate.fits"
+        dataset_name=$(basename "$rate_image" | perl -p -e 's%_rate.fits$%%g')
         multiobs_cal_images+=("$cal_image")
         multiobs_rate_images+=("$rate_image")
         multiobs_masked_rate_images+=("$masked_rate")
+        multiobs_dataset_names+=("$dataset_name")
     done
 done
 
