@@ -376,7 +376,8 @@ def main(
         asn_dict['products'].append(product_dict)
         for subgroup_file in subgroup_files:
             product_dict['members'].append(
-                {'expname': subgroup_file, # os.path.relpath(subgroup_file, os.getcwd())
+                {'expname': os.path.relpath(subgroup_file, os.path.dirname(output_subdir)), 
+                            # relative to asn file dir path, see "jwst/datamodels/container.py"
                  'exptype': 'science'
                 }
             )
