@@ -399,7 +399,8 @@ def main(
         
 
         # Set some parameters that pertain to the entire pipeline
-        pipeline_object.output_dir = os.path.abspath(output_subdir)
+        pipeline_object.input_dir = os.getcwd()
+        pipeline_object.output_dir = output_subdir
         pipeline_object.output_file = output_name # os.path.splitext(output_file)[0]
         pipeline_object.output_ext = ".fits" # default
         pipeline_object.save_results = True
@@ -407,7 +408,7 @@ def main(
         # Set some parameters that pertain to some of the individual steps
         # Set OutlierDetection
         #pipeline_object.outlier_detection.skip = True
-        pipeline_object.outlier_detection.output_dir = os.path.abspath(output_subdir)
+        pipeline_object.outlier_detection.output_dir = output_subdir
         # Turn on TweakRegStep
         #pipeline_object.tweakreg.skip = True
         #pipeline_object.tweakreg.save_catalogs = True
