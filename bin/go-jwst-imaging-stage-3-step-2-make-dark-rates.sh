@@ -75,7 +75,12 @@ cal_images=($(cat "$mosaic_asn" | grep "expname" | perl -p -e 's/^.*: ["](.*)["]
 rate_images=()
 masked_rate_images=()
 for (( k = 0; k < ${#cal_images[@]}; k++ )); do
-    rate_image=$(echo "${cal_images[k]}" | perl -p -e 's%/calibrated2_cals/%/calibrated1_rates/%g' | perl -p -e 's%_cal.fits$%_rate.fits%g')
+    cal_image="${cal_images[m]}"
+    # fix relative path
+    if [[ "$cal_image" == "../"* ]]; then
+        cal_image=$(dirname "$temp_mosaic_asn")/"${temp_cal_images[m]}" # $(echo "${temp_cal_images[m]}" | perl -p -e 's%^../%%g')
+    fi
+    rate_image=$(echo "$cal_image" | perl -p -e 's%/calibrated2_cals/%/calibrated1_rates/%g' | perl -p -e 's%_cal.fits$%_rate.fits%g')
     masked_rate=$(echo "$rate_image" | perl -p -e 's%_rate\.fits$%%g')"_masked_source_emission_rate.fits"
     masked_rate_seed_txt=$(echo "$rate_image" | perl -p -e 's%_rate.fits$%%g')"_masked_source_emission_rate_seed.txt"
     # make source-emission-masked rate image
