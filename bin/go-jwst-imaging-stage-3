@@ -149,14 +149,26 @@ for (( i = 0; i < ${#files_out[@]}; i++ )); do
 done
 
 
+
+# Set reprocess_with_source_emission_mask
+reprocess_with_source_emission_mask=0
+
+
+# Set reprocess_MIRI_only
+#reprocess_MIRI_only=1
+reprocess_MIRI_only=0 #<TODO>#
+
+
 # Mask source emission and produce darkobs rate, for MIRI only
 for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     
     # mosaic_image
     mosaic_image="${mosaic_images[i]}"
-    if [[ "$mosaic_image" != *"MIRI"* ]]; then
+    if [[ $reprocess_MIRI_only -gt 0 ]] && [[ "$mosaic_image" != *"MIRI"* ]]; then
        continue
     fi
+    
+    reprocess_with_source_emission_mask=1
     
     mosaic_asn=$(dirname "$mosaic_image")"_asn.json"
     
@@ -177,9 +189,11 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     
     # mosaic_image
     mosaic_image="${mosaic_images[i]}"
-    if [[ "$mosaic_image" != *"MIRI"* ]]; then
+    if [[ $reprocess_MIRI_only -gt 0 ]] && [[ "$mosaic_image" != *"MIRI"* ]]; then
        continue
     fi
+    
+    reprocess_with_source_emission_mask=1
     
     echo "*** Processing $mosaic_image ***"
     
@@ -205,33 +219,37 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
 done
 
 
-# Get _bkgsub_masked_source_emission_cal.fits
-redo_files_in=()
-for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
-    dataset_name="${dataset_names[i]}"
-    if [[ -f "$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits" ]]; then
-        redo_files_in+=("$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits")
+if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
+    
+    # Get _bkgsub_masked_source_emission_cal.fits
+    redo_files_in=()
+    for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
+        dataset_name="${dataset_names[i]}"
+        if [[ -f "$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits" ]]; then
+            redo_files_in+=("$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits")
+        fi
+    done
+
+
+    # Redo step 1 mosaic
+    redo_dir_out="calibrated3_mosaics_redone_with_source_emission_mask"
+    proc_args=()
+    if [[ $overwrite -gt 0 ]]; then
+        proc_args+=(--overwrite)
     fi
-done
+    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-1.py ${redo_files_in[@]} $redo_dir_out "${proc_args[@]}"
+    $script_dir/go-jwst-imaging-stage-3-step-1.py ${redo_files_in[@]} $redo_dir_out "${proc_args[@]}"
+    ret=$?
+    if [[ $ret -ne 0 ]]; then
+        echo "Error occurred?!"
+        exit 255
+    fi
+    redo_files_out=($(find $redo_dir_out -maxdepth 2 -mindepth 2 -type f -name "jw*_obs*_*_i2d.fits" | sort -V | grep -v '+' | grep -v 'outlier'))
+    if [[ ${#redo_files_out[@]} -eq 0 ]]; then
+        echo "Error! Failed to produce the output files: \"$redo_dir_out/jw*_obs*_*/jw*_obs*_*_i2d.fits\""
+        exit 255
+    fi
 
-
-# Redo step 1 mosaic
-redo_dir_out="calibrated3_mosaics_redone_with_source_emission_mask"
-proc_args=()
-if [[ $overwrite -gt 0 ]]; then
-    proc_args+=(--overwrite)
-fi
-echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-1.py ${redo_files_in[@]} $redo_dir_out "${proc_args[@]}"
-$script_dir/go-jwst-imaging-stage-3-step-1.py ${redo_files_in[@]} $redo_dir_out "${proc_args[@]}"
-ret=$?
-if [[ $ret -ne 0 ]]; then
-    echo "Error occurred?!"
-    exit 255
-fi
-redo_files_out=($(find $redo_dir_out -maxdepth 2 -mindepth 2 -type f -name "jw*_obs*_*_i2d.fits" | sort -V | grep -v '+' | grep -v 'outlier'))
-if [[ ${#redo_files_out[@]} -eq 0 ]]; then
-    echo "Error! Failed to produce the output files: \"$redo_dir_out/jw*_obs*_*/jw*_obs*_*_i2d.fits\""
-    exit 255
 fi
 
 
