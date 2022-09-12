@@ -196,7 +196,7 @@ def main(
     product_dict = OrderedDict()
     product_dict['name'] = skymatchstep_filename # input_filename
     product_dict['members'] = [
-            {'expname': os.path.relpath(input_filepath, work_dir), # note that work_dir is just dirname(input_filepath)
+            {'expname': os.path.abspath(input_filepath), # os.path.relpath(input_filepath, work_dir), # note that work_dir is just dirname(input_filepath)
              'exptype': 'science',
             }
         ]
