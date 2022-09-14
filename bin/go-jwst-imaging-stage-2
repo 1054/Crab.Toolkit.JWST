@@ -39,6 +39,7 @@ work_dir="."
 overwrite=0
 dataset_names=()
 user_flat_dir=""
+no_bkgsub=0
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
     if [[ "$argstr" == "--"* ]]; then
@@ -54,6 +55,9 @@ while [[ $iarg -le $# ]]; do
                 user_flat_dir=$(abspath "${!iarg}")
                 echo "user_flat_dir = \"$user_flat_dir\""
             fi
+        elif [[ "$argstr" == "--no-bkgsub" ]]; then
+            no_bkgsub=1
+            echo "no_bkgsub = \"$no_bkgsub\""
         else
             echo "Unkonwn argument: ${!iarg}"
         fi
@@ -154,45 +158,50 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     fi
     
     # Run step 2
-    file_in="calibrated2_cals/${dataset_name}_cal.fits"
-    file_out="calibrated2_cals/${dataset_name}_cal_skymatchstep.fits"
-    proc_args=()
-    if [[ $overwrite -gt 0 ]]; then
-        proc_args+=(--overwrite)
+    # This step will use skymatch to subtract a uniform background
+    if [[ $no_bkgsub -eq 0 ]]; then
+        
+        file_in="calibrated2_cals/${dataset_name}_cal.fits"
+        file_out="calibrated2_cals/${dataset_name}_cal_skymatchstep.fits"
+        proc_args=()
+        if [[ $overwrite -gt 0 ]]; then
+            proc_args+=(--overwrite)
+        fi
+        echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-2-do-bkgsub.py "$file_in" "${proc_args[@]}"
+        $script_dir/go-jwst-imaging-stage-2-step-2-do-bkgsub.py "$file_in" "${proc_args[@]}"
+        ret=$?
+        if [[ $ret -ne 0 ]]; then
+            echo "Error occurred?!"
+            exit 255
+        fi
+        if [[ "$dataset_name" == *"nrc"* ]] && ([[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]); then
+            echo "Error! Failed to produce the output file: $file_out"
+            exit 255
+        fi
+        
+        # Optionally run step 3 -- now in stage 3 script
+        # file_in1="calibrated1_rates/${dataset_name}_rate.fits"
+        # file_in2="calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits"
+        # file_out="calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits"
+        # if [[ -f "$file_in2" ]]; then
+        #     proc_args=(--darkobs "$file_in2")
+        #     if [[ $overwrite -gt 0 ]]; then
+        #         proc_args+=(--overwrite)
+        #     fi
+        #     echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_out" "${proc_args[@]}"
+        #     python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_out" "${proc_args[@]}"
+        #     ret=$?
+        #     if [[ $ret -ne 0 ]]; then
+        #         echo "Error occurred?!"
+        #         exit 255
+        #     fi
+        #     if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+        #         echo "Error! Failed to produce the output file: $file_out"
+        #         exit 255
+        #     fi
+        # fi
+        
     fi
-    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-2-do-bkgsub.py "$file_in" "${proc_args[@]}"
-    $script_dir/go-jwst-imaging-stage-2-step-2-do-bkgsub.py "$file_in" "${proc_args[@]}"
-    ret=$?
-    if [[ $ret -ne 0 ]]; then
-        echo "Error occurred?!"
-        exit 255
-    fi
-    if [[ "$dataset_name" == *"nrc"* ]] && ([[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]); then
-        echo "Error! Failed to produce the output file: $file_out"
-        exit 255
-    fi
-    
-    # Optionally run step 3 -- now in stage 3 script
-    # file_in1="calibrated1_rates/${dataset_name}_rate.fits"
-    # file_in2="calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits"
-    # file_out="calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits"
-    # if [[ -f "$file_in2" ]]; then
-    #     proc_args=(--darkobs "$file_in2")
-    #     if [[ $overwrite -gt 0 ]]; then
-    #         proc_args+=(--overwrite)
-    #     fi
-    #     echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_out" "${proc_args[@]}"
-    #     python $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py "$file_in1" "$file_out" "${proc_args[@]}"
-    #     ret=$?
-    #     if [[ $ret -ne 0 ]]; then
-    #         echo "Error occurred?!"
-    #         exit 255
-    #     fi
-    #     if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
-    #         echo "Error! Failed to produce the output file: $file_out"
-    #         exit 255
-    #     fi
-    # fi
     
     echo cd ../
     cd ../

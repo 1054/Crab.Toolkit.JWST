@@ -142,9 +142,9 @@ def main(
     if inplace: 
         # Check input_filepath history
         with datamodels.open(input_filepath) as model:
-            if model.meta.instrument.name.upper() != 'NIRCAM':
-                logger.warning('The input data is not a NIRCam imaging data. Will not run background subtraction.')
-                return
+            #if model.meta.instrument.name.upper() != 'NIRCAM': #20220914 do this also for MIRI?
+            #    logger.warning('The input data is not a NIRCam imaging data. Will not run background subtraction.')
+            #    return
             for entry in model.history:
                 for k,v in entry.items():
                     if 'Done background subtraction; go-jwst-imaging-stage-2-step-2-do-bkgsub.py' in v:
