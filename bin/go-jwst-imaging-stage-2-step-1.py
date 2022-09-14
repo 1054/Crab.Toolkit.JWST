@@ -138,10 +138,12 @@ def setup_logger():
 @click.command()
 @click.argument('input_rate_file', type=click.Path(exists=True))
 @click.argument('output_cal_file', type=click.Path(exists=False))
+@click.option('--user-flat-file', type=click.Path(exists=True), default=None, help='A user-specified flat file, FITS format.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 def main(
         input_rate_file, 
         output_cal_file, 
+        user_flat_file, 
         overwrite = False, 
     ):
     
@@ -201,7 +203,8 @@ def main(
     pipeline_object.resample.skip = False # turn on the ResampleStep to produce the individual rectified *_i2d.fits for quick-look checks
     #pipeline_object.resample.pixfrac = 1.0 # default
     #pipeline_object.bkg_subtract.sigma = 3.0 # default
-    
+    if user_flat_file is not None:
+        pipeline_object.flat_field.override_flat = user_flat_file
     
     
     # run

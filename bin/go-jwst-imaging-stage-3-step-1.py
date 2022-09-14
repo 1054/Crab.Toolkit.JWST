@@ -400,7 +400,7 @@ def main(
         
 
         # Set some parameters that pertain to the entire pipeline
-        pipeline_object.input_dir = os.getcwd()
+        #pipeline_object.input_dir = os.getcwd()
         pipeline_object.output_dir = output_subdir
         pipeline_object.output_file = output_name # os.path.splitext(output_file)[0]
         pipeline_object.output_ext = ".fits" # default
