@@ -33,7 +33,7 @@ argstr=""
 work_dir="."
 overwrite=0
 dataset_names=()
-user_flat_file=""
+user_flat_dir=""
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
     if [[ "$argstr" == "--"* ]]; then
@@ -43,11 +43,11 @@ while [[ $iarg -le $# ]]; do
                 work_dir="${!iarg}"
                 echo "work_dir = \"$work_dir\""
             fi
-        elif [[ "$argstr" == "--user-flat-file" ]]; then
+        elif [[ "$argstr" == "--user-flat-dir" ]]; then
             iarg=$((iarg+1))
             if [[ $iarg -le $# ]]; then
-                user_flat_file="${!iarg}"
-                echo "user_flat_file = \"$user_flat_file\""
+                user_flat_dir="${!iarg}"
+                echo "user_flat_dir = \"$user_flat_dir\""
             fi
         else
             echo "Unkonwn argument: ${!iarg}"
@@ -129,8 +129,8 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     file_in="calibrated1_rates/${dataset_name}_rate.fits"
     file_out="calibrated2_cals/${dataset_name}_cal.fits"
     proc_args=()
-    if [[ ! -z "$user_flat_file" ]]; then
-        proc_args+=(--user-flat-file "$user_flat_file")
+    if [[ ! -z "$user_flat_dir" ]]; then
+        proc_args+=(--user-flat-dir "$user_flat_dir")
     fi
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)

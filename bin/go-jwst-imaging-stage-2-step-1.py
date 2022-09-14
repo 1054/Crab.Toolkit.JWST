@@ -139,11 +139,13 @@ def setup_logger():
 @click.argument('input_rate_file', type=click.Path(exists=True))
 @click.argument('output_cal_file', type=click.Path(exists=False))
 @click.option('--user-flat-file', type=click.Path(exists=True), default=None, help='A user-specified flat file, FITS format.')
+@click.option('--user-flat-dir', type=click.Path(exists=True), default=None, help='A directory to find user-specified flat file e.g. "*{filter}*.fits".')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 def main(
         input_rate_file, 
         output_cal_file, 
         user_flat_file, 
+        user_flat_dir, 
         overwrite = False, 
     ):
     
@@ -203,8 +205,20 @@ def main(
     pipeline_object.resample.skip = False # turn on the ResampleStep to produce the individual rectified *_i2d.fits for quick-look checks
     #pipeline_object.resample.pixfrac = 1.0 # default
     #pipeline_object.bkg_subtract.sigma = 3.0 # default
+    
+    override_flat = None
     if user_flat_file is not None:
-        pipeline_object.flat_field.override_flat = user_flat_file
+        override_flat = os.path.abspath(user_flat_file)
+    elif user_flat_dir is not None:
+        with datamodels.open(input_filepath) as model:
+            filter_name = model.meta.instrument.filter
+            for file_name in os.listdir(user_flat_dir):
+                if re.match(r'^.*[\b_]'+filter_name+r'[\b_].*\.fits', file_name): # case sensitive
+                    override_flat = os.path.abspath(os.path.join(user_flat_dir, file_name))
+                    break
+    if override_flat is not None:
+        logger.info("Applying user-specified flat: {}".format(override_flat))
+        pipeline_object.flat_field.override_flat = override_flat
     
     
     # run
