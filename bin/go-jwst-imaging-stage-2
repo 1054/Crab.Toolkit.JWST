@@ -167,7 +167,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         echo "Error occurred?!"
         exit 255
     fi
-    if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+    if [[ "$dataset_name" == *"nrc"* ]] && ([[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]); then
         echo "Error! Failed to produce the output file: $file_out"
         exit 255
     fi
