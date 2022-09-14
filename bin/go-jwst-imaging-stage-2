@@ -26,6 +26,11 @@ fi
 # Get script_dir
 script_dir=$(dirname "${BASH_SOURCE[0]}")
 
+# Define function to get abspath
+abspath () {
+    perl -MCwd -e 'print Cwd::abs_path shift' "$1"
+}
+
 
 # Read user input
 iarg=1
@@ -81,6 +86,7 @@ else
         dataset_name="${dataset_names[i]}"
         if [[ $($script_dir/go-jwst-parse-dataset-name.py "$dataset_name" 2>/dev/null | tail -n 1) != "JWST_Dataset_Name"* ]]; then
             echo "Error! The input dataset name \"$dataset_name\" seems incorrect?"
+            echo "Or Python issue? Please try to run $script_dir/go-jwst-parse-dataset-name.py \"$dataset_name\""
             exit 255
         fi
     done
@@ -130,7 +136,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     file_out="calibrated2_cals/${dataset_name}_cal.fits"
     proc_args=()
     if [[ ! -z "$user_flat_dir" ]]; then
-        proc_args+=(--user-flat-dir "$user_flat_dir")
+        proc_args+=(--user-flat-dir $(abspath "$user_flat_dir"))
     fi
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
