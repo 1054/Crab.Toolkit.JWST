@@ -51,7 +51,7 @@ while [[ $iarg -le $# ]]; do
         elif [[ "$argstr" == "--user-flat-dir" ]]; then
             iarg=$((iarg+1))
             if [[ $iarg -le $# ]]; then
-                user_flat_dir="${!iarg}"
+                user_flat_dir=$(abspath "${!iarg}")
                 echo "user_flat_dir = \"$user_flat_dir\""
             fi
         else
@@ -136,7 +136,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     file_out="calibrated2_cals/${dataset_name}_cal.fits"
     proc_args=()
     if [[ ! -z "$user_flat_dir" ]]; then
-        proc_args+=(--user-flat-dir $(abspath "$user_flat_dir"))
+        proc_args+=(--user-flat-dir "$user_flat_dir")
     fi
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
