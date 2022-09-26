@@ -1,0 +1,497 @@
+#!/usr/bin/env python
+# 
+import os, sys, re, shutil, glob, time, json, yaml, asdf
+if "CRDS_PATH" not in os.environ:
+    os.environ["CRDS_PATH"] = '/n17data/dzliu/Data/jwst_crds_cache'
+if "MIRAGE_DATA" not in os.environ:
+    os.environ["MIRAGE_DATA"] = '/n23data1/hjmcc/jwst/mirage/mirage_data'
+if "CRDS_SERVER_URL" not in os.environ:
+    os.environ["CRDS_SERVER_URL"] = 'https://jwst-crds.stsci.edu'
+
+import click
+import numpy as np
+#import pysiaf
+import photutils # used by mirage.seed_image.fits_seed_image
+#from photutils.psf.matching import TopHatWindow, TukeyWindow, CosineBellWindow, SplitCosineBellWindow, HanningWindow # see "mirage/seed_image/fits_seed_image.py", this is a bug in mirage!
+for key in 'TopHatWindow, TukeyWindow, CosineBellWindow, SplitCosineBellWindow, HanningWindow'.split(','): # workaround for the above bug
+    setattr(photutils, key.strip(), getattr(photutils.psf.matching, key.strip()))
+import jwst
+import mirage # pip install --upgrade git+https://github.com/spacetelescope/mirage.git
+from astropy.io import fits
+from astropy.table import Table
+from astropy.wcs import WCS
+from astropy.wcs.utils import proj_plane_pixel_area
+from functools import partial
+from jwst.stpipe import Step
+from jwst.outlier_detection import outlier_detection, OutlierDetectionStep
+#outlier_detection.OutlierDetection.make_output_path = partial(Step._make_output_path, outlier_detection.OutlierDetection)
+#outlier_detection.OutlierDetection.output_ext = 'fits'
+#outlier_detection.OutlierDetection.make_output_path = OutlierDetectionStep.make_output_path
+from mirage import imaging_simulator
+from mirage.catalogs import create_catalog
+from mirage.catalogs import catalog_generator
+from mirage.dark import dark_prep
+from mirage.imaging_simulator import ImgSim
+from mirage.ramp_generator import obs_generator
+from mirage.seed_image import catalog_seed_image, blot_image
+from mirage.seed_image.fits_seed_image import ImgSeed
+from mirage.utils.utils import ensure_dir_exists
+from mirage.yaml import yaml_generator
+
+import logging
+logging.basicConfig(level='DEBUG')
+logger = logging.getLogger('go-mirage-sim-mosaic')
+
+
+DEFAULT_APT_XML_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.xml'
+DEFAULT_POINTING_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.pointing'
+DEFAULT_COSMIC_RAYS = {'library': 'SUNMAX', 'scale': 1.0}
+DEFAULT_INSTRUMENT = 'NIRCam'
+DEFAULT_FILTER = 'F200W'
+DEFAULT_DATES = '2023-01-01'
+DEFAULT_BACKGROUND = 'medium'
+DEFAULT_PA_V3 = 293.09730273
+DEFAULT_YAML_OUTPUT_DIR = 'yaml_files'
+DEFAULT_SIM_OUTPUT_DIR = 'sim_data'
+DEFAULT_OBSERVATION_LIST_FILE = 'observation_list.yaml'
+
+
+
+# # Update Yaml File
+# templateParamFile = 'jw01727043001_01101_00001_nrca1.yaml' # do not overwrite this file
+# paramfile = 'jw01727043001_01101_00001_nrca1_go.yaml'
+# with open(templateParamFile, 'r') as ifp:
+#     y = yaml.safe_load(ifp)
+#     print("y['simSignals']['galaxyListFile'] = {}".format(y['simSignals']['galaxyListFile'])) # e.g., /automnt/n17data/dzliu/Work/20220919-Max-script/catalogs/galaxies_DEC_2022_input.cat
+#     print("y['simSignals']['pointsource'] = {}".format(y['simSignals']['pointsource'])) # e.g., /automnt/n17data/dzliu/Work/20220919-Max-script/catalogs/ptsrc_all_filters_region_BEST_sw.cat
+#     print("y['simSignals']['psfpath'] = {}".format(y['simSignals']['psfpath'])) # e.g., psfpath: /n23data1/hjmcc/jwst/mirage/mirage_data/nircam/gridded_psf_library
+#     with open(paramfile, 'w') as ofp:
+#         yaml.dump(y, ofp)
+
+
+# MIRAGE ImgSim Tutorial
+# https://github.com/spacetelescope/mirage/blob/master/examples/Simulated_data_from_mosaic_image.ipynb
+
+
+# Define function to get pixel scale of a FITS image
+def get_pixel_scale(fits_file):
+    data, header = fits.getdata(fits_file, header=True)
+    wcs = WCS(header, naxis=2)
+    pixsc = np.sqrt(proj_plane_pixel_area(wcs)) * 3600.0
+    return pixsc
+
+
+# Define function to create a single-pixel PSF
+def prepare_mosaic_psf_file(psf_file, pixel_scale=None, overwrite=False):
+    data = np.zeros([201, 201])
+    data[data.shape[0]//2, data.shape[1]//2] = 1.0
+    hdu = fits.PrimaryHDU(data)
+    hdu.header['TELESCOP'] = 'N/A'
+    hdu.header['INSTRUME'] = 'N/A'
+    if pixel_scale is not None:
+        hdu.header['CD1_1'] = -float(pixel_scale)/3600.0 # see "mirage/psf/tools.py" get_psf_metadata
+        hdu.header['CD2_2'] = float(pixel_scale)/3600.0
+    hdu.writeto(psf_file, overwrite=overwrite)
+    return
+
+
+# Define function to get image center ra dec
+def get_image_center(fits_file):
+    data, header = fits.getdata(fits_file, header=True)
+    wcs = WCS(header, naxis=2)
+    (ra,), (dec,) = wcs.wcs_pix2world([(header['NAXIS1']+1.0)/2.0,], [(header['NAXIS2']+1.0)/2.0,], 1)
+    return ra, dec
+
+
+# Define function to hack image center <TODO>
+def hack_image_center(fits_file, out_file, ra, dec):
+    data, header = fits.getdata(fits_file, header=True)
+    wcs = WCS(header, naxis=2)
+    radec = np.array([[ra, dec]])
+    mosaic_xy_at_center_radec = wcs.wcs_world2pix(radec, 1)
+
+
+# Define function to resample the input mosaic image to detector WCS and PSF (including convolution)
+def resample_mosaic_image(
+        yaml_file, 
+        mosaic_file,
+        psf_file = None,
+        instrument = 'nircam',
+        filter_name = 'F200W',
+        output_name = None, 
+        output_dir = './',
+        recenter = False, 
+        center_ra = None, 
+        center_dec = None, 
+        overwrite = False, 
+        verbose = True, 
+    ):
+    """
+    Inputs:
+        User given mosaic image and psf. 
+        If psf_file is None, we will construct a single-pixel PSF.
+    
+    Outputs:
+        FITS images for Mirage simulation, 
+            output_dir+'/'+output_prefix+instrument+'_'+filter_name+'_cropped.fits'
+            output_dir+'/'+output_prefix+instrument+'_'+filter_name+'_cropped_blotted.fits'
+        An ASCII file as an extended source catalog for Mirage simulation,
+            output_dir+'/'+output_prefix+instrument+'_'+filter_name+'.cat'
+    """
+    # Crop from the mosaic and resample for the desired detector/aperture
+    #mosaic_fwhm = 0.045 # None -- does not work # 0.09 -- ERROR: FWHM of the mosaic image is larger than that of the JWST PSF. Unable to create a matching PSF kernel using photutils.
+    #mosaic_fwhm_units = 'arcsec'
+    # -- TypeError: get_HST_PSF() takes 1 positional argument but 2 were given -- "mirage/seed_image/fits_seed_image.py", line 692, in prepare_psf
+    # TODO: change the fits file meta data, let TELESCOP to some others and provide a psf_file (OR use gaussian_psf=True)
+    
+    # Check output file
+    if output_name is None:
+        output_name = 'resampled_'+instrument+'_'+filter_name
+    elif output_name.endswith('.fits'):
+        output_name.rstrip('.fits')
+    output_resampled_file = os.path.join(output_dir, output_name+'.fits')
+    if os.path.isfile(output_resampled_file):
+        if overwrite:
+            shutil.move(output_resampled_file, output_resampled_file+'.backup')
+        else:
+            if verbose:
+                logger.info('Found existing resampled image {!r} and overwrite is set to False.'.format(output_resampled_file))
+            return output_resampled_file
+    # 
+    pixel_scale = get_pixel_scale(mosaic_file)
+    # 
+    if psf_file is None:
+        # create a single pixel psf_file
+        psf_file = mosaic_file.rstrip('.fits') + '.psf.fits'
+        prepare_mosaic_psf_file(psf_file, pixel_scale=pixel_scale, overwrite=True)
+        mosaic_fwhm = pixel_scale # 1
+        mosaic_fwhm_units = 'arcsec' # 'pixels' -- there is a bug in "mirage/seed_image/fits_seed_image.py", line 364, in crop_and_blot -- UnboundLocalError: local variable 'mosaic_fwhm_arcsec' referenced before assignment
+    else:
+        mosaic_fwhm = None # If None, a Gaussian2D model will be fit to the PSF to estimate the FWHM -- "mirage/seed_image/fits_seed_image.py"
+        mosaic_fwhm_units = 'arcsec'
+    # 
+    seed = ImgSeed(
+        paramfile = yaml_file, 
+        mosaic_file = mosaic_file, 
+        mosaic_fwhm = mosaic_fwhm,
+        mosaic_fwhm_units = mosaic_fwhm_units, 
+        cropped_file = output_name+'_intermediate_cropped.fits',
+        blotted_file = output_name+'.fits', 
+        outdir = output_dir,
+        psf_file = psf_file,
+        gaussian_psf = False,
+        #save_intermediates = True,
+    )
+    if recenter:
+        if center_ra is None or center_dec is None:
+            ra, dec = get_image_center(mosaic_file)
+            if center_ra is None:
+                center_ra = ra
+            if center_dec is None:
+                center_dec = dec
+        seed.crop_center_ra = center_ra # see "mirage/seed_image/fits_seed_image.py" read_param_file -- In default it will use the ra dec in the param file. Here we test to crop the input image center.
+        seed.crop_center_dec = center_dec
+        seed.blot_center_ra = center_ra
+        seed.blot_center_dec = center_dec
+    #seed.outlier_detection.OutlierDetection.make_output_path = partial(Step._make_output_path, seed.outlier_detection.OutlierDetection)
+    #seed.blot_image.outlier_detection.OutlierDetection.search_output_file = True
+    #seed.blot_image.outlier_detection.OutlierDetection.output_file = 
+    #blot_image.outlier_detection.OutlierDetection.output_ext = 'fits'
+    #outlier_detection.OutlierDetection.make_output_path = partial(Step._make_output_path, outlier_detection.OutlierDetection)
+    #outlier_detection.OutlierDetection.output_ext = 'fits'
+    seed.crop_and_blot()
+    # BUG AGAIN -- NameError: name 'psf_filename' is not defined -- "mirage/seed_image/fits_seed_image.py", line 708, in prepare_psf
+    # FIXING -- edit "mirage/seed_image/fits_seed_image.py", change all "psf_filename" to "self.psf_file"
+    # BUG AGAIN -- ValueError: cannot convert float NaN to integer -- "/mirage/seed_image/crop_mosaic.py", line 139, in extract
+    # FIXING -- setting "seed.center_ra = ra # TODO: hack the center" and "...dec..." above
+    # BUG AGAIN -- AttributeError: None object has no attribute 'search_output_file' -- "stpipe/step.py", line 1071, in _make_output_path
+    # FIXING -- 
+    #   edit "/home/dzliu/Software/CONDA/miniconda3/lib/python3.9/site-packages/jwst/outlier_detection/outlier_detection.py", 
+    #       find "model_path = self.make_output_path(", go to next line, CHANGE 
+    #           "basename=blot_root," -> "basepath=blot_root,"
+    #       then add following new line:
+    #           "ext='fits',"
+    #       #find "self.make_output_path = pars.get", got to second next line, CHANGE
+    #       #    "partial(Step._make_output_path, None)" -> "partial(Step._make_output_path, self)"
+    #   edit "/home/dzliu/Software/CONDA/miniconda3/lib/python3.9/site-packages/mirage/seed_image/blot_image.py", 
+    #   must pass a 'make_output_path' object to 'pars' when calling outlier_detection.OutlierDetection:
+    #       find "outlier_detection.OutlierDetection()", two lines above, add new line:
+    #           from functools import partial
+    #           from jwst.stpipe import Step
+    #           stepx = OutlierDetectionStep()
+    #           pars['make_output_path'] = stepx.make_output_path # partial(Step._make_output_path, ) #<DZLIU>#
+    #       
+    # BUG AGAIN -- AttributeError: None object has no attribute 'search_output_file' -- "stpipe/step.py", line 1071, in _make_output_path
+    # FIXING -- 
+    #   edit "/home/dzliu/Software/CONDA/miniconda3/lib/python3.9/site-packages/mirage/seed_image/save_seed.py", 
+    #   comment out the following line:
+    #       #<DZLIU># kw['PIXARMAP'] = parameters['Reffiles']['pixelAreaMap'] #<DZLIU># pixelAreaMap is not used
+    # 
+    if verbose:
+        logger.info('Output to {!r}'.format(output_resampled_file))
+    # 
+    return output_resampled_file
+
+
+# Define function to get RA Dec PAV3 from yamlfile
+def get_ra_dec_pav3_from_yamlfile(yamlfile):
+    # Read observation RA Dec PA
+    with open(yamlfile, 'r') as fp:
+        y = yaml.safe_load(fp)
+    ra = y['Telescope']['ra']
+    dec = y['Telescope']['dec']
+    pav3 = y['Telescope']['rotation']
+    return ra, dec, pav3
+
+
+# Define function to check yamlfile
+def check_yamlfile_has_extended_catalog(
+        yamlfile, 
+        extended_catalog_file = None, 
+    ):
+    check_okay = False
+    with open(yamlfile, 'r') as fp:
+        y = yaml.safe_load(fp)
+    if 'simSignals' in y:
+        if 'extended' in y['simSignals']:
+            if extended_catalog_file is None:
+                check_okay = True
+            elif y['simSignals']['extended'] == extended_catalog_file:
+                check_okay = True
+    return check_okay
+
+
+# Define function to update yamlfile
+def update_yamlfile_with_extended_catalog(
+        yamlfile, 
+        extended_catalog_file, 
+        extended_scale = 1.0, 
+        output_yamlfile = None,  # None for in-place update
+        verbose = True, 
+    ):
+    with open(yamlfile, 'r') as fp:
+        y = yaml.safe_load(fp)
+    y['simSignals']['extended'] = extended_catalog_file
+    y['simSignals']['extendedscale'] = extended_scale
+    y['simSignals']['galaxyListFile'] = None # "mirage/catalogs/utils.py" will check lower case str of this being 'none' or not
+    y['simSignals']['pointsource'] = None
+    if output_yamlfile is None:
+        output_yamlfile = yamlfile
+    if os.path.isfile(output_yamlfile):
+        shutil.copy2(output_yamlfile, output_yamlfile+'.backup')
+    with open(output_yamlfile, 'w') as fp:
+        yaml.dump(y, fp)
+    if verbose:
+        logger.info('Updated {!r} with extended catalog {!r}'.format(output_yamlfile, extended_catalog_file))
+    return
+
+
+
+####################
+### MAIN PROGRAM ###
+####################
+
+@click.command()
+@click.option('--xml-file', type=click.Path(exists=True), default=DEFAULT_APT_XML_FILE)
+@click.option('--pointing-file', type=click.Path(exists=True), default=DEFAULT_POINTING_FILE)
+@click.option('--instrument', type=str, default=DEFAULT_INSTRUMENT)
+@click.option('--filter', 'filter_name', type=str, default=DEFAULT_FILTER)
+@click.option('--dates', type=str, default=DEFAULT_DATES)
+@click.option('--background', type=str, default=DEFAULT_BACKGROUND)
+@click.option('--pa-v3', type=float, default=DEFAULT_PA_V3)
+@click.option('--yaml-output-dir', type=click.Path(exists=False), default=DEFAULT_YAML_OUTPUT_DIR)
+@click.option('--sim-output-dir', type=click.Path(exists=False), default=DEFAULT_SIM_OUTPUT_DIR)
+@click.option('--observation-list-file', type=click.Path(exists=False), default=DEFAULT_OBSERVATION_LIST_FILE)
+@click.option('--overwrite-siminput', is_flag=True, default=False)
+@click.option('--overwrite-simprep', is_flag=True, default=False)
+@click.option('--overwrite-simdata', is_flag=True, default=False)
+@click.option('--verbose', is_flag=True, default=True)
+def main(
+        xml_file, 
+        pointing_file, 
+        instrument, 
+        filter_name, 
+        dates, 
+        background, 
+        pa_v3,
+        yaml_output_dir,
+        sim_output_dir,
+        observation_list_file,
+        overwrite_siminput, 
+        overwrite_simprep, 
+        overwrite_simdata, 
+        verbose, 
+    ):
+    
+    if verbose:
+        logger.info('jwst version: {}'.format(jwst.__version__))
+        logger.info('mirage version: {}'.format(mirage.__version__))
+    
+    catalogs = None
+    
+    if observation_list_file.find(os.sep) < 0:
+        observation_list_file = os.path.join(yaml_output_dir, observation_list_file)
+    
+    # Check observation list file, the output of yaml_generator.
+    # It is `Table(yam.info)` after calling yam.create_inputs(), see "mirage/yaml/yaml_generator.py"
+    observation_list_final_file = os.path.join(
+        yaml_output_dir,
+        'Observation_table_for_' + os.path.basename(xml_file) +
+        '_with_yaml_parameters.csv' # following the final_file variable construction in "mirage/yaml/yaml_generator.py"
+    )
+    
+    # Check observation list file
+    if os.path.isfile(observation_list_final_file): 
+        if overwrite_siminput:
+            shutil.move(observation_list_final_file, observation_list_final_file+'.backup')
+        else:
+            if verbose:
+                logger.info('Found existing observation list file {!r} and overwrite is set to False.'.format(observation_list_final_file))
+    
+    # Prepare YAML file using the input APT xml file and pointing file
+    # -- https://mirage-data-simulator.readthedocs.io/en/latest/yaml_generator.html
+    # -- https://github.com/spacetelescope/mirage/blob/master/mirage/yaml/yaml_generator.py
+    if not os.path.isfile(observation_list_final_file): 
+        # Run yaml_generator.SimInput to create observation table csv file
+        yam = yaml_generator.SimInput(
+            input_xml = xml_file, 
+            pointing_file = pointing_file,
+            catalogs = catalogs, 
+            cosmic_rays = DEFAULT_COSMIC_RAYS,
+            background = background, 
+            roll_angle = pa_v3,
+            dates = dates, 
+            reffile_defaults = 'crds_full_name',
+            add_ghosts = False, 
+            convolve_ghosts_with_psf = False,
+            verbose = True, 
+            output_dir = os.path.abspath(yaml_output_dir),
+            simdata_output_dir = os.path.abspath(sim_output_dir),
+            observation_list_file = os.path.abspath(observation_list_file), 
+            datatype = 'linear, raw', # output both
+            use_JWST_pipeline = True, 
+            #offline = True, # cannot be offline otherwise linearized_darkfile will not be set
+        )
+
+        yam.use_linearized_darks = True
+        
+        #yam.add_catalogs()
+        
+        # Create updated observation table csv file and many yaml files
+        yam.create_inputs()
+    
+    
+    # Load observation_table
+    observation_table = Table.read(observation_list_final_file)
+    
+    # Loop each simulation entry (single detector exposure)
+    for i in range(len(observation_table)):
+        sim_data_filename = observation_table['outputfits'][i]
+        sim_data_filepath = os.path.join(sim_output_dir, sim_data_filename)
+        yaml_filename = observation_table['yamlfile'][i]
+        yaml_filepath = os.path.join(yaml_output_dir, yaml_filename)
+        yaml_name = yaml_filename.rstrip('.yaml')
+        
+        if verbose:
+            logger.info('*'*100)
+            logger.info('*** Processing observation {!r} ({}/{})'.format(
+                yaml_name, i+1, len(observation_table)).ljust(96) + ' ***')
+            logger.info('*'*100)
+        
+        # Check yaml file with user input mosaic image as extended image
+        yaml_ext_file = os.path.join(yaml_output_dir, yaml_name+'_ext.yaml')
+        if os.path.isfile(yaml_ext_file):
+            if overwrite_simprep:
+                shutil.move(yaml_ext_file, yaml_ext_file+'.backup')
+            else:
+                if verbose:
+                    logger.info('Found existing yaml file {!r} and overwrite is set to False.'.format(yaml_ext_file))
+        
+        # Process yaml file to use mosaic image as extended image
+        if not os.path.isfile(yaml_ext_file):
+            
+            # instrument = observation_table['Instrument'][i]
+            # if instrument == 'NIRCAM':
+            #     aperture = observation_table['aperture'][i]
+            #     if aperture.startswith('NRCA5') or aperture.startswith('NRCB5'):
+            #         filter_name = observation_table['LongFilter'][i]
+            #     else:
+            #         filter_name = observation_table['ShortFilter'][i]
+            # else:
+            #     raise NotImplementedError()
+        
+            # Resample mosaic image
+            extended_img = resample_mosaic_image(
+                yaml_file = yaml_filepath, 
+                mosaic_file = 'hlsp_candels_hst_acs_gs-tot-sect23_f814w_v1.0_drz.fits', 
+                output_dir = sim_output_dir, 
+                output_name = yaml_name+'_ext', 
+                recenter = True, # we are not an input mosaic image of the same sky
+                overwrite = overwrite_simprep, 
+            )
+            
+            # Get RA Dec PAV3
+            ra, dec, pav3 = get_ra_dec_pav3_from_yamlfile(yaml_filepath)
+            
+            # Set extendedscale if needed (TODO)
+            extended_scale = 1.0
+
+            # Prepare extended source catalog
+            extended_catalog = catalog_generator.ExtendedCatalog(
+                filenames = [extended_img],
+                ra = [ra],
+                dec = [dec],
+                position_angle = [pav3],
+            )
+            extended_catalog.add_magnitude_column(
+                ['None'], # a generic magnitude
+                #instrument = instrument,
+                #filter_name = filter_name, # comment out to add a generic one, see "mirage/catalogs/catalog_generator.py"
+            )
+            #extended_catalog.add_magnitude_column( # we can add multiple
+            #    [str(magnitude)],
+            #    instrument = instrument,
+            #    filter_name = 'F444W',
+            #)
+            
+            # Write extended source catalog to simdata dir
+            extended_catalog_file = os.path.join(sim_output_dir, yaml_name+'_ext.cat')
+            if os.path.isfile(extended_catalog_file):
+                shutil.move(extended_catalog_file, extended_catalog_file+'.backup')
+            extended_catalog.save(extended_catalog_file)
+            
+            # Update Yaml file to use the extended image
+            update_yamlfile_with_extended_catalog(
+                yaml_filepath, 
+                extended_catalog_file, 
+                extended_scale, 
+                yaml_ext_file, 
+            )
+        
+        # Check sim data output file
+        if os.path.isfile(sim_data_filepath):
+            if overwrite_simdata:
+                shutil.move(sim_data_filepath, sim_data_filepath+'.backup')
+            else:
+                if verbose:
+                    logger.info('Found existing data file {!r} and overwrite is set to False.'.format(sim_data_filepath))
+        
+        # Run simulation to generate data file
+        if not os.path.isfile(sim_data_filepath):
+            if verbose:
+                logger.info('*'*100)
+                logger.info('*** Running Actual Simulation for {!r}'.format(
+                    yaml_ext_file).ljust(96) + ' ***')
+                logger.info('*'*100)
+            m = ImgSim() # override_dark=dark
+            m.paramfile = yaml_ext_file
+            m.create()
+
+
+
+
+if __name__ == '__main__':
+    main()
+
+
+
