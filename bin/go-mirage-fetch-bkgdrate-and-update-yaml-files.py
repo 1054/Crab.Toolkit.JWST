@@ -32,10 +32,12 @@ logger = logging.getLogger('go-mirage-fetch-bkgdrate')
 
 @click.command()
 @click.argument('yaml_dir', type=click.Path(exists=True))
+@click.option('--name-pattern', type=str, default='jw*_*_*_*.yaml')
 @click.option('--requery', is_flag=True, default=False)
 @click.option('--verbose', is_flag=True, default=True)
 def main(
         yaml_dir, 
+        name_pattern, 
         requery, 
         verbose, 
     ):
@@ -48,12 +50,12 @@ def main(
     if yaml_dir.endswith('/'):
         yaml_dir = yaml_dir.rstrip('/')
     
-    list_files = glob.glob(yaml_dir+'/jw*_*_*_*.yaml')
+    list_files = glob.glob(yaml_dir+'/'+name_pattern)
     if len(list_files) == 0:
-        list_files = glob.glob(yaml_dir+'/**/jw*_*_*_*.yaml')
+        list_files = glob.glob(yaml_dir+'/**/'+name_pattern)
     if len(list_files) == 0:
-        raise Exception('Error! No file found: ' + yaml_dir+'/jw*_*_*_*.yaml' + 
-                        ' OR ' + yaml_dir+'/**/jw*_*_*_*.yaml')
+        raise Exception('Error! No file found: ' + yaml_dir+'/'+name_pattern + 
+                        ' OR ' + yaml_dir+'/**/'+name_pattern)
     list_files = sorted(list_files)
     
     cache_bkgdrates = {}
@@ -70,7 +72,7 @@ def main(
         
         if paramfile in cache_bkgdrates:
             if verbose:
-                logger.info('Skipping ' + paramfile)
+                logger.info('Skipping ' + paramfile + ' because it is in cache bkgdrates.json')
             continue
         
         with open(paramfile, 'r') as fp:
@@ -81,7 +83,7 @@ def main(
             if paramfile not in cache_bkgdrates:
                 cache_bkgdrates[paramfile] = bkgdrate
             if verbose:
-                logger.info('Skipping ' + paramfile)
+                logger.info('Skipping ' + paramfile + ' because it has a bkgdrate value')
             continue
         
         m = imaging_simulator.ImgSim()
