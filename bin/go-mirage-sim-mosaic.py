@@ -148,7 +148,7 @@ def resample_mosaic_image(
     if output_name is None:
         output_name = 'resampled_'+instrument+'_'+filter_name
     elif output_name.endswith('.fits'):
-        output_name.rstrip('.fits')
+        output_name = re.sub(r'\.fits$', r'', output_name)
     output_resampled_file = os.path.join(output_dir, output_name+'.fits')
     if os.path.isfile(output_resampled_file):
         if overwrite:
@@ -162,7 +162,7 @@ def resample_mosaic_image(
     # 
     if psf_file is None:
         # create a single pixel psf_file
-        psf_file = mosaic_file.rstrip('.fits') + '.psf.fits'
+        psf_file = re.sub(r'\.fits$', r'', mosaic_file) + '.psf.fits'
         prepare_mosaic_psf_file(psf_file, pixel_scale=pixel_scale, overwrite=True)
         mosaic_fwhm = pixel_scale # 1
         mosaic_fwhm_units = 'arcsec' # 'pixels' -- there is a bug in "mirage/seed_image/fits_seed_image.py", line 364, in crop_and_blot -- UnboundLocalError: local variable 'mosaic_fwhm_arcsec' referenced before assignment
@@ -390,7 +390,7 @@ def main(
         sim_data_filepath = os.path.join(sim_output_dir, sim_data_filename)
         yaml_filename = observation_table['yamlfile'][i]
         yaml_filepath = os.path.join(yaml_output_dir, yaml_filename)
-        yaml_name = yaml_filename.rstrip('.yaml')
+        yaml_name = re.sub(r'\.yaml$', r'', yaml_filename)
         
         if verbose:
             logger.info('*'*100)

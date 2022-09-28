@@ -74,7 +74,7 @@ def main(
         logger.info('mirage version: {}'.format(mirage.__version__))
     
     if output_name.endswith('.json'):
-        output_name = output_name.rstrip('.json')
+        output_name = re.sub(r'\.json$', r'', output_name)
     out_file = os.path.join(output_dir, output_name + '.json')
     if os.path.isfile(out_file):
         if not update:

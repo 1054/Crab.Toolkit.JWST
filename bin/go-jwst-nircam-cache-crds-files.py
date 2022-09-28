@@ -119,10 +119,12 @@ def main(jwst_data_dir_name):
     fcache.get_local_files([pipeline_context])
     
     for key in payload.keys():
-        bestrefs = payload[key][1]
-        fcache.get_local_files(bestrefs)
-        #for bestref in bestrefs:
-        #    crds.client.get_flex_uri(bestref)
+        status = payload[key][0]
+        if status is not False:
+            bestrefs = payload[key][1]
+            fcache.get_local_files(bestrefs)
+            #for bestref in bestrefs:
+            #    crds.client.get_flex_uri(bestref)
     
     
     # 
