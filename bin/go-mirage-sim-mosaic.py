@@ -48,8 +48,7 @@ logger = logging.getLogger('go-mirage-sim-mosaic')
 DEFAULT_APT_XML_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.xml'
 DEFAULT_POINTING_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.pointing'
 DEFAULT_MOSAIC_FILE = 'input_mosaic_images/dust_opa_u_lensed_H_EUC.fits' # 'hlsp_candels_hst_acs_gs-tot-sect23_f814w_v1.0_drz.fits'
-DEFAULT_MOSAIC_CENTER_RA = '10:00:28.6'
-DEFAULT_MOSAIC_CENTER_DEC = '02:12:21.0'
+DEFAULT_MOSAIC_CENTER = ('10:00:28.6', '02:12:21.0')
 DEFAULT_STAR_CATALOG = 'input_catalogs/ptsrc_pointings_BEST_sw_tot.cat'
 DEFAULT_COSMIC_RAYS = {'library': 'SUNMAX', 'scale': 1.0}
 DEFAULT_INSTRUMENT = 'NIRCam'
@@ -298,6 +297,80 @@ def update_yamlfile_with_extended_catalog(
     return
 
 
+# Define function to parse SkyCoord
+class SkyCoordParamType(click.ParamType):
+    name = "SkyCoord"
+
+    def convert(self, value, param, ctx):
+        scoord = None
+        if isinstance(value, SkyCoord):
+            scoord = value
+        
+        elif isinstance(value, str):
+            if value.find(':') >= 0 or value.find('h') >= 0:
+                try:
+                    scoord = SkyCoord(value, unit=(u.hourangle, u.deg))
+                except ValueError:
+                    self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
+            else:
+                try:
+                    scoord = SkyCoord(value, unit=(u.deg, u.deg))
+                except ValueError:
+                    self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
+        
+        elif isinstance(value, (tuple, list)) and len(value) == 2:
+            if str(value[0]).find(':') >= 0 or str(value[0]).find('h') >= 0:
+                try:
+                    scoord = SkyCoord(value[0], value[1], unit=(u.hourangle, u.deg))
+                except ValueError:
+                    self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
+            else:
+                try:
+                    scoord = SkyCoord(value[0], value[1], unit=(u.deg, u.deg))
+                except ValueError:
+                    self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
+        
+        return scoord
+
+SkyCoordParamType_ = SkyCoordParamType()
+
+
+class SkyCoordArgument(click.Argument):
+    
+    def type_cast_value(self, ctx, value) -> list:
+        #print('SkyCoordArgument type_cast_value')
+        try:
+            #print('SkyCoordArgument type_cast_value value {} type {}'.format(value, type(value)))
+            assert len(value)%2==0
+            ra_dec_list = []
+            for ra, dec in zip(value[0::2], value[1::2]):
+                ra_dec_list.append(SkyCoordParamType_.convert((ra, dec), param=self, ctx=ctx))
+            #print('SkyCoordArgument type_cast_value ra_dec_list {}'.format(ra_dec_list))
+            return ra_dec_list
+        except Exception:
+            raise click.BadParameter(value)
+
+
+class SkyCoordOption(click.Option):
+    
+    def type_cast_value(self, ctx, value) -> list:
+        if value is None:
+            return None
+        #print('SkyCoordOption type_cast_value')
+        try:
+            #print('SkyCoordOption type_cast_value value {} type {}'.format(value, type(value)))
+            #assert len(value)%2==0
+            ra_dec_list = []
+            for ra_dec_pair in value:
+                ra, dec = ra_dec_pair
+                #print('SkyCoordOption type_cast_value ra dec {} {}'.format(ra, dec))
+                ra_dec_list.append(SkyCoordParamType_.convert((ra, dec), param=self, ctx=ctx))
+                #print('SkyCoordOption type_cast_value ra_dec_list {}'.format(ra_dec_list))
+            return ra_dec_list
+        except Exception:
+            raise click.BadParameter(value)
+
+
 
 ####################
 ### MAIN PROGRAM ###
@@ -307,8 +380,7 @@ def update_yamlfile_with_extended_catalog(
 @click.option('--xml-file', type=click.Path(exists=True), default=DEFAULT_APT_XML_FILE)
 @click.option('--pointing-file', type=click.Path(exists=True), default=DEFAULT_POINTING_FILE)
 @click.option('--mosaic-file', type=click.Path(exists=True), default=DEFAULT_MOSAIC_FILE)
-@click.option('--mosaic-center-ra', type=(float, str), default=DEFAULT_MOSAIC_CENTER_RA, help='If recentering the input mosaic file to this coordinate.')
-@click.option('--mosaic-center-dec', type=(float, str), default=DEFAULT_MOSAIC_CENTER_DEC, help='If recentering the input mosaic file to this coordinate.')
+@click.option('--mosaic-center', cls=SkyCoordOption, type=SkyCoordParamType_, default=DEFAULT_MOSAIC_CENTER, help='If recentering the input mosaic file to this coordinate.')
 @click.option('--star-catalog', type=click.Path(exists=True), default=DEFAULT_STAR_CATALOG)
 @click.option('--galaxy-catalog', type=click.Path(exists=True), default=None)
 @click.option('--instrument', type=str, default=DEFAULT_INSTRUMENT)
@@ -327,8 +399,7 @@ def main(
         xml_file, 
         pointing_file, 
         mosaic_file, 
-        mosaic_center_ra, 
-        mosaic_center_dec, 
+        mosaic_center,
         star_catalog, 
         galaxy_catalog, 
         instrument, 
@@ -471,9 +542,9 @@ def main(
                     mosaic_file = mosaic_file, 
                     output_dir = sim_output_dir, 
                     output_name = yaml_name+'_ext', 
-                    recenter = (mosaic_center_ra is not None and mosaic_center_dec is not None), 
-                    center_ra = mosaic_center_ra, 
-                    center_dec = mosaic_center_dec, 
+                    recenter = (mosaic_center is not None), 
+                    center_ra = mosaic_center.ra.deg, 
+                    center_dec = mosaic_center.dec.deg, 
                     overwrite = overwrite_simprep, 
                 )
                 
