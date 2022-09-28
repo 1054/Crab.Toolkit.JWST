@@ -421,6 +421,9 @@ def main(
         logger.error('No input source to simulate! (mosaic_file is None and star_catalog is None and galaxy_catalog is None)')
         sys.exit(255)
     
+    if mosaic_file is not None:
+        mosaic_metadata = mirage.psf.tools.get_psf_metadata(mosaic_file) # make sure this runs
+    
     # Check input catalogs
     catalogs = {}
     if star_catalog is not None:
