@@ -47,7 +47,10 @@ logger = logging.getLogger('go-mirage-sim-mosaic')
 
 DEFAULT_APT_XML_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.xml'
 DEFAULT_POINTING_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.pointing'
-DEFAULT_MOSAIC_FILE = 'hlsp_candels_hst_acs_gs-tot-sect23_f814w_v1.0_drz.fits'
+DEFAULT_MOSAIC_FILE = 'input_mosaic_images/dust_opa_u_lensed_H_EUC.fits' # 'hlsp_candels_hst_acs_gs-tot-sect23_f814w_v1.0_drz.fits'
+DEFAULT_MOSAIC_CENTER_RA = '10:00:28.6'
+DEFAULT_MOSAIC_CENTER_DEC = '02:12:21.0'
+DEFAULT_STAR_CATALOG = 'input_catalogs/ptsrc_pointings_BEST_sw_tot.cat'
 DEFAULT_COSMIC_RAYS = {'library': 'SUNMAX', 'scale': 1.0}
 DEFAULT_INSTRUMENT = 'NIRCam'
 DEFAULT_FILTER = 'F200W'
@@ -282,8 +285,8 @@ def update_yamlfile_with_extended_catalog(
         y = yaml.safe_load(fp)
     y['simSignals']['extended'] = extended_catalog_file
     y['simSignals']['extendedscale'] = extended_scale
-    y['simSignals']['galaxyListFile'] = None # "mirage/catalogs/utils.py" will check lower case str of this being 'none' or not
-    y['simSignals']['pointsource'] = None
+    #y['simSignals']['galaxyListFile'] = None # "mirage/catalogs/utils.py" will check lower case str of this being 'none' or not
+    #y['simSignals']['pointsource'] = None
     if output_yamlfile is None:
         output_yamlfile = yamlfile
     if os.path.isfile(output_yamlfile):
@@ -304,6 +307,10 @@ def update_yamlfile_with_extended_catalog(
 @click.option('--xml-file', type=click.Path(exists=True), default=DEFAULT_APT_XML_FILE)
 @click.option('--pointing-file', type=click.Path(exists=True), default=DEFAULT_POINTING_FILE)
 @click.option('--mosaic-file', type=click.Path(exists=True), default=DEFAULT_MOSAIC_FILE)
+@click.option('--mosaic-center-ra', type=(float, str), default=DEFAULT_MOSAIC_CENTER_RA, help='If recentering the input mosaic file to this coordinate.')
+@click.option('--mosaic-center-dec', type=(float, str), default=DEFAULT_MOSAIC_CENTER_DEC, help='If recentering the input mosaic file to this coordinate.')
+@click.option('--star-catalog', type=click.Path(exists=True), default=DEFAULT_STAR_CATALOG)
+@click.option('--galaxy-catalog', type=click.Path(exists=True), default=None)
 @click.option('--instrument', type=str, default=DEFAULT_INSTRUMENT)
 @click.option('--filter', 'filter_name', type=str, default=DEFAULT_FILTER)
 @click.option('--dates', type=str, default=DEFAULT_DATES)
@@ -312,8 +319,6 @@ def update_yamlfile_with_extended_catalog(
 @click.option('--yaml-output-dir', type=click.Path(exists=False), default=DEFAULT_YAML_OUTPUT_DIR)
 @click.option('--sim-output-dir', type=click.Path(exists=False), default=DEFAULT_SIM_OUTPUT_DIR)
 @click.option('--observation-list-file', type=click.Path(exists=False), default=DEFAULT_OBSERVATION_LIST_FILE)
-@click.option('--mosaic-center-ra', type=(str, float), default=None, help='If recentering the input mosaic file to this coordinate.')
-@click.option('--mosaic-center-dec', type=(str, float), default=None, help='If recentering the input mosaic file to this coordinate.')
 @click.option('--overwrite-siminput', is_flag=True, default=False)
 @click.option('--overwrite-simprep', is_flag=True, default=False)
 @click.option('--overwrite-simdata', is_flag=True, default=False)
@@ -322,6 +327,10 @@ def main(
         xml_file, 
         pointing_file, 
         mosaic_file, 
+        mosaic_center_ra, 
+        mosaic_center_dec, 
+        star_catalog, 
+        galaxy_catalog, 
         instrument, 
         filter_name, 
         dates, 
@@ -330,8 +339,6 @@ def main(
         yaml_output_dir,
         sim_output_dir,
         observation_list_file,
-        mosaic_center_ra, 
-        mosaic_center_dec, 
         overwrite_siminput, 
         overwrite_simprep, 
         overwrite_simdata, 
@@ -342,7 +349,28 @@ def main(
         logger.info('jwst version: {}'.format(jwst.__version__))
         logger.info('mirage version: {}'.format(mirage.__version__))
     
-    catalogs = None
+    if str(mosaic_file).lower() in ['none', '']:
+        mosaic_file = None
+    
+    if str(star_catalog).lower() in ['none', '']:
+        star_catalog = None
+    
+    if str(galaxy_catalog).lower() in ['none', '']:
+        galaxy_catalog = None
+    
+    if mosaic_file is None and star_catalog is None and galaxy_catalog is None:
+        logger.error('No input source to simulate! (mosaic_file is None and star_catalog is None and galaxy_catalog is None)')
+        sys.exit(255)
+    
+    # Check input catalogs
+    catalogs = {}
+    if star_catalog is not None:
+        catalogs['point_source'] = star_catalog
+    if galaxy_catalog is not None:
+        catalogs['galaxy'] = galaxy_catalog
+        
+    if len(catalogs) == 0:
+        catalogs = None
     
     if observation_list_file.find(os.sep) < 0:
         observation_list_file = os.path.join(yaml_output_dir, observation_list_file)
@@ -404,86 +432,90 @@ def main(
         sim_data_filename = observation_table['outputfits'][i]
         sim_data_filepath = os.path.join(sim_output_dir, sim_data_filename)
         yaml_filename = observation_table['yamlfile'][i]
-        yaml_filepath = os.path.join(yaml_output_dir, yaml_filename)
+        yaml_file = os.path.join(yaml_output_dir, yaml_filename)
         yaml_name = re.sub(r'\.yaml$', r'', yaml_filename)
         
-        if verbose:
-            logger.info('*'*100)
-            logger.info('*** Processing observation {!r} ({}/{})'.format(
-                yaml_name, i+1, len(observation_table)).ljust(96) + ' ***')
-            logger.info('*'*100)
+        # Check if add mosaic image as extended image
+        if mosaic_file is not None:
         
-        # Check yaml file with user input mosaic image as extended image
-        yaml_ext_file = os.path.join(yaml_output_dir, yaml_name+'_ext.yaml')
-        if os.path.isfile(yaml_ext_file):
-            if overwrite_simprep:
-                shutil.move(yaml_ext_file, yaml_ext_file+'.backup')
-            else:
-                if verbose:
-                    logger.info('Found existing yaml file {!r} and overwrite is set to False.'.format(yaml_ext_file))
-        
-        # Process yaml file to use mosaic image as extended image
-        if not os.path.isfile(yaml_ext_file):
+            if verbose:
+                logger.info('*'*100)
+                logger.info('*** Processing observation {!r} ({}/{})'.format(
+                    yaml_name, i+1, len(observation_table)).ljust(96) + ' ***')
+                logger.info('*'*100)
             
-            # instrument = observation_table['Instrument'][i]
-            # if instrument == 'NIRCAM':
-            #     aperture = observation_table['aperture'][i]
-            #     if aperture.startswith('NRCA5') or aperture.startswith('NRCB5'):
-            #         filter_name = observation_table['LongFilter'][i]
-            #     else:
-            #         filter_name = observation_table['ShortFilter'][i]
-            # else:
-            #     raise NotImplementedError()
-        
-            # Resample mosaic image
-            extended_img = resample_mosaic_image(
-                yaml_file = yaml_filepath, 
-                mosaic_file = mosaic_file, 
-                output_dir = sim_output_dir, 
-                output_name = yaml_name+'_ext', 
-                recenter = (mosaic_center_ra is not None and mosaic_center_dec is not None), 
-                center_ra = mosaic_center_ra, 
-                center_dec = mosaic_center_dec, 
-                overwrite = overwrite_simprep, 
-            )
+            # Check yaml file with user input mosaic image as extended image
+            yaml_ext_file = os.path.join(yaml_output_dir, yaml_name+'_ext.yaml')
+            if os.path.isfile(yaml_ext_file):
+                if overwrite_simprep:
+                    shutil.move(yaml_ext_file, yaml_ext_file+'.backup')
+                else:
+                    if verbose:
+                        logger.info('Found existing yaml file {!r} and overwrite is set to False.'.format(yaml_ext_file))
             
-            # Get RA Dec PAV3
-            ra, dec, pav3 = get_ra_dec_pav3_from_yamlfile(yaml_filepath)
+            # Process yaml file to use mosaic image as extended image
+            if not os.path.isfile(yaml_ext_file):
+                # instrument = observation_table['Instrument'][i]
+                # if instrument == 'NIRCAM':
+                #     aperture = observation_table['aperture'][i]
+                #     if aperture.startswith('NRCA5') or aperture.startswith('NRCB5'):
+                #         filter_name = observation_table['LongFilter'][i]
+                #     else:
+                #         filter_name = observation_table['ShortFilter'][i]
+                # else:
+                #     raise NotImplementedError()
             
-            # Set extendedscale if needed (TODO)
-            extended_scale = 1.0
+                # Resample mosaic image
+                extended_img = resample_mosaic_image(
+                    yaml_file = yaml_file, 
+                    mosaic_file = mosaic_file, 
+                    output_dir = sim_output_dir, 
+                    output_name = yaml_name+'_ext', 
+                    recenter = (mosaic_center_ra is not None and mosaic_center_dec is not None), 
+                    center_ra = mosaic_center_ra, 
+                    center_dec = mosaic_center_dec, 
+                    overwrite = overwrite_simprep, 
+                )
+                
+                # Get RA Dec PAV3
+                ra, dec, pav3 = get_ra_dec_pav3_from_yamlfile(yaml_file)
+                
+                # Set extendedscale if needed (TODO)
+                extended_scale = 1.0
 
-            # Prepare extended source catalog
-            extended_catalog = catalog_generator.ExtendedCatalog(
-                filenames = [extended_img],
-                ra = [ra],
-                dec = [dec],
-                position_angle = [pav3],
-            )
-            extended_catalog.add_magnitude_column(
-                ['None'], # a generic magnitude
-                #instrument = instrument,
-                #filter_name = filter_name, # comment out to add a generic one, see "mirage/catalogs/catalog_generator.py"
-            )
-            #extended_catalog.add_magnitude_column( # we can add multiple
-            #    [str(magnitude)],
-            #    instrument = instrument,
-            #    filter_name = 'F444W',
-            #)
-            
-            # Write extended source catalog to simdata dir
-            extended_catalog_file = os.path.join(sim_output_dir, yaml_name+'_ext.cat')
-            if os.path.isfile(extended_catalog_file):
-                shutil.move(extended_catalog_file, extended_catalog_file+'.backup')
-            extended_catalog.save(extended_catalog_file)
-            
-            # Update Yaml file to use the extended image
-            update_yamlfile_with_extended_catalog(
-                yaml_filepath, 
-                extended_catalog_file, 
-                extended_scale, 
-                yaml_ext_file, 
-            )
+                # Prepare extended source catalog
+                extended_catalog = catalog_generator.ExtendedCatalog(
+                    filenames = [extended_img],
+                    ra = [ra],
+                    dec = [dec],
+                    position_angle = [pav3],
+                )
+                extended_catalog.add_magnitude_column(
+                    ['None'], # a generic magnitude
+                    #instrument = instrument,
+                    #filter_name = filter_name, # comment out to add a generic one, see "mirage/catalogs/catalog_generator.py"
+                )
+                #extended_catalog.add_magnitude_column( # we can add multiple
+                #    [str(magnitude)],
+                #    instrument = instrument,
+                #    filter_name = 'F444W',
+                #)
+                
+                # Write extended source catalog to simdata dir
+                extended_catalog_file = os.path.join(sim_output_dir, yaml_name+'_ext.cat')
+                if os.path.isfile(extended_catalog_file):
+                    shutil.move(extended_catalog_file, extended_catalog_file+'.backup')
+                extended_catalog.save(extended_catalog_file)
+                
+                # Update Yaml file to use the extended image
+                update_yamlfile_with_extended_catalog(
+                    yaml_file, 
+                    extended_catalog_file, 
+                    extended_scale, 
+                    yaml_ext_file, 
+                )
+                
+            yaml_file = yaml_ext_file
         
         # Check sim data output file
         if os.path.isfile(sim_data_filepath):
@@ -498,10 +530,10 @@ def main(
             if verbose:
                 logger.info('*'*100)
                 logger.info('*** Running Actual Simulation for {!r}'.format(
-                    yaml_ext_file).ljust(96) + ' ***')
+                    yaml_file).ljust(96) + ' ***')
                 logger.info('*'*100)
             m = ImgSim() # override_dark=dark
-            m.paramfile = yaml_ext_file
+            m.paramfile = yaml_file
             m.create()
 
 
