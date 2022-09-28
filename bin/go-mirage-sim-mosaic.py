@@ -19,6 +19,7 @@ for key in 'TopHatWindow, TukeyWindow, CosineBellWindow, SplitCosineBellWindow, 
 import jwst
 import mirage # pip install --upgrade git+https://github.com/spacetelescope/mirage.git
 from astropy.coordinates import SkyCoord, FK5
+from astropy.io import ascii
 from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
@@ -253,6 +254,12 @@ def get_ra_dec_pav3_from_yamlfile(yamlfile):
     dec = y['Telescope']['dec']
     pav3 = y['Telescope']['rotation']
     return ra, dec, pav3
+
+
+# Define function to get catalog row number
+def get_catalog_row_number(catalog_file):
+    tb = ascii.read(catalog_file)
+    return len(tb)
 
 
 # Define function to check yamlfile
@@ -569,6 +576,13 @@ def main(
                 
                 # Set extendedscale if needed (TODO)
                 extended_scale = 1.0
+                
+                # Set starting_index
+                starting_index = 1
+                if star_catalog is not None:
+                    starting_index += get_catalog_row_number(star_catalog)
+                if galaxy_catalog is not None:
+                    starting_index += get_catalog_row_number(galaxy_catalog)
 
                 # Prepare extended source catalog
                 extended_catalog = catalog_generator.ExtendedCatalog(
@@ -576,6 +590,7 @@ def main(
                     ra = [ra],
                     dec = [dec],
                     position_angle = [pav3],
+                    starting_index = starting_index, 
                 )
                 extended_catalog.add_magnitude_column(
                     ['None'], # a generic magnitude
