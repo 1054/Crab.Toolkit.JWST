@@ -45,6 +45,7 @@ logger = logging.getLogger('go-mirage-sim-mosaic')
 
 DEFAULT_APT_XML_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.xml'
 DEFAULT_POINTING_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.pointing'
+DEFAULT_MOSAIC_FILE = 'hlsp_candels_hst_acs_gs-tot-sect23_f814w_v1.0_drz.fits'
 DEFAULT_COSMIC_RAYS = {'library': 'SUNMAX', 'scale': 1.0}
 DEFAULT_INSTRUMENT = 'NIRCam'
 DEFAULT_FILTER = 'F200W'
@@ -294,6 +295,7 @@ def update_yamlfile_with_extended_catalog(
 @click.command()
 @click.option('--xml-file', type=click.Path(exists=True), default=DEFAULT_APT_XML_FILE)
 @click.option('--pointing-file', type=click.Path(exists=True), default=DEFAULT_POINTING_FILE)
+@click.option('--mosaic-file', type=click.Path(exists=True), default=DEFAULT_MOSAIC_FILE)
 @click.option('--instrument', type=str, default=DEFAULT_INSTRUMENT)
 @click.option('--filter', 'filter_name', type=str, default=DEFAULT_FILTER)
 @click.option('--dates', type=str, default=DEFAULT_DATES)
@@ -309,6 +311,7 @@ def update_yamlfile_with_extended_catalog(
 def main(
         xml_file, 
         pointing_file, 
+        mosaic_file, 
         instrument, 
         filter_name, 
         dates, 
@@ -423,7 +426,7 @@ def main(
             # Resample mosaic image
             extended_img = resample_mosaic_image(
                 yaml_file = yaml_filepath, 
-                mosaic_file = 'hlsp_candels_hst_acs_gs-tot-sect23_f814w_v1.0_drz.fits', 
+                mosaic_file = mosaic_file, 
                 output_dir = sim_output_dir, 
                 output_name = yaml_name+'_ext', 
                 recenter = True, # we are not an input mosaic image of the same sky
