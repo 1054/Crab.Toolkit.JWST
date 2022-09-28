@@ -380,7 +380,7 @@ class SkyCoordOption(click.Option):
 @click.option('--xml-file', type=click.Path(exists=True), default=DEFAULT_APT_XML_FILE)
 @click.option('--pointing-file', type=click.Path(exists=True), default=DEFAULT_POINTING_FILE)
 @click.option('--mosaic-file', type=click.Path(exists=True), default=DEFAULT_MOSAIC_FILE)
-@click.option('--mosaic-center', nargs=2, cls=SkyCoordOption, type=SkyCoordParamType_, default=DEFAULT_MOSAIC_CENTER, help='If recentering the input mosaic file to this coordinate.')
+@click.option('--mosaic-center', nargs=2, cls=SkyCoordOption, type=SkyCoordParamType_, default=None, help='If recentering the input mosaic file to this coordinate.')
 @click.option('--star-catalog', type=click.Path(exists=True), default=DEFAULT_STAR_CATALOG)
 @click.option('--galaxy-catalog', type=click.Path(exists=True), default=None)
 @click.option('--instrument', type=str, default=DEFAULT_INSTRUMENT)
