@@ -518,7 +518,8 @@ def main(
         if filter_name is not None:
             if not check_yamlfile_matches_the_filter(yaml_file, filter_name):
                 if verbose:
-                    logger.info('*** Skipping observation {!r} ({}/{}) because of non-matched filter ***')
+                    logger.info('*** Skipping observation {!r} ({}/{}) because of non-matched filter'.format(
+                        yaml_name, i+1, len(observation_table)).ljust(96) + ' ***')
                 continue
         
         # Check if add mosaic image as extended image
