@@ -14,6 +14,7 @@ import numpy as np
 import crds
 import jwst
 import mirage
+import yaml
 from mirage import imaging_simulator
 from mirage.seed_image import catalog_seed_image
 
