@@ -48,7 +48,7 @@ logger = logging.getLogger('go-mirage-sim-mosaic')
 DEFAULT_APT_XML_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.xml'
 DEFAULT_POINTING_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.pointing'
 DEFAULT_MOSAIC_FILE = 'input_mosaic_images/dust_opa_u_lensed_H_EUC.fits' # 'hlsp_candels_hst_acs_gs-tot-sect23_f814w_v1.0_drz.fits'
-DEFAULT_MOSAIC_CENTER = ('10:00:28.6', '02:12:21.0')
+DEFAULT_MOSAIC_CENTER = None # The coordinate in the mosaic image WCS # ('10:00:28.6', '02:12:21.0')
 DEFAULT_STAR_CATALOG = 'input_catalogs/ptsrc_pointings_BEST_sw_tot.cat'
 DEFAULT_COSMIC_RAYS = {'library': 'SUNMAX', 'scale': 1.0}
 DEFAULT_INSTRUMENT = 'NIRCam'
@@ -385,7 +385,7 @@ class SkyCoordOption(click.Option):
 @click.option('--xml-file', type=click.Path(exists=True), default=DEFAULT_APT_XML_FILE)
 @click.option('--pointing-file', type=click.Path(exists=True), default=DEFAULT_POINTING_FILE)
 @click.option('--mosaic-file', type=click.Path(exists=True), default=DEFAULT_MOSAIC_FILE)
-@click.option('--mosaic-center', nargs=2, cls=SkyCoordOption, type=SkyCoordParamType_, default=DEFAULT_MOSAIC_CENTER, help='If recentering the input mosaic file to this coordinate.')
+@click.option('--mosaic-center', nargs=2, cls=SkyCoordOption, type=SkyCoordParamType_, default=DEFAULT_MOSAIC_CENTER, help='Center coordinate in the input mosaic image.')
 @click.option('--star-catalog', type=click.Path(exists=True), default=DEFAULT_STAR_CATALOG)
 @click.option('--galaxy-catalog', type=click.Path(exists=True), default=None)
 @click.option('--instrument', type=str, default=DEFAULT_INSTRUMENT)
