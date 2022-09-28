@@ -52,7 +52,7 @@ DEFAULT_MOSAIC_CENTER = ('10:00:28.6', '02:12:21.0')
 DEFAULT_STAR_CATALOG = 'input_catalogs/ptsrc_pointings_BEST_sw_tot.cat'
 DEFAULT_COSMIC_RAYS = {'library': 'SUNMAX', 'scale': 1.0}
 DEFAULT_INSTRUMENT = 'NIRCam'
-DEFAULT_FILTER = 'F200W'
+DEFAULT_FILTER = 'F277W'
 DEFAULT_DATES = '2023-01-01'
 DEFAULT_BACKGROUND = 'medium'
 DEFAULT_PA_V3 = 293.09730273
@@ -517,6 +517,8 @@ def main(
         # Check if a filter has been specified
         if filter_name is not None:
             if not check_yamlfile_matches_the_filter(yaml_file, filter_name):
+                if verbose:
+                    logger.info('*** Skipping observation {!r} ({}/{}) because of non-matched filter ***')
                 continue
         
         # Check if add mosaic image as extended image
