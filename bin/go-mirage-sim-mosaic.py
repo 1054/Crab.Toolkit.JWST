@@ -309,24 +309,24 @@ class SkyCoordParamType(click.ParamType):
         elif isinstance(value, str):
             if value.find(':') >= 0 or value.find('h') >= 0:
                 try:
-                    scoord = SkyCoord(value, unit=(u.hourangle, u.deg))
+                    scoord = SkyCoord(value, unit=(u.hourangle, u.deg), frame=FK5)
                 except ValueError:
                     self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
             else:
                 try:
-                    scoord = SkyCoord(value, unit=(u.deg, u.deg))
+                    scoord = SkyCoord(value, unit=(u.deg, u.deg), frame=FK5)
                 except ValueError:
                     self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
         
         elif isinstance(value, (tuple, list)) and len(value) == 2:
             if str(value[0]).find(':') >= 0 or str(value[0]).find('h') >= 0:
                 try:
-                    scoord = SkyCoord(value[0], value[1], unit=(u.hourangle, u.deg))
+                    scoord = SkyCoord(value[0], value[1], unit=(u.hourangle, u.deg), frame=FK5)
                 except ValueError:
                     self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
             else:
                 try:
-                    scoord = SkyCoord(value[0], value[1], unit=(u.deg, u.deg))
+                    scoord = SkyCoord(value[0], value[1], unit=(u.deg, u.deg), frame=FK5)
                 except ValueError:
                     self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
         
@@ -380,7 +380,7 @@ class SkyCoordOption(click.Option):
 @click.option('--xml-file', type=click.Path(exists=True), default=DEFAULT_APT_XML_FILE)
 @click.option('--pointing-file', type=click.Path(exists=True), default=DEFAULT_POINTING_FILE)
 @click.option('--mosaic-file', type=click.Path(exists=True), default=DEFAULT_MOSAIC_FILE)
-@click.option('--mosaic-center', nargs=2, cls=SkyCoordOption, type=SkyCoordParamType_, default=DEFAULT_MOSAIC_CENTER, help='If recentering the input mosaic file to this coordinate.')
+@click.option('--mosaic-center', nargs=2, multiple=True, cls=SkyCoordOption, type=SkyCoordParamType_, default=DEFAULT_MOSAIC_CENTER, help='If recentering the input mosaic file to this coordinate.')
 @click.option('--star-catalog', type=click.Path(exists=True), default=DEFAULT_STAR_CATALOG)
 @click.option('--galaxy-catalog', type=click.Path(exists=True), default=None)
 @click.option('--instrument', type=str, default=DEFAULT_INSTRUMENT)
