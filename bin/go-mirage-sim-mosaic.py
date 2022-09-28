@@ -338,15 +338,10 @@ SkyCoordParamType_ = SkyCoordParamType()
 class SkyCoordArgument(click.Argument):
     
     def type_cast_value(self, ctx, value) -> list:
-        #print('SkyCoordArgument type_cast_value')
         try:
-            #print('SkyCoordArgument type_cast_value value {} type {}'.format(value, type(value)))
-            assert len(value)%2==0
-            ra_dec_list = []
-            for ra, dec in zip(value[0::2], value[1::2]):
-                ra_dec_list.append(SkyCoordParamType_.convert((ra, dec), param=self, ctx=ctx))
-            #print('SkyCoordArgument type_cast_value ra_dec_list {}'.format(ra_dec_list))
-            return ra_dec_list
+            ra, dec = value
+            ra_dec_skycoord = SkyCoordParamType_.convert((ra, dec), param=self, ctx=ctx)
+            return ra_dec_skycoord
         except Exception:
             raise click.BadParameter(value)
 
@@ -356,17 +351,10 @@ class SkyCoordOption(click.Option):
     def type_cast_value(self, ctx, value) -> list:
         if value is None:
             return None
-        #print('SkyCoordOption type_cast_value')
         try:
-            #print('SkyCoordOption type_cast_value value {} type {}'.format(value, type(value)))
-            #assert len(value)%2==0
-            ra_dec_list = []
-            for ra_dec_pair in value:
-                ra, dec = ra_dec_pair
-                #print('SkyCoordOption type_cast_value ra dec {} {}'.format(ra, dec))
-                ra_dec_list.append(SkyCoordParamType_.convert((ra, dec), param=self, ctx=ctx))
-                #print('SkyCoordOption type_cast_value ra_dec_list {}'.format(ra_dec_list))
-            return ra_dec_list
+            ra, dec = value
+            ra_dec_skycoord = SkyCoordParamType_.convert((ra, dec), param=self, ctx=ctx)
+            return ra_dec_skycoord
         except Exception:
             raise click.BadParameter(value)
 
@@ -380,7 +368,7 @@ class SkyCoordOption(click.Option):
 @click.option('--xml-file', type=click.Path(exists=True), default=DEFAULT_APT_XML_FILE)
 @click.option('--pointing-file', type=click.Path(exists=True), default=DEFAULT_POINTING_FILE)
 @click.option('--mosaic-file', type=click.Path(exists=True), default=DEFAULT_MOSAIC_FILE)
-@click.option('--mosaic-center', nargs=2, cls=SkyCoordOption, type=SkyCoordParamType_, default=None, help='If recentering the input mosaic file to this coordinate.')
+@click.option('--mosaic-center', nargs=2, cls=SkyCoordOption, type=SkyCoordParamType_, default=DEFAULT_MOSAIC_CENTER, help='If recentering the input mosaic file to this coordinate.')
 @click.option('--star-catalog', type=click.Path(exists=True), default=DEFAULT_STAR_CATALOG)
 @click.option('--galaxy-catalog', type=click.Path(exists=True), default=None)
 @click.option('--instrument', type=str, default=DEFAULT_INSTRUMENT)
