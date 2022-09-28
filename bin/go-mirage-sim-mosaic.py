@@ -256,6 +256,23 @@ def get_ra_dec_pav3_from_yamlfile(yamlfile):
 
 
 # Define function to check yamlfile
+def check_yamlfile_matches_the_filter(
+        yamlfile, 
+        filter_name = None, 
+    ):
+    check_okay = False
+    with open(yamlfile, 'r') as fp:
+        y = yaml.safe_load(fp)
+    if 'Readout' in y:
+        if 'filter' in y['Readout']:
+            if filter_name is None:
+                check_okay = True
+            elif y['Readout']['filter'].lower() == filter_name.lower():
+                check_okay = True
+    return check_okay
+
+
+# Define function to check yamlfile
 def check_yamlfile_has_extended_catalog(
         yamlfile, 
         extended_catalog_file = None, 
@@ -496,6 +513,11 @@ def main(
         yaml_filename = observation_table['yamlfile'][i]
         yaml_file = os.path.join(yaml_output_dir, yaml_filename)
         yaml_name = re.sub(r'\.yaml$', r'', yaml_filename)
+        
+        # Check if a filter has been specified
+        if filter_name is not None:
+            if not check_yamlfile_matches_the_filter(yaml_file, filter_name):
+                continue
         
         # Check if add mosaic image as extended image
         if mosaic_file is not None:
