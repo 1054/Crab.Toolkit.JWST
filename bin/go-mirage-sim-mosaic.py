@@ -9,6 +9,7 @@ if "CRDS_SERVER_URL" not in os.environ:
     os.environ["CRDS_SERVER_URL"] = 'https://jwst-crds.stsci.edu'
 
 import click
+import astropy.units as u
 import numpy as np
 #import pysiaf
 import photutils # used by mirage.seed_image.fits_seed_image
@@ -17,6 +18,7 @@ for key in 'TopHatWindow, TukeyWindow, CosineBellWindow, SplitCosineBellWindow, 
     setattr(photutils, key.strip(), getattr(photutils.psf.matching, key.strip()))
 import jwst
 import mirage # pip install --upgrade git+https://github.com/spacetelescope/mirage.git
+from astropy.coordinates import SkyCoord, FK5
 from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
@@ -190,6 +192,12 @@ def resample_mosaic_image(
                 center_ra = ra
             if center_dec is None:
                 center_dec = dec
+        if isinstance(center_ra, str) or isinstance(center_dec, str):
+            if re.match(r'^[0-9.+-]+$', center_ra) and re.match(r'^[0-9.+-]+$', center_dec):
+                center_ra, center_dec = float(center_ra), float(center_dec)
+            else:
+                center_scoord = SkyCoord(str(center_ra), str(center_dec), unit=(u.hour, u.deg), frame=FK5) #TODO frame FK5
+                center_ra, center_dec = center_scoord.ra.deg, center_scoord.dec.deg
         seed.crop_center_ra = center_ra # see "mirage/seed_image/fits_seed_image.py" read_param_file -- In default it will use the ra dec in the param file. Here we test to crop the input image center.
         seed.crop_center_dec = center_dec
         seed.blot_center_ra = center_ra
@@ -304,6 +312,8 @@ def update_yamlfile_with_extended_catalog(
 @click.option('--yaml-output-dir', type=click.Path(exists=False), default=DEFAULT_YAML_OUTPUT_DIR)
 @click.option('--sim-output-dir', type=click.Path(exists=False), default=DEFAULT_SIM_OUTPUT_DIR)
 @click.option('--observation-list-file', type=click.Path(exists=False), default=DEFAULT_OBSERVATION_LIST_FILE)
+@click.option('--mosaic-center-ra', type=(str, float), default=None, help='If recentering the input mosaic file to this coordinate.')
+@click.option('--mosaic-center-dec', type=(str, float), default=None, help='If recentering the input mosaic file to this coordinate.')
 @click.option('--overwrite-siminput', is_flag=True, default=False)
 @click.option('--overwrite-simprep', is_flag=True, default=False)
 @click.option('--overwrite-simdata', is_flag=True, default=False)
@@ -320,6 +330,8 @@ def main(
         yaml_output_dir,
         sim_output_dir,
         observation_list_file,
+        mosaic_center_ra, 
+        mosaic_center_dec, 
         overwrite_siminput, 
         overwrite_simprep, 
         overwrite_simdata, 
@@ -429,7 +441,9 @@ def main(
                 mosaic_file = mosaic_file, 
                 output_dir = sim_output_dir, 
                 output_name = yaml_name+'_ext', 
-                recenter = True, # we are not an input mosaic image of the same sky
+                recenter = (mosaic_center_ra is not None and mosaic_center_dec is not None), 
+                center_ra = mosaic_center_ra, 
+                center_dec = mosaic_center_dec, 
                 overwrite = overwrite_simprep, 
             )
             
