@@ -51,7 +51,8 @@ def main(
     if len(list_files) == 0:
         list_files = glob.glob(yaml_dir+'/**/jw*_*_*_*.yaml')
     if len(list_files) == 0:
-        raise Exception('Error! No file found: ' + yaml_dir+'/jw*_*_*_*.yaml')
+        raise Exception('Error! No file found: ' + yaml_dir+'/jw*_*_*_*.yaml' + 
+                        ' OR ' + yaml_dir+'/**/jw*_*_*_*.yaml')
     list_files = sorted(list_files)
     
     cache_bkgdrates = {}
