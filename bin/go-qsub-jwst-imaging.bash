@@ -1,8 +1,8 @@
 #!/bin/bash
 # 
-dataset_names=($(ls -1d jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_*/))
+dataset_names=($(ls -1d jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_*))
 if [[ ${#dataset_names[@]} -eq 0 ]]; then
-    echo "No dataset dir is found: jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_*/"
+    echo "No dataset dir is found: jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_*"
     echo "under current directory: $(pwd -P)"
     exit 255
 fi
@@ -39,12 +39,12 @@ echo "type go-jwst-imaging-stage-3" >> $goscript
 for (( i=0; i<${#dataset_names[@]}; i++ )); do
     dataset_name="${dataset_names[i]}"
     echo "" >> $goscript
-    echo "go-jwst-nircam-stage-1 $dataset_name" >> $goscript
+    echo "go-jwst-imaging-stage-1 $dataset_name" >> $goscript
     echo "" >> $goscript
-    echo "go-jwst-nircam-stage-2 $dataset_name" >> $goscript
+    echo "go-jwst-imaging-stage-2 $dataset_name" >> $goscript
 done
 echo "" >> $goscript
-echo "go-jwst-nircam-stage-3 \\" >> $goscript
+echo "go-jwst-imaging-stage-3 \\" >> $goscript
 for (( i=0; i<${#dataset_names[@]}; i++ )); do
     if [[ $((i+1)) -lt ${#dataset_names[@]} ]]; then
         echo "    ${dataset_names[i]} \\" >> $goscript

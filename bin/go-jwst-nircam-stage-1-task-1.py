@@ -107,7 +107,7 @@ if __name__ == '__main__':
     arg_str = ''
     do_remstripping = True
     while iarg < len(sys.argv):
-        arg_str = sys.argv['iarg'].lower().replace('--', '-')
+        arg_str = sys.argv[iarg].lower().replace('--', '-')
         if arg_str == '-no-remstripping':
             print('User set no remstriping.')
             do_remstripping = False
