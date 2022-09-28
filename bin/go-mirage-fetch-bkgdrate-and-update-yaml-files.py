@@ -47,9 +47,11 @@ def main(
     if yaml_dir.endswith('/'):
         yaml_dir = yaml_dir.rstrip('/')
     
-    list_files = glob.glob(yaml_dir+'/**/jw*.yaml')
+    list_files = glob.glob(yaml_dir+'/jw*_*_*_*.yaml')
     if len(list_files) == 0:
-        raise Exception('Error! No file found: ' + yaml_dir+'/**/jw*.yaml')
+        list_files = glob.glob(yaml_dir+'/**/jw*_*_*_*.yaml')
+    if len(list_files) == 0:
+        raise Exception('Error! No file found: ' + yaml_dir+'/jw*_*_*_*.yaml')
     list_files = sorted(list_files)
     
     cache_bkgdrates = {}
