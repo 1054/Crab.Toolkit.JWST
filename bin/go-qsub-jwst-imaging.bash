@@ -53,6 +53,16 @@ for (( i=0; i<${#dataset_names[@]}; i++ )); do
     fi
 done
 echo "" >> $goscript
+# 
+echo "Prepared qsub script: $goscript"
+while true; do
+    read -p "Ready to submit the qsub job? " yn
+    case $yn in
+        [Yy]* ) echo "Submitting the qsub job!"; qsub $goscript; echo "Job submitted! Exit."; break;;
+        [Nn]* ) echo "Not submitting the job! Exit!"; exit;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
 
 
 
