@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # 
-import os, sys, re, json, shutil
+import os, sys, re, json, glob, shutil
 if "CRDS_PATH" not in os.environ:
     os.environ["CRDS_PATH"] = '/n17data/dzliu/Data/jwst_crds_cache'
 if "MIRAGE_DATA" not in os.environ:
