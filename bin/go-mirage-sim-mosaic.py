@@ -181,7 +181,7 @@ def resample_mosaic_image(
         mosaic_file = mosaic_file, 
         mosaic_fwhm = mosaic_fwhm,
         mosaic_fwhm_units = mosaic_fwhm_units, 
-        cropped_file = output_name+'_intermediate_cropped.fits',
+        cropped_file = os.path.join(output_dir, output_name+'_intermediate_cropped.fits'), # bug/feature: we need to add the dir path here.
         blotted_file = output_name+'.fits', 
         outdir = output_dir,
         psf_file = psf_file,

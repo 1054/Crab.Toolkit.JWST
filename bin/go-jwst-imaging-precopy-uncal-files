@@ -1,0 +1,143 @@
+#!/bin/bash
+# 
+# Inputs:
+# 
+#    jwst uncal files ("/path/to/jwpppppooovvv_ggsaa_eeeee_detector_prodType_uncal.fits")
+# 
+# 
+# Outputs:
+# 
+#    For each input jwst uncal file, we will copy it to the working directory (default is current directory)
+#        {dataset_name}/uncals/{dataset_name}_uncal.fits
+# 
+# 
+set -e
+
+# Set necessary system variables
+if [[ -z "$CRDS_PATH" ]]; then
+    export CRDS_PATH=$HOME/jwst_crds_cache
+fi
+if [[ -z "$CRDS_SERVER_URL" ]]; then
+    export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
+fi
+
+
+# Get script_dir
+script_dir=$(perl -MCwd -e 'print Cwd::abs_path shift' $(dirname "${BASH_SOURCE[0]}"))
+
+
+# Read user input
+iarg=1
+argstr=""
+work_dir="."
+current_dir=$(pwd)
+hardcopy=0 # do hardcopy instead of symlink
+overwrite=0
+data_files=()
+unused_args=()
+while [[ $iarg -le $# ]]; do
+    argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^[-]+/--/g')
+    if [[ "$argstr" == "--"* ]]; then
+        if [[ "$argstr" == "--work-dir" ]] || [[ "$argstr" == "--workdir" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                work_dir=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
+                echo "work_dir = \"$work_dir\""
+            fi
+        elif [[ "$argstr" == "--hard-copy" ]] || [[ "$argstr" == "--hardcopy" ]]; then
+            hardcopy=1
+            echo "hardcopy = $hardcopy"
+        else
+            unused_args+=("${!iarg}")
+        fi
+    else
+        data_files+=("${!iarg}")
+    fi
+    # 
+    iarg=$((iarg+1))
+done
+
+
+# Check user input
+if [[ ${#data_files[@]} -eq 0 ]]; then
+    echo "No input JWST uncal file!"
+    exit 2
+fi
+
+
+# cd work_dir
+if [[ "$work_dir" != "." ]]; then
+    echo "cd \"$work_dir\""
+    cd "$work_dir"
+fi
+
+
+# process datasets
+for (( i = 0; i < ${#data_files[@]}; i++ )); do
+    
+    data_file="${data_files[i]}"
+    echo "*** Processing $data_file ***"
+    
+    data_dirpath=$(dirname "$data_file")
+    data_filename=$(basename "$data_file")
+    
+    #if [[ $($script_dir/go-jwst-parse-dataset-name.py "$data_filename" 2>/dev/null | tail -n 1) == "JWST_Dataset_Name"* ]]; then
+    
+    dataset_name=$(echo "$data_filename" | perl -p -e 's/_uncal\.fits$//g')
+    
+    if [[ ! -d $dataset_name ]]; then
+        echo mkdir $dataset_name
+        mkdir $dataset_name
+    fi
+    
+    echo cd $dataset_name
+    cd $dataset_name
+    
+    # check input directory: uncals
+    if [[ ! -d uncals ]]; then
+        echo "mkdir uncals"
+        mkdir uncals
+    fi
+    
+    # copy/link uncal data file from the MAST_DOWNLOAD_DIR
+    if [[ ! -f uncals/${dataset_name}_uncal.fits ]] && [[ ! -L uncals/${dataset_name}_uncal.fits ]]; then
+        # if the uncal data file is not found in the MAST_DOWNLOAD_DIR, 
+        # download it using the script "go-jwst-query-by-dataset-name.py"
+        if [[ ! -f "${data_dirpath}/${dataset_name}_uncal.fits" ]]; then
+            echo $script_dir/go-jwst-query-by-dataset-name.py ${dataset_name} \
+                --download --download-dir=$(dirname $(dirname "$MAST_DOWNLOAD_DIR"))
+            $script_dir/go-jwst-query-by-dataset-name.py ${dataset_name} \
+                --download --download-dir=$(dirname $(dirname "$MAST_DOWNLOAD_DIR"))
+            if [[ ! -f "${data_dirpath}/${dataset_name}_uncal.fits" ]]; then
+                echo "Error! Cannot find or download data file: \"${data_dirpath}/${dataset_name}_uncal.fits\""
+                exit 3
+            fi
+        fi
+        # make symlink
+        if [[ $hardcopy -gt 0 ]]; then
+            echo cp "${data_dirpath}/${dataset_name}_uncal.fits" \
+                        uncals/${dataset_name}_uncal.fits
+            cp "${data_dirpath}/${dataset_name}_uncal.fits" \
+                    uncals/${dataset_name}_uncal.fits
+        else
+            echo ln -fs "${data_dirpath}/${dataset_name}_uncal.fits" \
+                        uncals/${dataset_name}_uncal.fits
+            ln -fs "${data_dirpath}/${dataset_name}_uncal.fits" \
+                    uncals/${dataset_name}_uncal.fits
+        fi
+    fi
+    
+    echo cd ../
+    cd ../
+    
+done
+
+
+
+
+echo "All done!"
+
+
+
+
+
