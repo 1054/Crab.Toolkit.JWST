@@ -101,19 +101,7 @@ for (( i = 0; i < ${#data_files[@]}; i++ )); do
     
     # copy/link uncal data file from the MAST_DOWNLOAD_DIR
     if [[ ! -f uncals/${dataset_name}_uncal.fits ]] && [[ ! -L uncals/${dataset_name}_uncal.fits ]]; then
-        # if the uncal data file is not found in the MAST_DOWNLOAD_DIR, 
-        # download it using the script "go-jwst-query-by-dataset-name.py"
-        if [[ ! -f "${data_dirpath}/${dataset_name}_uncal.fits" ]]; then
-            echo $script_dir/go-jwst-query-by-dataset-name.py ${dataset_name} \
-                --download --download-dir=$(dirname $(dirname "$MAST_DOWNLOAD_DIR"))
-            $script_dir/go-jwst-query-by-dataset-name.py ${dataset_name} \
-                --download --download-dir=$(dirname $(dirname "$MAST_DOWNLOAD_DIR"))
-            if [[ ! -f "${data_dirpath}/${dataset_name}_uncal.fits" ]]; then
-                echo "Error! Cannot find or download data file: \"${data_dirpath}/${dataset_name}_uncal.fits\""
-                exit 3
-            fi
-        fi
-        # make symlink
+        # make hardcopy or symlink
         if [[ $hardcopy -gt 0 ]]; then
             echo cp "${data_dirpath}/${dataset_name}_uncal.fits" \
                         uncals/${dataset_name}_uncal.fits
