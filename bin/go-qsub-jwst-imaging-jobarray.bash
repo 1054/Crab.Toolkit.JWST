@@ -16,12 +16,14 @@ goscript="go_qsub_processing_jwst_imaging_${timestamp}.bash"
 echo "#!/bin/bash" > $goscript
 echo "#PBS -N JW${timestamp}" >> $goscript
 echo "#PBS -l nodes=1:ppn=${ncpu},mem=${mem},walltime=24:00:00" >> $goscript
+echo "#PBS -wd ${currentdir}/" >> $goscript
 echo "#PBS -d ${currentdir}/" >> $goscript
 echo "#PBS -o ${currentdir}/log_processing_jwst_imaging_${timestamp}.txt" >> $goscript
 echo "#PBS -e ${currentdir}/log_processing_jwst_imaging_${timestamp}.err" >> $goscript
 echo "#PBS -j oe" >> $goscript
 echo "#PBS -k oe" >> $goscript
-echo "#PBS -m abe" >> $goscript
+#echo "#PBS -m abe" >> $goscript
+echo "#PBS -m n" >> $goscript # do not send emails
 echo "#PBS -t 1-$((${#dataset_names[@]}+1))" >> $goscript
 #
 echo "set -e" >> $goscript
@@ -55,9 +57,10 @@ echo "" >> $goscript
 echo "fi" >> $goscript
 # 
 echo "" >> $goscript
-echo "if [[ \${PBS_ARRAYID} -gt \${#dataset_names[@]} ]]" >> $goscript
+echo "if [[ \${PBS_ARRAYID} -gt \${#dataset_names[@]} ]]; then" >> $goscript
 echo "" >> $goscript
-echo "  go-jwst-imaging-stage-3 \${dataset_names[@]}" >> $goscript
+echo "  echo Then please run:" >> $goscript
+echo "  echo go-jwst-imaging-stage-3 \${dataset_names[@]}" >> $goscript
 echo "" >> $goscript
 echo "fi" >> $goscript
 echo "" >> $goscript
