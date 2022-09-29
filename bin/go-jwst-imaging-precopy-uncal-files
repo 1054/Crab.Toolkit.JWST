@@ -101,6 +101,10 @@ for (( i = 0; i < ${#data_files[@]}; i++ )); do
     
     # copy/link uncal data file from the MAST_DOWNLOAD_DIR
     if [[ ! -f uncals/${dataset_name}_uncal.fits ]] && [[ ! -L uncals/${dataset_name}_uncal.fits ]]; then
+        # make relative data path correct if it is not an absolute path
+        if [[ "$data_dirpath" != "/"* ]]; then
+            data_dirpath="../../$data_dirpath"
+        fi
         # make hardcopy or symlink
         if [[ $hardcopy -gt 0 ]]; then
             echo cp "${data_dirpath}/${dataset_name}_uncal.fits" \
