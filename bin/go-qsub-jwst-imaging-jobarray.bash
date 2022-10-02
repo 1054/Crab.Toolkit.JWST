@@ -6,7 +6,7 @@ if [[ ${#dataset_names[@]} -eq 0 ]]; then
     echo "under current directory: $(pwd -P)"
     exit 255
 fi
-crds_context="" # "jwst_0986.pmap"
+crds_context="$CRDS_CONTEXT" # "jwst_0986.pmap"
 conda_env="base"
 ncpu=4
 mem="40gb"

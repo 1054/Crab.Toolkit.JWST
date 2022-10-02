@@ -7,7 +7,7 @@ By Daizhong Liu.
 
 """
 
-import os, sys, re, datetime
+import os, sys, re, datetime, glob
 assert os.environ["CRDS_PATH"] != ''
 assert os.environ["CRDS_SERVER_URL"] != ''
 #os.environ["CRDS_PATH"] = os.path.expanduser('~/jwst_crds_cache')
@@ -60,8 +60,8 @@ def setup_logger():
 
 # Main 
 @click.command()
-@click.argument('jwst_uncal_file', type=click.Path(exists=True))
-def main(jwst_uncal_file):
+@click.argument('jwst_uncal_files', multiple=True, type=click.Path(exists=True))
+def main(jwst_uncal_files):
 
     # Add script dir to sys path
     if not (get_script_dir() in sys.path):
@@ -83,23 +83,33 @@ def main(jwst_uncal_file):
     
     #crds.rmap.load_mapping(pipeline_context)
     
-    # with datamodels.open(jwst_uncal_file) as model:
-    #     params = {
-    #         'INSTRUME': model.meta.instrument.name, 
-    #         'DATE': model.meta.date, 
-    #         'TIME': model.meta.observation.time,
-    #     }
-    #     crds.getreferences(
-    #         parameters = parameters, 
-    #         reftypes = ['DARK'], 
-    #         context = pipeline_context,
-    #         ignore_cache = False,
-    #         observatory = 'jwst',
-    #     )
+    all_jwst_uncal_files = []
     
-    logger.info('Detector1Pipeline._precache_references: {!r}'.format(jwst_uncal_file))
-    pipeline_object = calwebb_detector1.Detector1Pipeline()
-    pipeline_object._precache_references(jwst_uncal_file)
+    for jwst_uncal_file in jwst_uncal_files:
+        if jwst_uncal_file.find('*') >= 0:
+            all_jwst_uncal_files.extend(glob.glob(jwst_uncal_file))
+        else:
+            all_jwst_uncal_files.append(jwst_uncal_file)
+    
+    for jwst_uncal_file in all_jwst_uncal_files:
+        
+        # with datamodels.open(jwst_uncal_file) as model:
+        #     params = {
+        #         'INSTRUME': model.meta.instrument.name, 
+        #         'DATE': model.meta.date, 
+        #         'TIME': model.meta.observation.time,
+        #     }
+        #     crds.getreferences(
+        #         parameters = parameters, 
+        #         reftypes = ['DARK'], 
+        #         context = pipeline_context,
+        #         ignore_cache = False,
+        #         observatory = 'jwst',
+        #     )
+        
+        logger.info('Detector1Pipeline._precache_references: {!r}'.format(jwst_uncal_file))
+        pipeline_object = calwebb_detector1.Detector1Pipeline()
+        pipeline_object._precache_references(jwst_uncal_file)
 
 
 
