@@ -53,7 +53,7 @@ class Rect():
 # Scan
 class Scan():
     """Define a Scan of pixels in an image."""
-    def __init__(self, image, px, py, angle=None, rect=None):
+    def __init__(self, image, px, py, angle=None, rect=None, dqmask=None):
         self.px = px
         self.py = py
         self.ipx = np.round(self.px).astype(int)
@@ -70,8 +70,14 @@ class Scan():
         self.iipx = self.ipx[self.imask]
         self.data = image[self.iipy, self.iipx].flatten()
         nanmask = np.isnan(self.data)
+        if dqmask is not None:
+            nanmask = np.logical_or(nanmask, 
+                np.invert(dqmask[self.iipy, self.iipx].flatten()))
+                # dqmask>0 means good pixel here, invert means bad pixels.
         if len(self.data) > np.count_nonzero(nanmask):
-            self.mean, self.median, self.std = sigma_clipped_stats(self.data, mask=nanmask)
+            self.mean, self.median, self.std = sigma_clipped_stats(self.data, 
+                mask=nanmask) 
+                # mask here means bad pixels to exclude.
         else:
             self.mean, self.median, self.std = np.nan, np.nan, np.nan
     def __str__(self):
@@ -92,7 +98,7 @@ class Scan():
 
 
 # Draw scans
-def draw_scans(image, angle, rect=None):
+def draw_scans(image, angle, rect=None, dqmask=None):
     """Draw scans along an angle for the whole image.
     """
     scans = []
@@ -104,7 +110,7 @@ def draw_scans(image, angle, rect=None):
         for iscan in range(nx):
             px = np.zeros(ny) + iscan
             py = np.arange(ny)
-            scans.append(Scan(image, px, py, angle=angle, rect=rect))
+            scans.append(Scan(image, px, py, angle=angle, rect=rect, dqmask=dqmask))
     else:
         nscan = ny + int(np.floor(nx*tan))
         for iscan in range(nscan):
@@ -112,7 +118,7 @@ def draw_scans(image, angle, rect=None):
             dy = tan
             px = np.arange(nx)
             py = np.linspace(y0, y0+(nx-1)*dy, num=nx, endpoint=True)
-            scans.append(Scan(image, px, py, angle=angle, rect=rect))
+            scans.append(Scan(image, px, py, angle=angle, rect=rect, dqmask=dqmask))
     return scans
 
 
@@ -199,15 +205,16 @@ def main(
         model, applied_flat = apply_flat_to_model(model)
     
     # Get image and dqmask
-    dqmask = bitfield_to_boolean_mask(
-            model.dq,
-            interpret_bit_flags('~(DO_NOT_USE+NON_SCIENCE)', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
-                flag_name_map=dqflags_pixel), 
-            good_mask_value=1,
-            dtype=np.uint8
-        ) * np.isfinite(model.data) # following "jwst/skymatch/skymatch_step.py", this is valid data
+    # dqmask = bitfield_to_boolean_mask(
+    #         model.dq,
+    #         interpret_bit_flags('~DO_NOT_USE+NON_SCIENCE', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
+    #             flag_name_map=dqflags_pixel), 
+    #         good_mask_value=1,
+    #         dtype=np.uint8
+    #     ) * np.isfinite(model.data) # following "jwst/skymatch/skymatch_step.py", this is valid data
+    dqmask = None # 
     image = model.data.copy()
-    image[~dqmask] = np.nan
+    #image[~dqmask] = np.nan
     
     # Get image shape
     logger.info('image.shape {}'.format(image.shape))
@@ -253,9 +260,9 @@ def main(
         for iangle in range(len(angles)):
             rect = rects[irect]
             angle = angles[iangle]
-            bkg = np.zeros(image.shape)
-            msk = np.zeros(image.shape)
-            scans = draw_scans(image, angle, rect=rect)
+            #bkg = np.zeros(image.shape)
+            #msk = np.zeros(image.shape)
+            scans = draw_scans(image, angle, rect=rect, dqmask=dqmask)
             for iscan in range(len(scans)):
                 scan = scans[iscan]
                 scan.subtract_median_for_image(image, bkgs[irect, iangle])
@@ -281,8 +288,9 @@ def main(
     
     out_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     with ImageModel(output_file) as out_model:
-        #out_model.data[out_model.dq==0] = image[out_model.dq==0] #TODO# care about dq?
-        out_model.data = image
+        validmask = np.isfinite(model.data)
+        out_model.data[validmask] = image[validmask] # only copy valid pixel values
+        #out_model.data = image
         # add history entry following CEERS
         stepdescription = 'Processed with remstriping-dzliu.py; '+ out_timestamp
         software_dict = {'name':'remstriping-dzliu.py',
@@ -305,12 +313,21 @@ def main(
         logger.info('Saved destripping background into {!r}'.format(output_bkg))
     
     
-    
-    # TODO: save more to disk
-    # output_bkgs = re.sub(r'\.fits$', r'', output_file) + '_bkgs.fits'
-    # header = fits.getheader(output_bkg, 1)
-    # fits.PrimaryHDU()
-    # logger.info('Saved destripping background into {!r}'.format(output_bkg))
+    output_bkgs = re.sub(r'\.fits$', r'', output_file) + '_bkgs.fits'
+    header0 = fits.getheader(output_bkg, 0)
+    header1 = fits.getheader(output_bkg, 1)
+    hdulist = [fits.PrimaryHDU(data=None, header=header0)]
+    for irect in range(len(rects)):
+        for iangle in range(len(angles)):
+            rect = rects[irect]
+            angle = angles[iangle]
+            header2 = copy.deepcopy(header1)
+            header2['EXTNAME'] = 'RECT_{}_ANGLE_{}'.format(irect+1, iangle+1)
+            header2['RECT'] = str(rect)
+            header2['ANGLE'] = str(angle)
+            hdulist.append(fits.ImageHDU(data=bkgs[irect, iangle], header=header2))
+    fits.HDUList(hdulist).writeto(output_bkgs, overwrite=True)
+    logger.info('Saved destripping backgrounds into {!r}'.format(output_bkgs))
     
 
 
