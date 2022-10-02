@@ -112,12 +112,12 @@ def draw_scans(image, angle, rect=None, dqmask=None):
             py = np.arange(ny)
             scans.append(Scan(image, px, py, angle=angle, rect=rect, dqmask=dqmask))
     else:
-        nscan = ny + int(np.floor(nx*tan))
+        nscan = ny + int(np.floor(np.abs(nx*tan)))
         for iscan in range(nscan):
-            y0 = -np.floor(nx*tan) + iscan
-            dy = tan
+            y0 = -np.floor(nx*tan) if (tan >= 0.0) else 0
+            dy = np.abs(tan)
             px = np.arange(nx)
-            py = np.linspace(y0, y0+(nx-1)*dy, num=nx, endpoint=True)
+            py = np.linspace(y0, y0+(nx-1)*dy, num=nx, endpoint=True) + iscan
             scans.append(Scan(image, px, py, angle=angle, rect=rect, dqmask=dqmask))
     return scans
 
