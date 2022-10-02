@@ -8,7 +8,8 @@ if [[ ${#dataset_names[@]} -eq 0 ]]; then
 fi
 crds_context="$CRDS_CONTEXT" # "jwst_0986.pmap"
 conda_env="base"
-ncpu=4
+concurrent=5
+ncpu=1
 mem="40gb"
 timestamp=$(date +"%Y%m%d_%Hh%Mm%Ss")
 currentdir=$(pwd -P)
@@ -23,7 +24,7 @@ echo "#PBS -j oe" >> $goscript
 echo "#PBS -k oe" >> $goscript
 #echo "#PBS -m abe" >> $goscript
 echo "#PBS -m n" >> $goscript # do not send emails -- not working
-echo "#PBS -t 1-$((${#dataset_names[@]}+1))" >> $goscript
+echo "#PBS -t 1-$((${#dataset_names[@]}+1))%${concurrent}" >> $goscript
 #
 echo "set -e" >> $goscript
 if [[ ! -z $crds_context ]]; then

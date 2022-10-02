@@ -161,7 +161,7 @@ def apply_flat_to_model(model):
     logger.info('Using flat: %s'%(os.path.basename(flatfile)))
     with FlatModel(flatfile) as flat:
         # use the JWST Calibration Pipeline flat fielding Step 
-        model, applied_flat = do_flat_field(model, flat)
+        model, applied_flat = do_correction(model, flat)
     
     return model, applied_flat
 
