@@ -60,7 +60,7 @@ def setup_logger():
 
 # Main 
 @click.command()
-@click.argument('jwst_uncal_files', multiple=True, type=click.Path(exists=True))
+@click.argument('jwst_uncal_files', nargs=-1, type=click.Path(exists=True))
 def main(jwst_uncal_files):
 
     # Add script dir to sys path
