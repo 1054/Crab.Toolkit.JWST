@@ -49,7 +49,7 @@ iarg=1
 argstr=""
 work_dir="."
 current_dir=$(pwd)
-ncpu=0
+maxcores="all" # "none", "quarter", "half", "all"
 overwrite=0
 dataset_names=()
 unused_args=()
@@ -62,11 +62,11 @@ while [[ $iarg -le $# ]]; do
                 work_dir=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
                 echo "work_dir = \"$work_dir\""
             fi
-        elif [[ "$argstr" == "--ncpu" ]]; then
+        elif [[ "$argstr" == "--maximum-cores" ]]; then
             iarg=$((iarg+1))
             if [[ $iarg -le $# ]]; then
-                ncpu=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
-                echo "ncpu = \"$ncpu\""
+                maxcores=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
+                echo "maxcores = \"$maxcores\""
             fi
         else
             unused_args+=("${!iarg}")
@@ -169,8 +169,8 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     file_in="uncals/${dataset_name}_uncal.fits"
     file_out="calibrated1_rates/${dataset_name}_rate.fits"
     kwargs=()
-    if [[ $ncpu -gt 0 ]]; then
-        kwargs+=(--maximum-cores "$ncpu")
+    if [[ $maxcores -gt 0 ]]; then
+        kwargs+=(--maximum-cores "$maxcores")
     fi
     echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}
     python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}
