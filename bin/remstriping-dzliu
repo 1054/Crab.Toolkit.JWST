@@ -1,0 +1,181 @@
+#!/bin/bash
+#
+# Remove horizontal/vertical stripes in the input image. 
+# 
+# The code will replace the input file if the --output-dir or --output-suffix is not set!
+# 
+# The output file name is determined from the input file name, allowing to choose 
+# a different output directory and/or with an output suffix, but not allowing to 
+# specify an exact output file path. 
+# 
+set -e
+
+# Set necessary system variables
+if [[ -z "$CRDS_PATH" ]]; then
+    export CRDS_PATH=$HOME/jwst_crds_cache
+fi
+if [[ -z "$CRDS_SERVER_URL" ]]; then
+    export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
+fi
+if [[ -z "$CRDS_CONTEXT" ]]; then
+    #export CRDS_CONTEXT="jwst_0932.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())' # 2022-07-24
+    #export CRDS_CONTEXT="jwst_0937.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())' # 2022-07-27
+    #export CRDS_CONTEXT="jwst_0945.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())' # 2022-08-15
+    export CRDS_CONTEXT="jwst_0968.pmap" # CRDS_SERVER_URL="https://jwst-crds.stsci.edu" python -c 'import crds; print(crds.get_default_context())' # 2022-09-07
+    echo "CRDS_CONTEXT = $CRDS_CONTEXT"
+fi
+
+
+# Get script_dir
+script_dir=$(dirname $(perl -MCwd -e 'print Cwd::abs_path shift' "${BASH_SOURCE[0]}"))
+
+
+# Read user input
+iarg=1
+argstr=""
+test=0
+overwrite=0
+apply_flat=0 # in default no apply flat
+smooth=1.0 # TODO: NOT USED
+inplace=0 # if inplace is set, output_dir and output_suffix are ignored
+output_suffix="remstriping"
+output_dir="."
+input_files=()
+while [[ $iarg -le $# ]]; do
+    if [[ "$argmode"x == "none"x ]]; then 
+        argmode="file"
+    fi
+    argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
+    if [[ "$argstr"x == "--test"x ]]; then
+        test=1
+        #echo "test=$test"
+    elif [[ "$argstr"x == "--overwrite"x ]]; then
+        overwrite=1
+        #echo "overwrite = $overwrite"
+    elif [[ "$argstr"x == "--inplace"x ]]; then
+        inplace=1
+        #echo "inplace = $inplace"
+    elif [[ "$argstr"x == "--no-inplace"x ]]; then
+        inplace=0
+        #echo "inplace = $inplace"
+    elif [[ "$argstr"x == "--apply-flat"x ]]; then
+        apply_flat=1
+        #echo "apply_flat = $apply_flat"
+    elif [[ "$argstr"x == "--no-apply-flat"x ]]; then
+        apply_flat=0
+        #echo "apply_flat = $apply_flat"
+    elif [[ "$argstr"x == "--smooth"x ]]; then
+        iarg=$((iarg+1))
+        if [[ $iarg -le $# ]]; then
+            smooth="${!iarg}"
+            #echo "smooth = $smooth"
+        fi
+    elif [[ "$argstr"x == "--output-suffix"x ]]; then
+        iarg=$((iarg+1))
+        if [[ $iarg -le $# ]]; then
+            output_suffix="${!iarg}"
+        fi
+    elif [[ "$argstr"x == "--output-dir"x ]]; then
+        iarg=$((iarg+1))
+        if [[ $iarg -le $# ]]; then
+            output_dir="${!iarg}"
+        fi
+    else
+        input_files+=("${!iarg}")
+    fi
+    # 
+    iarg=$((iarg+1))
+done
+
+
+# Check user input
+if [[ ${#input_files[@]} -eq 0 ]]; then
+    echo "Please input a \"*.fits\" file."
+    exit 255
+fi
+echo "Running remstriping-dzliu"
+echo "input_files = ${input_files[@]} (${#input_files[@]})"
+if [[ $inplace -gt 0 ]]; then
+    echo "inplace is set"
+    echo "output_suffix and output_dir are ignored"
+else
+    echo "output_suffix = \"$output_suffix\""
+    echo "output_dir = \"$output_dir\""
+fi
+
+
+# Run
+for (( i = 0; i < ${#input_files[@]}; i++ )); do
+    
+    input_file="${input_files[i]}"
+    input_dir=$(dirname "$input_file")
+    output_name=$(basename "$input_file" | perl -p -e 's/\.fits$//g')
+    if [[ $inplace -gt 0 ]]; then
+        output_dir_active=$(dirname "$input_file")
+        output_file="$input_file"
+    else
+        output_dir_active="$output_dir"
+        if [[ ! -d "$output_dir_active" ]]; then
+            mkdir -p "$output_dir_active"
+        fi
+        
+        if [[ "$output_suffix"x != ""x ]]; then
+            if [[ "$output_suffix" == "_"* ]]; then
+                output_name="${output_name}${output_suffix}"
+            else
+                output_name="${output_name}_${output_suffix}"
+            fi
+        fi
+        output_file="$output_dir_active/${output_name}.fits"
+        
+        # copy input file to output_dir
+        if [[ "$input_file" != "$output_file" ]]; then
+            echo cp "$input_file" "$output_file"
+            \cp "$input_file" "$output_file"
+        fi
+    fi
+    
+    
+    # seed image (source emission mask)
+    # "remstriping-dzliu.py" script can use a galaxy seed image indicating where source emission is.
+    # My script "util_make_seed_image_for_rate_image.py" can detect source emission and make such a seed image. 
+    
+    # proc_args=(--smooth $smooth)
+    # if [[ $overwrite -gt 0 ]]; then
+    #     proc_args+=(--overwrite)
+    # fi
+    # echo "python $script_dir/util_make_seed_image_for_rate_image.py \"$output_file\" ${proc_args[@]}"
+    # python $script_dir/util_make_seed_image_for_rate_image.py "$output_file" ${proc_args[@]}
+    
+    # seed_image="$output_dir_active/${output_name}_galaxy_seed_image.fits" # will be output
+    # if [[ ! -f "$seed_image" ]]; then
+    #     echo "Error! Failed to produce the output file: \"$seed_image\""
+    #     exit 255
+    # fi
+    
+    
+    # "remstriping-dzliu.py" scripts
+    # if the file has already been processed with "remstriping-dzliu.py", it will not overwrite it.
+    # -- DO NOT USE A SEED IMAGE
+    
+    proc_args=("${output_file}")
+    # proc_args+=(--mask-image "$seed_image")
+    # proc_args+=(--mask-threshold 0.0)
+    if [[ $apply_flat -gt 0 ]]; then
+        proc_args+=("--apply-flat")
+    fi
+    echo "python $script_dir/remstriping-dzliu.py ${proc_args[@]}"
+    python $script_dir/remstriping-dzliu.py ${proc_args[@]}
+    
+    orig_image="$output_dir_active/${output_name}_orig.fits" # will be output
+    if [[ ! -f "$orig_image" ]]; then
+        echo "Error! Failed to produce the output file: \"$orig_image\""
+        exit 255
+    fi
+    
+    
+    echo "Done remstriping-dzliu"
+    
+done
+
+

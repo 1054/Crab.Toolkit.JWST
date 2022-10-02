@@ -16,14 +16,13 @@ goscript="go_qsub_processing_jwst_imaging_${timestamp}.bash"
 echo "#!/bin/bash" > $goscript
 echo "#PBS -N JW${timestamp}" >> $goscript
 echo "#PBS -l nodes=1:ppn=${ncpu},mem=${mem},walltime=24:00:00" >> $goscript
-echo "#PBS -wd ${currentdir}/" >> $goscript
 echo "#PBS -d ${currentdir}/" >> $goscript
 echo "#PBS -o ${currentdir}/log_processing_jwst_imaging_${timestamp}.txt" >> $goscript
 echo "#PBS -e ${currentdir}/log_processing_jwst_imaging_${timestamp}.err" >> $goscript
 echo "#PBS -j oe" >> $goscript
 echo "#PBS -k oe" >> $goscript
 #echo "#PBS -m abe" >> $goscript
-echo "#PBS -m n" >> $goscript # do not send emails
+echo "#PBS -m n" >> $goscript # do not send emails -- not working
 echo "#PBS -t 1-$((${#dataset_names[@]}+1))" >> $goscript
 #
 echo "set -e" >> $goscript

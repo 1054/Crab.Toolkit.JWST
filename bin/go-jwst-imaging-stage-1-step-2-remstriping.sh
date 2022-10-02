@@ -21,8 +21,8 @@ if [[ $# -eq 0 ]]; then
     exit 255
 fi
 if [[ "$1" == *"nrc"* ]] && [[ "$1" != *"miri"* ]]; then
-    echo $script_dir/remstriping $@ --apply-flat --inplace
-    $script_dir/remstriping $@ --apply-flat --inplace
+    echo $script_dir/remstriping-dzliu $@ --apply-flat --inplace
+    $script_dir/remstriping-dzliu $@ --apply-flat --inplace
 else
     echo "The input data is not a NIRCam imaging data. Will not run remstriping."
 fi
