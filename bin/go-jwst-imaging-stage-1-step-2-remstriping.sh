@@ -1,6 +1,8 @@
 #!/bin/bash
 # 
-# Removing horizontal/vertical strips in a NIRCam rate image.
+# Removing horizontal/vertical/angled strips in a NIRCam rate image.
+# 
+# 20221002: can remove angle=+-30deg strips using remstriping-dzliu.
 # 
 
 # Set necessary system variables
