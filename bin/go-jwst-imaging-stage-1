@@ -49,6 +49,7 @@ iarg=1
 argstr=""
 work_dir="."
 current_dir=$(pwd)
+ncpu=0
 overwrite=0
 dataset_names=()
 unused_args=()
@@ -60,6 +61,12 @@ while [[ $iarg -le $# ]]; do
             if [[ $iarg -le $# ]]; then
                 work_dir=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
                 echo "work_dir = \"$work_dir\""
+            fi
+        elif [[ "$argstr" == "--ncpu" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                ncpu=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
+                echo "ncpu = \"$ncpu\""
             fi
         else
             unused_args+=("${!iarg}")
@@ -161,8 +168,12 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     # Run step 1
     file_in="uncals/${dataset_name}_uncal.fits"
     file_out="calibrated1_rates/${dataset_name}_rate.fits"
-    echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out"
-    python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out"
+    kwargs=()
+    if [[ $ncpu -gt 0 ]]; then
+        kwargs+=(--maximum-cores "$ncpu")
+    fi
+    echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}
+    python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}
     if [[ $? -ne 0 ]]; then
         echo "Error?! Please check previous messages."
         exit 255

@@ -93,10 +93,12 @@ def setup_logger():
 @click.command()
 @click.argument('input_uncal_file', type=click.Path(exists=True))
 @click.argument('output_rate_file', type=click.Path(exists=False))
+@click.option('--maximum-cores', type=str, default='all')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 def main(
         input_uncal_file, 
         output_rate_file, 
+        maximum_cores, 
         overwrite = False, 
     ):
     
@@ -151,10 +153,10 @@ def main(
     pipeline_object.save_results = True
     pipeline_object.ipc.skip = False # turn on IPCStep (default is already on)
     pipeline_object.persistence.skip = False # turn on PersistenceStep (default is already on)
-    pipeline_object.persistence.maximum_cores = 'all' # 
-    pipeline_object.jump.maximum_cores = 'all' # 
-    pipeline_object.ramp_fit.maximum_cores = 'all' # 
-    pipeline_object.save_calibrated_ramp = True #<dzliu>#
+    pipeline_object.persistence.maximum_cores = maximum_cores
+    pipeline_object.jump.maximum_cores = maximum_cores
+    pipeline_object.ramp_fit.maximum_cores = maximum_cores
+    pipeline_object.save_calibrated_ramp = True
     
     # Run
     run_output = pipeline_object.run(input_filepath)
