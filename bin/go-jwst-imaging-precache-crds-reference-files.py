@@ -91,6 +91,8 @@ def main(jwst_uncal_files):
         else:
             all_jwst_uncal_files.append(jwst_uncal_file)
     
+    all_jwst_uncal_files = list(set(sorted(all_jwst_uncal_files)))
+    
     for jwst_uncal_file in all_jwst_uncal_files:
         
         # with datamodels.open(jwst_uncal_file) as model:
