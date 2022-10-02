@@ -326,7 +326,9 @@ def main(
             header2['RECT'] = str(rect)
             header2['ANGLE'] = str(angle)
             hdulist.append(fits.ImageHDU(data=bkgs[irect, iangle], header=header2))
-    fits.HDUList(hdulist).writeto(output_bkgs, overwrite=True)
+    hdul = fits.HDUList(hdulist)
+    hdul.writeto(output_bkgs, overwrite=True)
+    hdul.close()
     logger.info('Saved destripping backgrounds into {!r}'.format(output_bkgs))
     
 
