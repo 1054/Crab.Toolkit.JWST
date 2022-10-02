@@ -106,18 +106,20 @@ def draw_scans(image, angle, rect=None, dqmask=None):
     cos = np.cos(np.deg2rad(angle))
     sin = np.sin(np.deg2rad(angle))
     tan = np.tan(np.deg2rad(angle))
-    if np.isclose(cos, 0, rtol=0, atol=1e-6): 
+    if np.isclose(cos, 0, rtol=0, atol=1e-6): # angle==90
         for iscan in range(nx):
             px = np.zeros(ny) + iscan
             py = np.arange(ny)
             scans.append(Scan(image, px, py, angle=angle, rect=rect, dqmask=dqmask))
     else:
-        nscan = ny + int(np.floor(np.abs(nx*tan)))
+        nscan = ny + int(np.floor((nx-1)*np.abs(tan)))
         for iscan in range(nscan):
-            y0 = -np.floor(nx*tan) if (tan >= 0.0) else 0
-            dy = np.abs(tan)
+            y0 = -np.floor(nx*tan) + iscan if (tan >= 0.0) else 0 + iscan
+            dy = tan
+            #if tan < 0.0:
+            #    print(y0, y0+(nx-1)*dy, iscan)
             px = np.arange(nx)
-            py = np.linspace(y0, y0+(nx-1)*dy, num=nx, endpoint=True) + iscan
+            py = np.linspace(y0, y0+(nx-1)*dy, num=nx, endpoint=True)
             scans.append(Scan(image, px, py, angle=angle, rect=rect, dqmask=dqmask))
     return scans
 
@@ -324,7 +326,7 @@ def main(
             header2 = copy.deepcopy(header1)
             header2['EXTNAME'] = 'RECT_{}_ANGLE_{}'.format(irect+1, iangle+1)
             header2['RECT'] = str(rect)
-            header2['ANGLE'] = str(angle)
+            header2['ANGLE'] = angle
             hdulist.append(fits.ImageHDU(data=bkgs[irect, iangle], header=header2))
     hdul = fits.HDUList(hdulist)
     hdul.writeto(output_bkgs, overwrite=True)
