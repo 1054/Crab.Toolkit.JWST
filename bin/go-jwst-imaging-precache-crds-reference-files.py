@@ -95,6 +95,23 @@ def main(jwst_uncal_files):
     
     for jwst_uncal_file in all_jwst_uncal_files:
         
+        jwst_data_base_name = os.path.basename(jwst_uncal_file)
+        regex_match = re.match(r'^(jw[0-9]+_[0-9]+_[0-9]+)_([a-z0-9]+)_uncal.fits$')
+        if regex_match:
+            jwst_data_base_str = regex_match.group(1)
+            jwst_data_detector_str = regex_match.group(2)
+            payload = crds.client.get_aui_best_references(pipeline_context, [jwst_data_base_str+'.'+jwst_data_detector_str])
+            fcache = crds.api.FileCacher(pipeline_context, ignore_cache=False, raise_exceptions=False)
+            fcache.get_local_files([pipeline_context])
+        
+        for key in payload.keys():
+            status = payload[key][0]
+            if status is not False:
+                bestrefs = payload[key][1]
+                fcache.get_local_files(bestrefs)
+                #for bestref in bestrefs:
+                #    crds.client.get_flex_uri(bestref)
+        
         # with datamodels.open(jwst_uncal_file) as model:
         #     params = {
         #         'INSTRUME': model.meta.instrument.name, 

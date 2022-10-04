@@ -563,12 +563,12 @@ def main(
                     if verbose:
                         logger.info('Found existing yaml file {!r} and overwrite is set to False.'.format(yaml_ext_file))
             
-            # Check ext img file
+            # Check ext img file, if missing, recreate "*_ext.yaml" anyway
             extended_img_file = os.path.join(sim_output_dir, yaml_name+'_ext.fits')
             if not os.path.isfile(extended_img_file) and os.path.isfile(yaml_ext_file):
                 shutil.move(yaml_ext_file, yaml_ext_file+'.backup')
             
-            # Check ext cat file
+            # Check ext cat file, if missing, recreate "*_ext.yaml" anyway
             extended_cat_file = os.path.join(sim_output_dir, yaml_name+'_ext.cat')
             if not os.path.isfile(extended_cat_file) and os.path.isfile(yaml_ext_file):
                 shutil.move(yaml_ext_file, yaml_ext_file+'.backup')
