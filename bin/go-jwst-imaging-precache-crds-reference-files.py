@@ -137,7 +137,7 @@ def main(jwst_uncal_files):
             try_rate_file = os.path.join(os.path.dirname(os.path.dirname(jwst_uncal_file)), 
                 'calibrated1_rates', try_rate_name)
             if os.path.isfile(try_rate_file):
-                logger.info('Image2Pipeline._precache_references: {!r}'.format(try_rate_file))
+                logger.info('Image2Pipeline._precache_references: {!r}'.format(jwst_uncal_file))
                 pipeline_object = calwebb_image2.Image2Pipeline()
                 pipeline_object._precache_references(jwst_uncal_file)
                 
