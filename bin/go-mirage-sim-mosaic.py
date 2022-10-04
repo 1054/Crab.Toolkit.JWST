@@ -143,6 +143,11 @@ def resample_mosaic_image(
             output_dir+'/'+output_prefix+instrument+'_'+filter_name+'_cropped_blotted.fits'
         An ASCII file as an extended source catalog for Mirage simulation,
             output_dir+'/'+output_prefix+instrument+'_'+filter_name+'.cat'
+    
+    Options:
+        `recenter` means that we will make the cutout centered at the given 
+        `center_ra`, `center_dec` coordinate, which are in the input `mosaic_file` WCS. 
+    
     """
     # Crop from the mosaic and resample for the desired detector/aperture
     #mosaic_fwhm = 0.045 # None -- does not work # 0.09 -- ERROR: FWHM of the mosaic image is larger than that of the JWST PSF. Unable to create a matching PSF kernel using photutils.
@@ -558,6 +563,16 @@ def main(
                 #         filter_name = observation_table['ShortFilter'][i]
                 # else:
                 #     raise NotImplementedError()
+                
+                # recenter?
+                if mosaic_center is not None:
+                    recenter = True
+                    center_ra = mosaic_center.ra.deg
+                    center_dec = mosaic_center.dec.deg
+                else:
+                    recenter = False
+                    center_ra = None
+                    center_dec = None
             
                 # Resample mosaic image
                 extended_img = resample_mosaic_image(
@@ -565,9 +580,9 @@ def main(
                     mosaic_file = mosaic_file, 
                     output_dir = sim_output_dir, 
                     output_name = yaml_name+'_ext', 
-                    recenter = (mosaic_center is not None), 
-                    center_ra = mosaic_center.ra.deg, 
-                    center_dec = mosaic_center.dec.deg, 
+                    recenter = recenter, 
+                    center_ra = center_ra, 
+                    center_dec = center_dec, 
                     overwrite = overwrite_simprep, 
                 )
                 

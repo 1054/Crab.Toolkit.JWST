@@ -229,7 +229,10 @@ def main(
         rects.append(Rect(0, 0, nx-1, ny-1)) # x0, y0, x1, y1
     elif instrument_name.upper() == 'MIRI':
         rects.append(Rect(356, 0, nx-1, ny-1)) # MIRI imager area
-        rects.append(Rect(7, 746, 280, 1019)) # MIRI imager area
+        rects.append(Rect(7, 746, 280, 1019)) # MIRI Lyot coronagraph
+        rects.append(Rect(7, 464, 233, 683)) # MIRI 4QPM coronagraph
+        rects.append(Rect(7, 243, 233, 463)) # MIRI 4QPM coronagraph
+        rects.append(Rect(7,  21, 233, 242)) # MIRI 4QPM coronagraph
     else:
         raise Exception('The input data can only be NIRCAM or MIRI data!')
     
@@ -293,6 +296,9 @@ def main(
         validmask = np.isfinite(model.data)
         out_model.data[validmask] = image[validmask] # only copy valid pixel values
         #out_model.data = image
+        # check flat
+        if apply_flat:
+            out_model.meta.cal_step.flat_field = model.meta.cal_step.flat_field
         # add history entry following CEERS
         stepdescription = 'Processed with remstriping-dzliu.py; '+ out_timestamp
         software_dict = {'name':'remstriping-dzliu.py',

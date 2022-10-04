@@ -194,12 +194,12 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         echo "Error?! Please check previous messages."
         exit 255
     fi
-    for file_out in "$file_out1" "$file_out2"; do
-        if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
-            echo "Error! Failed to produce the output file: $file_out"
-            exit 255
-        fi
-    done
+    #for file_out in "$file_out1" "$file_out2"; do
+    #    if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+    #        echo "Error! Failed to produce the output file: $file_out"
+    #        exit 255
+    #    fi
+    #done
     
     echo cd ../
     cd ../
