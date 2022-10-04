@@ -96,7 +96,7 @@ def main(jwst_uncal_files):
     for jwst_uncal_file in all_jwst_uncal_files:
         
         jwst_data_base_name = os.path.basename(jwst_uncal_file)
-        regex_match = re.match(r'^(jw[0-9]+_[0-9]+_[0-9]+)_([a-z0-9]+)_uncal.fits$')
+        regex_match = re.match(r'^(jw[0-9]+_[0-9]+_[0-9]+)_([a-z0-9]+)_uncal.fits$', jwst_data_base_name)
         if regex_match:
             jwst_data_base_str = regex_match.group(1)
             jwst_data_detector_str = regex_match.group(2)
