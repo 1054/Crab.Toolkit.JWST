@@ -31,6 +31,7 @@ script_dir=$(dirname "${BASH_SOURCE[0]}")
 iarg=1
 argstr=""
 work_dir="."
+current_dir=$(pwd)
 overwrite=0
 dataset_names=()
 while [[ $iarg -le $# ]]; do
@@ -149,14 +150,14 @@ for (( i = 0; i < ${#files_out[@]}; i++ )); do
 done
 
 
-
-# Set reprocess_with_source_emission_mask
-reprocess_with_source_emission_mask=0
-
-
 # Set reprocess_MIRI_only
 #reprocess_MIRI_only=1
-reprocess_MIRI_only=0 #<TODO>#
+#reprocess_MIRI_only=0 #<TODO>#
+reprocess_MIRI_only=1 #<TODO>#
+
+
+# A temporary variable reprocess_with_source_emission_mask
+reprocess_with_source_emission_mask=0
 
 
 # Mask source emission and produce darkobs rate, for MIRI only

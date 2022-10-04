@@ -36,6 +36,7 @@ abspath () {
 iarg=1
 argstr=""
 work_dir="."
+current_dir=$(pwd)
 overwrite=0
 dataset_names=()
 user_flat_dir=""
