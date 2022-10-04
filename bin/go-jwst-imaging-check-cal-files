@@ -90,17 +90,24 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     
     if [[ ! -d $dataset_name ]]; then
         echo "Error! Dataset directory does not exist: \"$(pwd)/$dataset_name\"!"
-        exit 255
+        #exit 255
     fi
     
     echo cd $dataset_name
     cd $dataset_name
     
+    # check input file: ${dataset_name}_rate.fits
+    echo "Checking calibrated1_rates/${dataset_name}_rate.fits"
+    if [[ ! -f calibrated1_rates/${dataset_name}_rate.fits ]] && [[ ! -L ${dataset_name}_rate.fits ]]; then
+        echo "Error! Data file does not exist: \"$(pwd)/calibrated1_rates/${dataset_name}_rate.fits\"!"
+        #exit 255
+    fi
+    
     # check input file: ${dataset_name}_cal.fits
     echo "Checking calibrated2_cals/${dataset_name}_cal.fits"
     if [[ ! -f calibrated2_cals/${dataset_name}_cal.fits ]] && [[ ! -L ${dataset_name}_cal.fits ]]; then
         echo "Error! Data file does not exist: \"$(pwd)/calibrated2_cals/${dataset_name}_cal.fits\"!"
-        exit 255
+        #exit 255
     fi
     
     echo cd ../
@@ -109,6 +116,11 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     files_in+=("$dataset_name/calibrated2_cals/${dataset_name}_cal.fits")
     
 done
+
+if [[ ${#files_in[@]} -ne ${#dataset_names[@]} ]]; then
+    echo "Error found!"
+    exit 255
+fi
 
 
 
