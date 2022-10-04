@@ -563,6 +563,16 @@ def main(
                     if verbose:
                         logger.info('Found existing yaml file {!r} and overwrite is set to False.'.format(yaml_ext_file))
             
+            # Check ext img file
+            extended_img_file = os.path.join(sim_output_dir, yaml_name+'_ext.fits')
+            if not os.path.isfile(extended_img_file) and os.path.isfile(yaml_ext_file):
+                shutil.move(yaml_ext_file, yaml_ext_file+'.backup')
+            
+            # Check ext cat file
+            extended_cat_file = os.path.join(sim_output_dir, yaml_name+'_ext.cat')
+            if not os.path.isfile(extended_cat_file) and os.path.isfile(yaml_ext_file):
+                shutil.move(yaml_ext_file, yaml_ext_file+'.backup')
+            
             # Process yaml file to use mosaic image as extended image
             if not os.path.isfile(yaml_ext_file):
                 # instrument = observation_table['Instrument'][i]
@@ -642,7 +652,7 @@ def main(
                     extended_scale, 
                     yaml_ext_file, 
                 )
-                
+            
             yaml_file = yaml_ext_file
         
         # Check sim data output file
