@@ -169,8 +169,14 @@ def resample_mosaic_image(
                 logger.info('Found existing resampled image {!r} and overwrite is set to False.'.format(output_resampled_file))
             return output_resampled_file
     # 
+    # Check output dir
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+    # 
+    # Get pixel scale
     pixel_scale = get_pixel_scale(mosaic_file)
     # 
+    # Prepare psf_file
     if psf_file is None:
         # create a single pixel psf_file
         psf_file = re.sub(r'\.fits$', r'', mosaic_file) + '.psf.fits'
@@ -181,6 +187,7 @@ def resample_mosaic_image(
         mosaic_fwhm = None # If None, a Gaussian2D model will be fit to the PSF to estimate the FWHM -- "mirage/seed_image/fits_seed_image.py"
         mosaic_fwhm_units = 'arcsec'
     # 
+    # Create ImgSeed
     seed = ImgSeed(
         paramfile = yaml_file, 
         mosaic_file = mosaic_file, 
@@ -193,6 +200,8 @@ def resample_mosaic_image(
         gaussian_psf = False,
         #save_intermediates = True,
     )
+    # 
+    # Check if need to recenter
     if recenter:
         if center_ra is None or center_dec is None:
             ra, dec = get_image_center(mosaic_file)
@@ -210,6 +219,8 @@ def resample_mosaic_image(
         seed.crop_center_dec = center_dec
         seed.blot_center_ra = center_ra
         seed.blot_center_dec = center_dec
+    # 
+    # Run the crop_and_blot
     #seed.outlier_detection.OutlierDetection.make_output_path = partial(Step._make_output_path, seed.outlier_detection.OutlierDetection)
     #seed.blot_image.outlier_detection.OutlierDetection.search_output_file = True
     #seed.blot_image.outlier_detection.OutlierDetection.output_file = 
