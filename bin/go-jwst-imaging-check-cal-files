@@ -60,6 +60,9 @@ if [[ ${#dataset_names[@]} -eq 0 ]]; then
 else
     for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         dataset_name="${dataset_names[i]}"
+        if [[ "$dataset_name" == *"/" ]]; then
+            dataset_name=$(echo "$dataset_name" | perl -p -e 's%/+$%%g')
+        fi
         if [[ $($script_dir/go-jwst-parse-dataset-name.py "$dataset_name" 2>/dev/null | tail -n 1) != "JWST_Dataset_Name"* ]]; then
             echo "Error! The input dataset name \"$dataset_name\" seems incorrect?"
             exit 255
@@ -83,6 +86,7 @@ fi
 # process datasets
 # Check cal files, make sure every "jw*" directory has a "jw*/calibrated2_cals/jw*_cal.fits"
 files_in=()
+files_missing=()
 for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     
     dataset_name="${dataset_names[i]}"
@@ -100,6 +104,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     echo "Checking calibrated1_rates/${dataset_name}_rate.fits"
     if [[ ! -f calibrated1_rates/${dataset_name}_rate.fits ]] && [[ ! -L ${dataset_name}_rate.fits ]]; then
         echo "Error! Data file does not exist: \"$(pwd)/calibrated1_rates/${dataset_name}_rate.fits\"!"
+        files_missing+=("${dataset_name}/calibrated1_rates/${dataset_name}_rate.fits")
         #exit 255
     fi
     
@@ -107,6 +112,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     echo "Checking calibrated2_cals/${dataset_name}_cal.fits"
     if [[ ! -f calibrated2_cals/${dataset_name}_cal.fits ]] && [[ ! -L ${dataset_name}_cal.fits ]]; then
         echo "Error! Data file does not exist: \"$(pwd)/calibrated2_cals/${dataset_name}_cal.fits\"!"
+        files_missing+=("${dataset_name}/calibrated2_cals/${dataset_name}_cal.fits")
         #exit 255
     fi
     
@@ -118,7 +124,10 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
 done
 
 if [[ ${#files_in[@]} -ne ${#dataset_names[@]} ]]; then
-    echo "Error found!"
+    echo "Error found! Missing following files:"
+    for (( i = 0; i < ${#files_missing[@]}; i++ )); do
+        echo "  ${files_missing[i]}"
+    done
     exit 255
 fi
 
