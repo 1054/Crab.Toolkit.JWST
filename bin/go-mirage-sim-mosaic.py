@@ -324,6 +324,7 @@ def update_yamlfile_with_extended_catalog(
         y = yaml.safe_load(fp)
     y['simSignals']['extended'] = extended_catalog_file
     y['simSignals']['extendedscale'] = extended_scale
+    y['simSignals']['PSFConvolveExtended'] = False # we have already convolved the PSF (blotted) in resample_mosaic_image()
     #y['simSignals']['galaxyListFile'] = None # "mirage/catalogs/utils.py" will check lower case str of this being 'none' or not
     #y['simSignals']['pointsource'] = None
     if output_yamlfile is None:
