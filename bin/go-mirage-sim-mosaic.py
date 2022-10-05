@@ -627,7 +627,7 @@ def main(
                     ra = [ra],
                     dec = [dec],
                     #position_angle = [pav3],
-                    position_angle = [0.0], # the rotation is already corrected to detector frame by resample_mosaic_image()!
+                    position_angle = [-pav3], # the rotation is already corrected to detector frame by resample_mosaic_image()!
                     starting_index = starting_index, 
                 )
                 extended_catalog.add_magnitude_column(
