@@ -124,6 +124,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
 done
 
 if [[ ${#files_missing[@]} -gt 0 ]]; then
+    echo "************************************************************"
     echo "Error found! Missing following files:"
     for (( i = 0; i < ${#files_missing[@]}; i++ )); do
         echo "  ${files_missing[i]}"
