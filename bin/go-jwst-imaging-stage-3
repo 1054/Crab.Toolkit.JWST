@@ -166,6 +166,15 @@ if [[ ${#files_out[@]} -eq 0 ]]; then
 fi
 
 
+# Create a file in the output directory marking the CRDS_CONTEXT
+if [[ ! -z "$CRDS_CONTEXT" ]]; then
+    crds_context_str=$(echo "$CRDS_CONTEXT" | perl -p -e 's/\.pmap$//g')
+    timestamp_str=$(date +"%Y%m%d")
+    echo touch "${output_dir}/${timestamp_str}_pmap_${crds_context_str}"
+    touch "${output_dir}/${timestamp_str}_pmap_${crds_context_str}"
+fi
+
+
 # Store mosaic images
 mosaic_images=()
 for (( i = 0; i < ${#files_out[@]}; i++ )); do
