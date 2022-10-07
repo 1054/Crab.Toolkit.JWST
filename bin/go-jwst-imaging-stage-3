@@ -31,9 +31,12 @@ script_dir=$(dirname "${BASH_SOURCE[0]}")
 iarg=1
 argstr=""
 work_dir="."
+output_dir="calibrated3_mosaics"
 current_dir=$(pwd)
 overwrite=0
 dataset_names=()
+resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
+resample_kwargs=()
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
     if [[ "$argstr" == "--"* ]]; then
@@ -42,6 +45,20 @@ while [[ $iarg -le $# ]]; do
             if [[ $iarg -le $# ]]; then
                 work_dir="${!iarg}"
                 echo "work_dir = \"$work_dir\""
+            fi
+        elif [[ "$argstr" == "--output-dir" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                output_dir="${!iarg}"
+                echo "output_dir = \"$output_dir\""
+            fi
+        elif [[ " $argstr " == *" ${resample_argnames[@]} "* ]]; then
+            resample_kwargs+=("${!iarg}")
+            echo -n "${!iarg} = "
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                resample_kwargs+=("${!iarg}")
+                echo "\"${!iarg}\""
             fi
         else
             echo "Unkonwn argument: ${!iarg}"
@@ -127,8 +144,11 @@ done
 
 
 # Run step 1
-dir_out="calibrated3_mosaics"
+dir_out="${output_dir}"
 proc_args=()
+for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
+    proc_args+=(${resample_kwargs[i]})
+done
 if [[ $overwrite -gt 0 ]]; then
     proc_args+=(--overwrite)
 fi
@@ -236,8 +256,11 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
 
 
     # Redo step 1 mosaic
-    redo_dir_out="calibrated3_mosaics_redone_with_source_emission_mask"
+    redo_dir_out="${output_dir}_redone_with_source_emission_mask"
     proc_args=()
+    for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
+        proc_args+=(${resample_kwargs[i]})
+    done
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
     fi

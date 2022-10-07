@@ -132,6 +132,14 @@ def setup_logger():
 
 
 
+# Defaults
+# see -- https://jwst-pipeline.readthedocs.io/en/latest/jwst/resample/arguments.html
+DEFAULT_KERNEL = 'square'
+DEFAULT_PIXFRAC = 0.5
+DEFAULT_PIXEL_SCALE_RATIO = 0.48
+DEFAULT_PIXEL_SCALE = None
+
+
 
 # Main
 @click.command()
@@ -141,6 +149,24 @@ def setup_logger():
 @click.option('--obsnum', 'select_obsnum', type=str, multiple=True, default=None, help='Specify a obsnum.')
 @click.option('--instrument', 'select_instrument', type=str, multiple=True, default=None, help='Specify an instrument.')
 @click.option('--filter', 'select_filter', type=str, multiple=True, default=None, help='Specify a filter.')
+@click.option('--kernel', type=click.Choice(['point', 'square', 'gaussian', 'tophat', 'turbo', 'lanczos2', 'lanczos3']), 
+                          default=DEFAULT_KERNEL, 
+                          help='Drizzle kernel.'+
+                               'The form of the kernel function used to distribute flux onto the output image. '+
+                               'Available kernels are square, gaussian, point, tophat, turbo, lanczos2, and lanczos3.')
+@click.option('--pixfrac', type=float, 
+                           default=DEFAULT_PIXFRAC, 
+                           help='Drizzle pixfrac.')
+@click.option('--pixel-scale-ratio', type=float, 
+                                     default=DEFAULT_PIXEL_SCALE_RATIO, 
+                                     help='Drizzle pixel scale ratio. Ratio of input to output pixel scale. '+
+                                          'A value of 0.5 means the output image would have 4 pixels sampling '+
+                                          'each input pixel. Ignored when --pixel-scale are provided.')
+@click.option('--pixel-scale', type=float, 
+                               default=DEFAULT_PIXEL_SCALE, 
+                               help='Drizzle pixel scale. '+
+                                    'Absolute pixel scale in arcsec. '+
+                                    'When provided, overrides pixel_scale_ratio.')
 @click.option('--combine-program/--no-combine-program', is_flag=True, default=False, help='Combine all programs into one.')
 @click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
@@ -152,6 +178,10 @@ def main(
         select_obsnum, 
         select_instrument, 
         select_filter, 
+        kernel, 
+        pixfrac, 
+        pixel_scale_ratio, 
+        pixel_scale, 
         combine_program, 
         combine_obsnum, 
         combine_filter, 
@@ -408,12 +438,13 @@ def main(
 
         # Set some parameters that pertain to some of the individual steps
         # Set OutlierDetection
-        #pipeline_object.outlier_detection.skip = True
+        #pipeline_object.outlier_detection.skip = False
         pipeline_object.outlier_detection.output_dir = output_subdir
+        pipeline_object.outlier_detection.pixfrac = pixfrac
         # Turn on TweakRegStep
-        #pipeline_object.tweakreg.skip = True
-        #pipeline_object.tweakreg.save_catalogs = True
-        #pipeline_object.tweakreg.save_results = True
+        #pipeline_object.tweakreg.skip = False
+        pipeline_object.tweakreg.save_catalogs = True
+        pipeline_object.tweakreg.save_results = True
         #pipeline_object.tweakreg.output_dir = output_dir
         # Turn on SkyMatchStep
         #pipeline_object.skymatch.skip = True
@@ -426,7 +457,12 @@ def main(
         pipeline_object.skymatch.save_results = True
         # Set the ratio of input to output pixels to create an output mosaic 
         # on a 0.015"/pixel scale
-        pipeline_object.resample.pixel_scale_ratio = 0.48
+        # see -- https://jwst-pipeline.readthedocs.io/en/latest/jwst/resample/arguments.html
+        pipeline_object.resample.kernel = kernel
+        pipeline_object.resample.pixfrac = pixfrac
+        #pipeline_object.resample.pixel_scale_ratio = 0.48
+        pipeline_object.resample.pixel_scale_ratio = pixel_scale_ratio
+        pipeline_object.resample.pixel_scale = pixel_scale
         
         
         # run

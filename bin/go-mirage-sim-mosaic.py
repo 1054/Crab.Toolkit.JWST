@@ -628,6 +628,8 @@ def main(
                     dec = [dec],
                     #position_angle = [pav3],
                     position_angle = [-pav3], # the rotation is already corrected to detector frame by resample_mosaic_image()!
+                    # to cancel out the rotation in "mirage/seed_image/catalog_seed_image.py" `calc_x_position_angle`, 
+                    # we need to set -pav3 here!
                     starting_index = starting_index, 
                 )
                 extended_catalog.add_magnitude_column(
