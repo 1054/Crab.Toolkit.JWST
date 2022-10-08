@@ -56,14 +56,21 @@ echo "  go-jwst-imaging-stage-2 \${dataset_names[\${PBS_ARRAYID}-1]}" >> $goscri
 echo "" >> $goscript
 echo "fi" >> $goscript
 # 
-echo "" >> $goscript
-echo "if [[ \${PBS_ARRAYID} -gt \${#dataset_names[@]} ]]; then" >> $goscript
-echo "" >> $goscript
-echo "  echo Then please run:" >> $goscript
-echo "  echo go-jwst-imaging-stage-3 \${dataset_names[@]}" >> $goscript
-echo "" >> $goscript
-echo "fi" >> $goscript
-echo "" >> $goscript
+cat << EOF >> $goscript
+
+if [[ \${PBS_ARRAYID} -gt \${#dataset_names[@]} ]]; then
+    sleep \$(awk "{print \${#dataset_names[@]}*10;}") # 10sec
+    echo "Checking cal files ... > log_checking_cal_files.txt"
+    go-jwst-imaging-check-cal-files > "log_checking_cal_files.txt"
+    while [[ \$(tail -n 1 "log_checking_cal_files.txt" | grep "All good") -eq 0 ]]; do
+        sleep \$(awk "{print \${#dataset_names[@]}*10;}") # 10sec
+        echo "Checking cal files ... > log_checking_cal_files.txt"
+        go-jwst-imaging-check-cal-files > "log_checking_cal_files.txt"
+    done
+    go-jwst-imaging-stage-3 \${dataset_names[@]}
+fi
+
+EOF
 # 
 echo "Prepared qsub script: $goscript"
 while true; do

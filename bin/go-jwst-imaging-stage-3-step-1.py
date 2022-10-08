@@ -210,6 +210,12 @@ def main(
     except KeyError:
         logger.error("Error! CRDS_SERVER_URL environment variable not set!")
         sys.exit(-1)
+        
+    try:
+        logger.info("CRDS_CONTEXT: {}".format(os.environ['CRDS_CONTEXT']))
+    except KeyError:
+        logger.error("Error! CRDS_CONTEXT environment variable not set!")
+        sys.exit(-1)
     
     
     # Check output_dir

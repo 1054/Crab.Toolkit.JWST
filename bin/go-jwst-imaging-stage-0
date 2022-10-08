@@ -107,6 +107,16 @@ fi
 
 
 
+# pip install
+if [[ $(python -c 'import tqdm' 2>&1 | grep ModuleNotFoundError | wc -l) -gt 0 ]]; then 
+    pip install tqdm
+fi
+if [[ $(python -c 'import click' 2>&1 | grep ModuleNotFoundError | wc -l) -gt 0 ]]; then 
+    pip install click
+fi
+
+
+
 # copy uncal files
 ${script_dir}/go-jwst-imaging-precopy-uncal-files $mast_download_dir/jw*/jw*_uncal.fits
 
