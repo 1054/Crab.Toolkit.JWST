@@ -50,7 +50,7 @@ echo ")" >> $goscript
 echo "" >> $goscript
 echo "if [[ \${PBS_ARRAYID} -le \${#dataset_names[@]} ]]; then" >> $goscript
 echo "" >> $goscript
-echo "  go-jwst-imaging-stage-1 \${dataset_names[\${PBS_ARRAYID}-1]} --maximum-cores=\"quarter\"" >> $goscript
+echo "  go-jwst-imaging-stage-1 \${dataset_names[\${PBS_ARRAYID}-1]} --maximum-cores \"quarter\"" >> $goscript
 echo "" >> $goscript
 echo "  go-jwst-imaging-stage-2 \${dataset_names[\${PBS_ARRAYID}-1]}" >> $goscript
 echo "" >> $goscript
