@@ -7,10 +7,10 @@ if [[ ${#dataset_names[@]} -eq 0 ]]; then
     exit 255
 fi
 crds_context="$CRDS_CONTEXT" # "jwst_0986.pmap"
-conda_env="base"
-concurrent=5
+conda_env="jwstpmap0995" # "base"
+concurrent=10
 ncpu=1
-mem="40gb"
+mem="40gb" # maximum-cores 48 processes will need 68GB
 timestamp=$(date +"%Y%m%d_%Hh%Mm%Ss")
 currentdir=$(pwd -P)
 goscript="go_qsub_processing_jwst_imaging_${timestamp}.bash"
@@ -18,11 +18,11 @@ echo "#!/bin/bash" > $goscript
 echo "#PBS -N JW${timestamp}" >> $goscript
 echo "#PBS -l nodes=1:ppn=${ncpu},mem=${mem},walltime=24:00:00" >> $goscript
 echo "#PBS -d ${currentdir}/" >> $goscript
-echo "#PBS -o ${currentdir}/log_processing_jwst_imaging_${timestamp}.txt" >> $goscript
-echo "#PBS -e ${currentdir}/log_processing_jwst_imaging_${timestamp}.err" >> $goscript
-echo "#PBS -j oe" >> $goscript
-echo "#PBS -k oe" >> $goscript
-#echo "#PBS -m abe" >> $goscript
+echo "#PBS -o log_processing_jwst_imaging_${timestamp}_\${PBS_ARRAYID}.txt" >> $goscript
+echo "#PBS -e log_processing_jwst_imaging_${timestamp}_\${PBS_ARRAYID}.err" >> $goscript
+#echo "#PBS -j oe" >> $goscript # join stdout and stderr
+#echo "#PBS -k oe" >> $goscript # keep stdout and stderr on running hostname
+#echo "#PBS -m abe" >> $goscript # send email notifications for all, begin, end
 echo "#PBS -m n" >> $goscript # do not send emails -- not working
 echo "#PBS -t 1-$((${#dataset_names[@]}+1))%${concurrent}" >> $goscript
 #
@@ -31,8 +31,8 @@ if [[ ! -z $crds_context ]]; then
     echo "export CRDS_CONTEXT=\"$crds_context\"" >> $goscript
 fi
 if [[ ! -z $CONDA_PREFIX ]] && [[ ! -z $conda_env ]]; then
-    echo "source $CONDA_PREFIX/bin/activate base" >> $goscript
-    echo "export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:/usr/local/lib64:/usr/lib64:/lib64:/usr/lib:/lib:." >> $goscript
+    echo "source $CONDA_PREFIX/bin/activate $conda_env" >> $goscript
+    echo "export LD_LIBRARY_PATH=$CONDA_PREFIX/envs/$conda_env/lib:$CONDA_PREFIX/lib:/usr/local/lib64:/usr/lib64:/lib64:/usr/lib:/lib:." >> $goscript
 fi
 #
 echo "" >> $goscript
@@ -50,7 +50,7 @@ echo ")" >> $goscript
 echo "" >> $goscript
 echo "if [[ \${PBS_ARRAYID} -le \${#dataset_names[@]} ]]; then" >> $goscript
 echo "" >> $goscript
-echo "  go-jwst-imaging-stage-1 \${dataset_names[\${PBS_ARRAYID}-1]}" >> $goscript
+echo "  go-jwst-imaging-stage-1 \${dataset_names[\${PBS_ARRAYID}-1]} --maximum-cores=\"quarter\"" >> $goscript
 echo "" >> $goscript
 echo "  go-jwst-imaging-stage-2 \${dataset_names[\${PBS_ARRAYID}-1]}" >> $goscript
 echo "" >> $goscript
