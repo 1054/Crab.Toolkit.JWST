@@ -145,7 +145,15 @@ def main(jwst_uncal_files):
         #         logger.info('Image2Pipeline._precache_references: {!r}'.format(jwst_uncal_file))
         #         pipeline_object = calwebb_image2.Image2Pipeline()
         #         pipeline_object._precache_references(jwst_uncal_file)
-                
+        
+        
+        # create a timestamp file
+        if os.path.dirname(jwst_uncal_file) == 'uncals':
+            timestamp_file = os.path.dirname(os.path.dirname(jwst_uncal_file))+os.sep+'crds_cached'
+            timestamp_str = datetime.datetime.now().strftime('%Y-%m-%d %Hh%Mm%Ss')
+            with open(timestamp_file, 'w') as fp:
+                fp.write(timestamp_str+'\n')
+        
 
 
 

@@ -30,9 +30,9 @@ echo "set -e" >> $goscript
 if [[ ! -z $crds_context ]]; then
     echo "export CRDS_CONTEXT=\"$crds_context\"" >> $goscript
 fi
-if [[ ! -z $CONDA_PREFIX ]] && [[ ! -z $conda_env ]]; then
-    echo "source $CONDA_PREFIX/bin/activate $conda_env" >> $goscript
-    echo "export LD_LIBRARY_PATH=$CONDA_PREFIX/envs/$conda_env/lib:$CONDA_PREFIX/lib:/usr/local/lib64:/usr/lib64:/lib64:/usr/lib:/lib:." >> $goscript
+if [[ ! -z $CONDA_EXE ]] && [[ ! -z $conda_env ]]; then
+    echo "source $(dirname $CONDA_EXE)/activate $conda_env" >> $goscript
+    echo "export LD_LIBRARY_PATH=\$CONDA_PREFIX/lib:/usr/local/lib64:/usr/lib64:/lib64:/usr/lib:/lib:." >> $goscript
 fi
 #
 echo "" >> $goscript
