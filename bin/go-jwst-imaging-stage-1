@@ -172,7 +172,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     file_in="uncals/${dataset_name}_uncal.fits"
     file_out="calibrated1_rates/${dataset_name}_rate.fits"
     kwargs=()
-    if [[ $maxcores -gt 0 ]]; then
+    if [[ ! -z "$maxcores" ]]; then
         kwargs+=(--maximum-cores "$maxcores")
     fi
     echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}

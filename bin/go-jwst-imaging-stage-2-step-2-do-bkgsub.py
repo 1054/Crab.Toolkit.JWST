@@ -21,7 +21,12 @@ import os, sys, re, json, copy, datetime, time, glob, shutil
 import asdf
 import click
 from collections import OrderedDict
-from distutils.version import LooseVersion
+try:
+    import packaging.version
+    LooseVersion = packaging.version.Version
+except:
+    from distutils.version import LooseVersion
+    # DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
 
 # Set CRDS
 if not ('CRDS_PATH' in os.environ):

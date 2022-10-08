@@ -18,9 +18,9 @@ echo "#!/bin/bash" > $goscript
 echo "#PBS -N JW${timestamp}" >> $goscript
 echo "#PBS -l nodes=1:ppn=${ncpu},mem=${mem},walltime=24:00:00" >> $goscript
 echo "#PBS -d ${currentdir}/" >> $goscript
-echo "#PBS -o log_processing_jwst_imaging_${timestamp}_\${PBS_ARRAYID}.txt" >> $goscript
-echo "#PBS -e log_processing_jwst_imaging_${timestamp}_\${PBS_ARRAYID}.err" >> $goscript
-#echo "#PBS -j oe" >> $goscript # join stdout and stderr
+echo "#PBS -o log_processing_jwst_imaging_${timestamp}" >> $goscript
+#echo "#PBS -e log_processing_jwst_imaging_${timestamp}_\${PBS_ARRAYID}.err" >> $goscript
+echo "#PBS -j oe" >> $goscript # join stdout and stderr
 #echo "#PBS -k oe" >> $goscript # keep stdout and stderr on running hostname
 #echo "#PBS -m abe" >> $goscript # send email notifications for all, begin, end
 echo "#PBS -m n" >> $goscript # do not send emails -- not working
@@ -59,14 +59,21 @@ echo "fi" >> $goscript
 cat << EOF >> $goscript
 
 if [[ \${PBS_ARRAYID} -gt \${#dataset_names[@]} ]]; then
-    sleep \$(awk "{print \${#dataset_names[@]}*10;}") # 10sec
-    echo "Checking cal files ... > log_checking_cal_files.txt"
-    go-jwst-imaging-check-cal-files > "log_checking_cal_files.txt"
-    while [[ \$(tail -n 1 "log_checking_cal_files.txt" | grep "All good") -eq 0 ]]; do
-        sleep \$(awk "{print \${#dataset_names[@]}*10;}") # 10sec
-        echo "Checking cal files ... > log_checking_cal_files.txt"
-        go-jwst-imaging-check-cal-files > "log_checking_cal_files.txt"
+    waitseconds=\$(awk "BEGIN {print \${#dataset_names[@]}*10;}") # 10 sec per dataset
+    echo "sleep \$waitseconds"
+    sleep \$waitseconds
+    echo "Checking cal files ..."
+    echo "go-jwst-imaging-check-cal-files > log_checking_cal_files.txt"
+    go-jwst-imaging-check-cal-files > log_checking_cal_files.txt
+    while [[ \$(tail -n 1 log_checking_cal_files.txt | grep "All good") -eq 0 ]]; do
+        waitseconds2=\$(awk "BEGIN {print \${#dataset_names[@]}*5;}") # 5 sec per dataset
+        echo "sleep \$waitseconds2"
+        sleep \$waitseconds2
+        echo "Checking cal files ..."
+        echo "go-jwst-imaging-check-cal-files > log_checking_cal_files.txt"
+        go-jwst-imaging-check-cal-files > log_checking_cal_files.txt
     done
+    echo "Finally, running go-jwst-imaging-stage-3 ..."
     go-jwst-imaging-stage-3 \${dataset_names[@]}
 fi
 
