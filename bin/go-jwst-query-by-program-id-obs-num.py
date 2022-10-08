@@ -54,7 +54,7 @@ def get_proposal_id_from_survey_name(survey_name):
 @click.command()
 @click.argument('program', type=str)
 @click.argument('obs_num', type=str)
-@click.option('--download', is_flag=True, default=False)
+@click.option('--download/--no-download', is_flag=True, default=False)
 @click.option('--download-dir', type=click.Path(exists=False), default='.')
 def main(
         program, 

@@ -443,11 +443,11 @@ def main(
         pipeline_object.outlier_detection.pixfrac = pixfrac
         # Turn on TweakRegStep
         #pipeline_object.tweakreg.skip = False
-        pipeline_object.tweakreg.save_catalogs = True
+        pipeline_object.tweakreg.save_catalogs = True # "*_cal_cat.ecsv"
         pipeline_object.tweakreg.save_results = True
-        #pipeline_object.tweakreg.output_dir = output_dir
+        pipeline_object.tweakreg.output_dir = output_dir
         # Turn on SkyMatchStep
-        #pipeline_object.skymatch.skip = True
+        #pipeline_object.skymatch.skip = False
         pipeline_object.skymatch.subtract = True
         pipeline_object.skymatch.skymethod = "global+match"
         #pipeline_object.skymatch.lsigma = 2.0
