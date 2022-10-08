@@ -1,0 +1,105 @@
+#!/bin/bash
+# 
+# Inputs:
+# 
+#    mast_download_dir
+#    
+#    where we can find ./{dataset_name}/{dataset_name}_uncal.fits
+# 
+# Outputs:
+# 
+#    For each input jwst dataset name, the main output file is: 
+#        {dataset_name}/uncals/{dataset_name}_uncal.fits
+# 
+# 
+set -e
+
+# Set necessary system variables
+if [[ -z "$CRDS_PATH" ]]; then
+    export CRDS_PATH=$HOME/jwst_crds_cache
+fi
+if [[ -z "$CRDS_SERVER_URL" ]]; then
+    export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
+fi
+# if [[ -z "$MAST_DOWNLOAD_DIR" ]]; then
+#     if [[ -d mastDownload/JWST ]]; then
+#         export MAST_DOWNLOAD_DIR=$(pwd)/mastDownload/JWST
+#     elif [[ -d ../downloading/mastDownload/JWST ]]; then
+#         export MAST_DOWNLOAD_DIR=$(dirname $(pwd))/downloading/mastDownload/JWST
+#     else
+#         export MAST_DOWNLOAD_DIR=$HOME/mastDownload/JWST
+#     fi
+# else
+#     if [[ "$MAST_DOWNLOAD_DIR" == "."* ]]; then
+#         export MAST_DOWNLOAD_DIR=$(perl -MCwd -e 'print Cwd::abs_path shift' "$MAST_DOWNLOAD_DIR") # relative path to absolute path
+#     fi
+# fi
+
+
+# Get script_dir
+script_dir=$(perl -MCwd -e 'print Cwd::abs_path shift' $(dirname "${BASH_SOURCE[0]}"))
+
+
+# Read user input
+iarg=1
+argstr=""
+work_dir="."
+current_dir=$(pwd)
+overwrite=0
+mast_download_dirs=()
+unused_args=()
+while [[ $iarg -le $# ]]; do
+    argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^[-]+/--/g')
+    if [[ "$argstr" == "--"* ]]; then
+        if [[ "$argstr" == "--work-dir" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                work_dir=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
+                echo "work_dir = \"$work_dir\""
+            fi
+        else
+            unused_args+=("${!iarg}")
+        fi
+    else
+        mast_download_dirs+=("${!iarg}")
+    fi
+    # 
+    iarg=$((iarg+1))
+done
+
+
+# Check user input
+if [[ ${#mast_download_dirs[@]} -eq 0 ]]; then
+    echo "Please input a mast_download_dir where we can find \"./{dataset_name}/{dataset_name}_uncal.fits\"!"
+    exit 2
+fi
+
+mast_download_dir="${mast_download_dirs[0]}"
+
+
+# cd work_dir
+if [[ "$work_dir" != "." ]]; then
+    echo "cd \"$work_dir\""
+    cd "$work_dir"
+fi
+
+
+
+# copy uncal files
+${script_dir}/go-jwst-imaging-precopy-uncal-files $mast_download_dir/jw*/jw*_uncal.fits
+
+
+
+
+# precache crds reference files
+${script_dir}/go-jwst-imaging-precache-crds-reference-files
+
+
+
+
+echo "All done!"
+
+
+
+
+
