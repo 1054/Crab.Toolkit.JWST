@@ -36,6 +36,12 @@ fi
 # fi
 
 
+# Define abspath
+abspath () {
+    perl -MCwd -e 'print Cwd::abs_path shift' "$1"
+}
+
+
 # Get script_dir
 script_dir=$(perl -MCwd -e 'print Cwd::abs_path shift' $(dirname "${BASH_SOURCE[0]}"))
 
@@ -47,6 +53,7 @@ work_dir="."
 current_dir=$(pwd)
 overwrite=0
 mast_download_dirs=()
+crds_context=""
 unused_args=()
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^[-]+/--/g')
@@ -57,11 +64,21 @@ while [[ $iarg -le $# ]]; do
                 work_dir=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
                 echo "work_dir = \"$work_dir\""
             fi
+        elif [[ "$argstr" == "--crds-context" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                crds_context=$(echo "${!iarg}")
+                echo "crds_context = \"$crds_context\""
+                if [[ "$crds_context" != "jwst_"*".pmap" ]]; then
+                    echo "Error! The input crds_context (\"$crds_context\") seems incorrect (\"jwst_*.pmap\")?!"
+                    exit 255
+                fi
+            fi
         else
             unused_args+=("${!iarg}")
         fi
     else
-        mast_download_dirs+=("${!iarg}")
+        mast_download_dirs+=($(abspath "${!iarg}"))
     fi
     # 
     iarg=$((iarg+1))
@@ -75,6 +92,11 @@ if [[ ${#mast_download_dirs[@]} -eq 0 ]]; then
 fi
 
 mast_download_dir="${mast_download_dirs[0]}"
+
+if [[ ! -z $crds_context ]]; then
+    echo "export CRDS_CONTEXT=\"$crds_context\""
+    export CRDS_CONTEXT="$crds_context"
+fi
 
 
 # cd work_dir
@@ -93,6 +115,12 @@ ${script_dir}/go-jwst-imaging-precopy-uncal-files $mast_download_dir/jw*/jw*_unc
 
 # precache crds reference files
 ${script_dir}/go-jwst-imaging-precache-crds-reference-files
+
+
+
+
+# create qsub job array script
+${script_dir}/go-qsub-jwst-imaging-jobarray.bash
 
 
 
