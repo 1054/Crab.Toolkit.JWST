@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 #
 """
-Query astroquery.MAST by data set name, e.g., jwpppppooovvv_ggsaa_eeeee_detector_prodType.
+Query astroquery.MAST by program id, get science target uncal fits files. 
+
+Rate, cal and i2d files are excluded unless specified.
 
 The default download dir is 
 ./mastDownload/JWST/jwpppppooovvv_ggsaa_eeeee_detector/jwpppppooovvv_ggsaa_eeeee_detector_prodType.fits
@@ -54,17 +56,27 @@ def get_proposal_id_from_survey_name(survey_name):
 @click.command()
 @click.argument('program', type=str)
 @click.option('--obs-num', '--obsnum', '--obs', type=str, default=None)
+@click.option('--calib-level', type=str, default='1', help='Selecting calib level. "1" for uncal data, "2" for rate data, "3" for drizzled image data. Can be multiple like "1,2,3".')
+@click.option('--extension', type=str, default='fits', help='Selecting extension. Usually just "fits". Can be "fits,json,jpg" if you want to get those files too.')
+@click.option('--preview', is_flag=True, default=False, help='Selecting preview files, e.g., i2d quicklook image in jpg format.')
+@click.option('--auxiliary', is_flag=True, default=False, help='Selecting auxiliary files, e.g., guide star data.')
 @click.option('--download/--no-download', is_flag=True, default=False)
 @click.option('--download-dir', type=click.Path(exists=False), default='.')
 def main(
         program, 
         obs_num, 
+        calib_level, 
+        extension, 
+        preview, 
+        auxiliary, 
         download, 
         download_dir, 
     ):
     
+    # print user input program
     print('program: {}'.format(program))
     
+    # check if program is a proposal ID or a known survey name
     if re.match(r'^[0-9]+$', program):
         proposal_id = '{:05d}'.format(int(program))
     else:
@@ -74,8 +86,10 @@ def main(
         print('Error! Cannot understand the input program ID. Example: 01345')
         sys.exit(255)
     
+    # print proposal id to query
     print('proposal_id: {}'.format(proposal_id))
     
+    # check if user has specified an obs num
     if obs_num is not None:
         if obs_num.startswith('obs'):
             obs_num = re.sub(r'^obs', r'', obs_num)
@@ -88,15 +102,31 @@ def main(
     
         print('obs_num: {}'.format(obs_num))
     
-    #calib_level = [3] # cannot directly find level -1 products, must search level3 first then call get_product_list
-
+    # query the MAST databse
     obs_list = Observations.query_criteria(
         obs_collection = "JWST",
         proposal_id = proposal_id,
-        calib_level = [3], 
+        calib_level = [3], # cannot directly find level 1 products, must search level3 first then call get_product_list
     )
     
-    for obs in obs_list:
+    # parse user input calib_level, extension, etc. for later filtering the product list
+    if calib_level.find(',')>=0:
+        calib_level = calib_level.replace(' ','').split(',')
+    else:
+        calib_level = [calib_level]
+    
+    if extension.find(',')>=0:
+        extension = extension.replace(' ','').split(',')
+    
+    productType = ["SCIENCE"]
+    if preview:
+        productType.append("PREVIEW")
+        if 'jpg' not in extension:
+            extension.append('jpg')
+    if auxiliary:
+        productType.append("AUXILIARY")
+    
+    for iobs, obs in enumerate(obs_list):
         #print('obs_id: {}'.format(obs['obs_id']))
         if obs_num is not None:
             check_obs_id = 'jw{}-o{}_t[0-9]+_.*_.*'.format(
@@ -107,12 +137,12 @@ def main(
         if len(product_list) > 0:
             products = Observations.filter_products(
                 product_list,
-                productType = ["SCIENCE", "PREVIEW"],
-                calib_level = [1],
-                extension = "fits",
+                calib_level = calib_level,
+                productType = productType,
+                extension = extension,
             )
             if len(products) > 0: 
-                print('*** --- ***')
+                print('*** --- ({}/{}) --- ***'.format(iobs+1, len(obs_list)))
                 print('obs_id: {}'.format(obs['obs_id']))
                 #print(products.colnames)
                 for product in products:
