@@ -248,10 +248,14 @@ def main(
         info_dict = OrderedDict()
         info_dict['program'] = header['PROGRAM'].strip()
         info_dict['obs_num'] = header['OBSERVTN'].strip()
-        info_dict['target_group'] = header['TARGPROP'].strip()
-        info_dict['target_name'] = '"'+header['TARGNAME'].strip()+'"'
-        info_dict['target_RA'] = header['TARG_RA']
-        info_dict['target_Dec'] = header['TARG_DEC']
+        if 'TARGPROP' in header:
+            info_dict['target_group'] = header['TARGPROP'].strip()
+        if 'TARGNAME' in header:
+            info_dict['target_name'] = '"'+header['TARGNAME'].strip()+'"'
+        if 'TARG_RA' in header:
+            info_dict['target_RA'] = header['TARG_RA']
+        if 'TARG_DEC' in header:
+            info_dict['target_Dec'] = header['TARG_DEC']
         info_dict['instrument'] = header['INSTRUME'].strip()
         info_dict['visit_num'] = header['VISIT'].strip()
         info_dict['visit_group'] = header['VISITGRP'].strip()
