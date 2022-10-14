@@ -29,6 +29,19 @@ echo "#PBS -t 1-$((${#dataset_names[@]}+1))%${concurrent}" >> $goscript
 echo "set -e" >> $goscript
 if [[ ! -z $crds_context ]]; then
     echo "export CRDS_CONTEXT=\"$crds_context\"" >> $goscript
+    # also set CRDS_CONTEXT in the conda enviornment activating script
+    if [[ ! -z $CONDA_EXE ]] && [[ ! -z $conda_env ]]; then
+        if [[ ! -f $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh ]]; then
+            if [[ ! -d $CONDA_PREFIX/etc/conda/activate.d ]]; then
+                mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+            fi
+            echo "#!/bin/bash" > $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+            chmod +x $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+        fi
+        if [[ $(grep CRDS_CONTEXT $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh | wc -l) -eq 0 ]]; then
+            echo "export CRDS_CONTEXT=\"$crds_context\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+        fi
+    fi
 fi
 if [[ ! -z $CONDA_EXE ]] && [[ ! -z $conda_env ]]; then
     echo "source $(dirname $CONDA_EXE)/activate $conda_env" >> $goscript
@@ -59,14 +72,14 @@ echo "fi" >> $goscript
 cat << EOF >> $goscript
 
 if [[ \${PBS_ARRAYID} -gt \${#dataset_names[@]} ]]; then
-    waitseconds=\$(awk "BEGIN {print \${#dataset_names[@]}*10;}") # 10 sec per dataset
+    waitseconds=\$(awk "BEGIN {print int(\${#dataset_names[@]}*2);}") # 2 sec per dataset
     echo "sleep \$waitseconds"
     sleep \$waitseconds
     echo "Checking cal files ..."
     echo "go-jwst-imaging-check-cal-files > log_checking_cal_files.txt"
     go-jwst-imaging-check-cal-files > log_checking_cal_files.txt
-    while [[ \$(tail -n 1 log_checking_cal_files.txt | grep "All good") -eq 0 ]]; do
-        waitseconds2=\$(awk "BEGIN {print \${#dataset_names[@]}*5;}") # 5 sec per dataset
+    while [[ \$(tail -n 1 log_checking_cal_files.txt | grep "All good" | wc -l) -eq 0 ]]; do
+        waitseconds2=\$(awk "BEGIN {print int(\${#dataset_names[@]}*0.5);}") # 0.5 sec per dataset
         echo "sleep \$waitseconds2"
         sleep \$waitseconds2
         echo "Checking cal files ..."

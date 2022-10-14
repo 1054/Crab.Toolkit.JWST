@@ -179,8 +179,14 @@ def main(
     header = fits.getheader(input_filepath, 0)
     program = header['PROGRAM'].strip()
     obs_id = header['OBSERVTN'].strip()
-    target_group = header['TARGPROP'].strip()
-    target_name = header['TARGNAME'].strip()
+    if 'TARGPROP' in header:
+        target_group = header['TARGPROP'].strip()
+    else:
+        target_group = 'TARGET'
+    if 'TARGNAME' in header:
+        target_name = header['TARGNAME'].strip()
+    else:
+        target_name = ''
     if target_name == '':
         target_name = target_group
     

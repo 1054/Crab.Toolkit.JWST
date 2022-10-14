@@ -443,15 +443,13 @@ def main(
         pipeline_object.save_results = True
 
         # Set some parameters that pertain to some of the individual steps
-        # Set OutlierDetection
-        #pipeline_object.outlier_detection.skip = False
-        pipeline_object.outlier_detection.output_dir = output_subdir
-        pipeline_object.outlier_detection.pixfrac = pixfrac
         # Turn on TweakRegStep
         #pipeline_object.tweakreg.skip = False
-        pipeline_object.tweakreg.save_catalogs = True # "*_cal_cat.ecsv"
-        pipeline_object.tweakreg.save_results = True
-        pipeline_object.tweakreg.output_dir = output_dir
+        pipeline_object.tweakreg.output_dir = output_subdir
+        pipeline_object.tweakreg.save_catalogs = True # "./*_cal_cat.ecsv" # always current dir, see "tweakreg_step.py"
+        pipeline_object.tweakreg.save_results = True # "{output_subdir}/*_cal_tweakreg.fits"
+        pipeline_object.tweakreg.search_output_file = False # do not use output_file define in parent step
+        pipeline_object.tweakreg.output_use_model = True # use DataModel.meta.filename as output_file
         # Turn on SkyMatchStep
         #pipeline_object.skymatch.skip = False
         pipeline_object.skymatch.subtract = True
@@ -461,6 +459,10 @@ def main(
         #pipeline_object.skymatch.nclip = 10
         #pipeline_object.skymatch.upper = 1.0
         pipeline_object.skymatch.save_results = True
+        # Set OutlierDetection
+        #pipeline_object.outlier_detection.skip = False
+        pipeline_object.outlier_detection.output_dir = output_subdir
+        pipeline_object.outlier_detection.pixfrac = pixfrac
         # Set the ratio of input to output pixels to create an output mosaic 
         # on a 0.015"/pixel scale
         # see -- https://jwst-pipeline.readthedocs.io/en/latest/jwst/resample/arguments.html
