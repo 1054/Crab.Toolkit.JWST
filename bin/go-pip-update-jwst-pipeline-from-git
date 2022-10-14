@@ -17,4 +17,5 @@ script_dir=$(dirname "${BASH_SOURCE[0]}")
 # Run Python pip
 pip install --upgrade git+https://github.com/spacetelescope/jwst.git
 
+pip install reproject click tqdm
 

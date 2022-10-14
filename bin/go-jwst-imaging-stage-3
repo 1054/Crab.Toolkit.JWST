@@ -37,6 +37,7 @@ overwrite=0
 dataset_names=()
 resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
 resample_kwargs=()
+reprocess_MIRI=0
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
     if [[ "$argstr" == "--"* ]]; then
@@ -52,6 +53,9 @@ while [[ $iarg -le $# ]]; do
                 output_dir="${!iarg}"
                 echo "output_dir = \"$output_dir\""
             fi
+        elif [[ "$argstr" == "--reprocess-miri" ]]; then
+            reprocess_MIRI=1
+            echo "reprocess_MIRI = $reprocess_MIRI"
         elif [[ " $argstr " == *" ${resample_argnames[@]} "* ]]; then
             resample_kwargs+=("${!iarg}")
             echo -n "${!iarg} = "
@@ -182,10 +186,10 @@ for (( i = 0; i < ${#files_out[@]}; i++ )); do
 done
 
 
-# Set reprocess_MIRI_only
+# Set reprocess_MIRI_only -- prepare source mask for next reprocessing with Image-for-Image background subtraction
 #reprocess_MIRI_only=1
 #reprocess_MIRI_only=0 #<TODO>#
-reprocess_MIRI_only=1 #<TODO>#
+reprocess_MIRI_only=$reprocess_MIRI #<TODO>#
 
 
 # A temporary variable reprocess_with_source_emission_mask

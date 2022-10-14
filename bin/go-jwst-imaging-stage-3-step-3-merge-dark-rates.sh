@@ -15,7 +15,7 @@ fi
 script_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Read user input
-if [[ $# -lt 2 ]]; then
+if [[ $# -lt 1 ]]; then
     echo "Please input:"
     echo "    mosaic_image_1_i2d_asn.json"
     echo "    mosaic_image_2_i2d_asn.json"
