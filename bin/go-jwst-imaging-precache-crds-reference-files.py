@@ -20,6 +20,7 @@ import crds
 from jwst import datamodels
 from jwst.pipeline import calwebb_detector1
 from jwst.pipeline import calwebb_image2
+from jwst.pipeline import calwebb_image3
 
 # Import click
 import click
@@ -134,6 +135,11 @@ def main(jwst_uncal_files):
         
         logger.info('Image2Pipeline._precache_references: {!r}'.format(jwst_uncal_file))
         pipeline_object = calwebb_image2.Image2Pipeline()
+        pipeline_object._precache_references(jwst_uncal_file)
+        
+        
+        logger.info('Image3Pipeline._precache_references: {!r}'.format(jwst_uncal_file))
+        pipeline_object = calwebb_image3.Image3Pipeline()
         pipeline_object._precache_references(jwst_uncal_file)
         
         
