@@ -67,6 +67,10 @@ fi
 
 # cd work_dir
 if [[ "$work_dir" != "." ]]; then
+    if [[ ! -d "$work_dir" ]]; then
+        echo "mkdir -p \"$work_dir\""
+        mkdir -p "$work_dir"
+    fi
     echo "cd \"$work_dir\""
     cd "$work_dir"
 fi
