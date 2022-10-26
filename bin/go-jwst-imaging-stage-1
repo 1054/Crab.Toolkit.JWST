@@ -72,7 +72,7 @@ while [[ $iarg -le $# ]]; do
             unused_args+=("${!iarg}")
         fi
     else
-        dataset_names+=("${!iarg}")
+        dataset_names+=($(echo "${!iarg}" | perl -p -e 's%/$%%g'))
     fi
     # 
     iarg=$((iarg+1))

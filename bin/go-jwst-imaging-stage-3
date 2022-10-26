@@ -37,7 +37,8 @@ overwrite=0
 dataset_names=()
 resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
 resample_kwargs=()
-reprocess_MIRI=0
+reprocess_NIRCam=0
+reprocess_MIRI=1 # we will reprocess MIRI using masked source image as the background then redo stage 2 with image-for-image background subtraction
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
     if [[ "$argstr" == "--"* ]]; then
@@ -53,6 +54,9 @@ while [[ $iarg -le $# ]]; do
                 output_dir="${!iarg}"
                 echo "output_dir = \"$output_dir\""
             fi
+        elif [[ "$argstr" == "--reprocess-nircam" ]]; then
+            reprocess_NIRCam=1
+            echo "reprocess_NIRCam = $reprocess_NIRCam"
         elif [[ "$argstr" == "--reprocess-miri" ]]; then
             reprocess_MIRI=1
             echo "reprocess_MIRI = $reprocess_MIRI"
@@ -189,7 +193,7 @@ done
 # Set reprocess_MIRI_only -- prepare source mask for next reprocessing with Image-for-Image background subtraction
 #reprocess_MIRI_only=1
 #reprocess_MIRI_only=0 #<TODO>#
-reprocess_MIRI_only=$reprocess_MIRI #<TODO>#
+#reprocess_MIRI_only=$reprocess_MIRI #<TODO>#
 
 
 # A temporary variable reprocess_with_source_emission_mask
@@ -201,8 +205,15 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     
     # mosaic_image
     mosaic_image="${mosaic_images[i]}"
-    if [[ $reprocess_MIRI_only -gt 0 ]] && [[ "$mosaic_image" != *"MIRI"* ]]; then
-       continue
+    reprocess_this_data_set=0
+    if [[ $reprocess_MIRI -gt 0 ]] && [[ "$mosaic_image" == *"MIRI"* ]]; then
+       reprocess_this_data_set=1
+    fi
+    if [[ $reprocess_NIRCam -gt 0 ]] && [[ "$mosaic_image" == *"NIRCAM"* ]]; then
+       reprocess_this_data_set=1
+    fi
+    if [[ $reprocess_this_data_set -eq 0 ]]; then
+        continue
     fi
     
     reprocess_with_source_emission_mask=1
@@ -226,8 +237,15 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     
     # mosaic_image
     mosaic_image="${mosaic_images[i]}"
-    if [[ $reprocess_MIRI_only -gt 0 ]] && [[ "$mosaic_image" != *"MIRI"* ]]; then
-       continue
+    reprocess_this_data_set=0
+    if [[ $reprocess_MIRI -gt 0 ]] && [[ "$mosaic_image" == *"MIRI"* ]]; then
+       reprocess_this_data_set=1
+    fi
+    if [[ $reprocess_NIRCam -gt 0 ]] && [[ "$mosaic_image" == *"NIRCAM"* ]]; then
+       reprocess_this_data_set=1
+    fi
+    if [[ $reprocess_this_data_set -eq 0 ]]; then
+        continue
     fi
     
     reprocess_with_source_emission_mask=1
