@@ -423,6 +423,7 @@ class SkyCoordOption(click.Option):
 @click.option('--overwrite-siminput', is_flag=True, default=False)
 @click.option('--overwrite-simprep', is_flag=True, default=False)
 @click.option('--overwrite-simdata', is_flag=True, default=False)
+@click.option('--skip-simdata', is_flag=True, default=False)
 @click.option('--verbose', is_flag=True, default=True)
 def main(
         xml_file, 
@@ -442,6 +443,7 @@ def main(
         overwrite_siminput, 
         overwrite_simprep, 
         overwrite_simdata, 
+        skip_simdata, 
         verbose, 
     ):
     
@@ -659,24 +661,31 @@ def main(
             
             yaml_file = yaml_ext_file
         
-        # Check sim data output file
-        if os.path.isfile(sim_data_filepath):
-            if overwrite_simdata:
-                shutil.move(sim_data_filepath, sim_data_filepath+'.backup')
-            else:
-                if verbose:
-                    logger.info('Found existing data file {!r} and overwrite is set to False.'.format(sim_data_filepath))
         
-        # Run simulation to generate data file
-        if not os.path.isfile(sim_data_filepath):
-            if verbose:
-                logger.info('*'*100)
-                logger.info('*** Running Actual Simulation for {!r}'.format(
-                    yaml_file).ljust(96) + ' ***')
-                logger.info('*'*100)
-            m = ImgSim() # override_dark=dark
-            m.paramfile = yaml_file
-            m.create()
+        if not skip_simdata:
+            
+            # Check sim data output file
+            if os.path.isfile(sim_data_filepath):
+                if overwrite_simdata:
+                    shutil.move(sim_data_filepath, sim_data_filepath+'.backup')
+                else:
+                    if verbose:
+                        logger.info('Found existing data file {!r} and overwrite is set to False.'.format(sim_data_filepath))
+            
+            # Run simulation to generate data file
+            if not os.path.isfile(sim_data_filepath):
+                if verbose:
+                    logger.info('*'*100)
+                    logger.info('*** Running Actual Simulation for {!r}'.format(
+                        yaml_file).ljust(96) + ' ***')
+                    logger.info('*'*100)
+                m = ImgSim() # override_dark=dark
+                m.paramfile = yaml_file
+                m.create()
+    
+    
+    # return observation_table
+    return observation_table
 
 
 

@@ -11,6 +11,7 @@ conda_env="jwstpmap0995" # "base"
 concurrent=10
 ncpu=1
 mem="40gb" # maximum-cores 48 processes will need 68GB
+maxcores="none" # "quarter"
 timestamp=$(date +"%Y%m%d_%Hh%Mm%Ss")
 currentdir=$(pwd -P)
 goscript="go_qsub_processing_jwst_imaging_${timestamp}.bash"
@@ -63,7 +64,7 @@ echo ")" >> $goscript
 echo "" >> $goscript
 echo "if [[ \${PBS_ARRAYID} -le \${#dataset_names[@]} ]]; then" >> $goscript
 echo "" >> $goscript
-echo "  go-jwst-imaging-stage-1 \${dataset_names[\${PBS_ARRAYID}-1]} --maximum-cores \"quarter\"" >> $goscript
+echo "  go-jwst-imaging-stage-1 \${dataset_names[\${PBS_ARRAYID}-1]} --maximum-cores \"$maxcores\"" >> $goscript
 echo "" >> $goscript
 echo "  go-jwst-imaging-stage-2 \${dataset_names[\${PBS_ARRAYID}-1]}" >> $goscript
 echo "" >> $goscript
@@ -94,9 +95,9 @@ EOF
 # 
 echo "Prepared qsub script: $goscript"
 while true; do
-    read -p "Ready to submit the qsub job? " yn
+    read -p "Ready to submit the qsub job? [y/n] " yn
     case $yn in
-        [Yy]* ) echo "Submitting the qsub job!"; qsub $goscript; echo "Job submitted! Exit."; break;;
+        [Yy]* ) echo "Submitting the qsub job!"; qsub $goscript; echo "Job submitted! Please check your qstat then!"; break;;
         [Nn]* ) echo "Not submitting the job! Exit!"; exit;;
         * ) echo "Please answer yes or no.";;
     esac
