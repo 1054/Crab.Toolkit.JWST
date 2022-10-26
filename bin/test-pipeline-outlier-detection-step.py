@@ -98,30 +98,33 @@ def test():
     # following Anton's script
     
     asn = asn_from_list.asn_from_list(visit_sca_imgfile_list, rule=DMS_Level3_Base, product_name=visit_sca)
-    asn_file = 'tweakreg_'+visit_sca+'_asn.json'
+    asn_file = 'tweakreg_asn.json'
     
     with open(asn_file, 'w') as outfile:
         name, serialized = asn.dump(format='json')
         outfile.write(serialized)
     
-    
-    tweakreg = TweakRegStep(asn_file)
+    tweakreg = TweakRegStep()
     tweakreg.save_catalogs = True
     tweakreg.save_results = True
-    tweakreg.run()
+    tweakreg.run(asn_file)
     
     
     
     # 
     
     imgfile_list = sorted(glob.glob('*_tweakreg.fits'))
+    asn_file = 'outlier_detection_asn.json'
     
+    with open(asn_file, 'w') as outfile:
+        name, serialized = asn.dump(format='json')
+        outfile.write(serialized)
     
-    outlier_detection = OutlierDetectionStep(asn_file)
+    outlier_detection = OutlierDetectionStep()
     outlier_detection.resample_data = True
     outlier_detection.in_memory = False
     outlier_detection.output_dir = './'
-    outlier_detection.run()
+    outlier_detection.run(asn_file)
 
 
 
