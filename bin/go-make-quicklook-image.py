@@ -54,9 +54,11 @@ This script will create a quick-look image in png format.
 @click.command()
 @click.argument('input_image_file', type=click.Path(exists=True))
 @click.argument('output_image_file', type=click.Path(exists=False), required=False, default=None)
+@click.option('--figsize', type=float, default=6.0, help='Figure main panel size in inches, not including margins.')
 def main(
         input_image_file, 
         output_image_file, 
+        figsize, 
     ):
     
     # read input fits image
@@ -97,10 +99,10 @@ def main(
     nrows = 1
     panel_aspect_ratio = float(y_size)/float(x_size)
     if panel_aspect_ratio > 1.0:
-        panel_width = 5.0 # inch
+        panel_width = figsize # inch
         panel_height = panel_width * panel_aspect_ratio # inch
     else:
-        panel_height = 5.0 # inch
+        panel_height = figsize # inch
         panel_width = panel_height / panel_aspect_ratio # inch
     print('panel_width: {}, panel_height: {}'.format(panel_width, panel_height))
     panel_widths = [panel_width]*ncols
