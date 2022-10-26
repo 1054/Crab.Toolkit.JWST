@@ -467,6 +467,7 @@ def main(
         #pipeline_object.outlier_detection.skip = False
         pipeline_object.outlier_detection.output_dir = output_subdir
         pipeline_object.outlier_detection.pixfrac = pixfrac
+        pipeline_object.outlier_detection.in_memory = False
         # Set the ratio of input to output pixels to create an output mosaic 
         # on a 0.015"/pixel scale
         # see -- https://jwst-pipeline.readthedocs.io/en/latest/jwst/resample/arguments.html
@@ -496,6 +497,12 @@ def main(
                     os.makedirs(f'{output_subdir}/{output_name}_{i}_outlier')
                 shutil.move(f'{output_name}_{i}_outlier_i2d.fits', 
                             f'{output_subdir}/{output_name}_{i}_outlier/{output_name}_{i}_outlier_i2d.fits')
+            # 
+            if os.path.isfile(f'{output_name}_{i}_tweakreg.fits'):
+                if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
+                    os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
+                shutil.move(f'{output_name}_{i}_tweakreg.fits', 
+                            f'{output_subdir}/{output_name}_{i}_tweakreg/{output_name}_{i}_tweakreg.fits')
         
         
         # log
