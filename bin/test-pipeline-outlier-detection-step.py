@@ -3,6 +3,7 @@
 import os, sys, re, shutil, glob, time, json, yaml, asdf
 os.environ["CRDS_PATH"] = '/n17data/dzliu/Data/jwst_crds_cache' # '/n23data1/hjmcc/jwst/mirage/crds_cache' #<DZLIU>#
 os.environ["CRDS_SERVER_URL"] = 'https://jwst-crds.stsci.edu' # 'https://crds-serverless-mode.stsci.edu'
+os.environ["CRDS_CONTEXT"] = 'jwst_1009.pmap' # 2022-10-26
 import click
 import numpy as np
 from astropy.io import fits

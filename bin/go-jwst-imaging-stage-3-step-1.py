@@ -467,6 +467,7 @@ def main(
         #pipeline_object.outlier_detection.skip = False
         pipeline_object.outlier_detection.output_dir = output_subdir
         pipeline_object.outlier_detection.pixfrac = pixfrac
+        #pipeline_object.resample_data = True # True is the default
         pipeline_object.outlier_detection.in_memory = False
         # Set the ratio of input to output pixels to create an output mosaic 
         # on a 0.015"/pixel scale
