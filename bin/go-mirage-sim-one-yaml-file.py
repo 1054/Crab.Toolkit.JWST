@@ -47,8 +47,8 @@ logging.basicConfig(level='DEBUG')
 logger = logging.getLogger('go-mirage-sim-mosaic')
 
 
-DEFAULT_NEW_PSF_LIBRARY = '/n17data/dzliu/Work/JWST-MIRAGE-Simulation/20221008_make_mirage_psf_library/mirage_data/nircam/gridded_psf_library'
-DEFAULT_NEW_PSF_WING_THRESHOLD = '/n17data/dzliu/Work/JWST-MIRAGE-Simulation/20221008_make_mirage_psf_library/custom_nircam_psf_wing_rate_thresholds.txt'
+DEFAULT_NEW_PSF_LIBRARY = None # '/n17data/dzliu/Work/JWST-MIRAGE-Simulation/20221008_make_mirage_psf_library/mirage_data/nircam/gridded_psf_library'
+DEFAULT_NEW_PSF_WING_THRESHOLD = None # '/n17data/dzliu/Work/JWST-MIRAGE-Simulation/20221008_make_mirage_psf_library/custom_nircam_psf_wing_rate_thresholds.txt'
 
 
 
@@ -70,6 +70,7 @@ def main(
         output_dir, 
         output_file, 
         new_psf_library,
+        new_psf_wing_threshold, 
         overwrite, 
         verbose, 
     ):
@@ -115,6 +116,11 @@ def main(
         yamldict['simSignals']['psfpath'] = new_psf_library
         if verbose:
             logger.info('Using new PSF library {!r}'.format(new_psf_library))
+    
+    if new_psf_wing_threshold is not None:
+        yamldict['simSignals']['psf_wing_threshold_file'] = new_psf_wing_threshold
+        if verbose:
+            logger.info('Using new PSF wing threshold file {!r}'.format(new_psf_wing_threshold))
     
     # what about flux_cal
     # defaults
