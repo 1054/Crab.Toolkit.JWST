@@ -48,9 +48,9 @@ logger = logging.getLogger('go-mirage-sim-mosaic')
 
 DEFAULT_APT_XML_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.xml'
 DEFAULT_POINTING_FILE = 'apt_files/cosmosweb_revised_jun2022_onlyDEC2022.pointing'
-DEFAULT_MOSAIC_FILE = 'input_mosaic_images/dust_opa_u_lensed_H_EUC.fits' # 'hlsp_candels_hst_acs_gs-tot-sect23_f814w_v1.0_drz.fits'
+DEFAULT_MOSAIC_FILE = None # 'input_mosaic_images/dust_opa_u_lensed_H_EUC.fits' # 'hlsp_candels_hst_acs_gs-tot-sect23_f814w_v1.0_drz.fits'
 DEFAULT_MOSAIC_CENTER = None # The coordinate in the mosaic image WCS # ('10:00:28.6', '02:12:21.0')
-DEFAULT_STAR_CATALOG = 'input_catalogs/ptsrc_pointings_BEST_sw_tot.cat'
+DEFAULT_STAR_CATALOG = None # 'input_catalogs/ptsrc_pointings_BEST_sw_tot.cat'
 DEFAULT_COSMIC_RAYS = {'library': 'SUNMAX', 'scale': 1.0}
 DEFAULT_INSTRUMENT = 'NIRCam'
 DEFAULT_FILTER = 'F277W'
@@ -461,8 +461,10 @@ def main(
         galaxy_catalog = None
     
     if mosaic_file is None and star_catalog is None and galaxy_catalog is None:
-        logger.error('No input source to simulate! (mosaic_file is None and star_catalog is None and galaxy_catalog is None)')
-        sys.exit(255)
+        errmsg = 'No input source to simulate! (mosaic_file is None and star_catalog is None and galaxy_catalog is None)'
+        logger.error(errmsg)
+        raise Exception(errmsg)
+        #sys.exit(255)
     
     if mosaic_file is not None:
         mosaic_metadata = mirage.psf.tools.get_psf_metadata(mosaic_file) # make sure this runs
