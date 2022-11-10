@@ -172,8 +172,12 @@ def main(
     # find wisps template file
     search_dirs = []
     if template_dir is None:
-        logger.info('template_dir is not given, will search current dir and home dir')
-        search_dirs.extend(['.', 'wisp_templates', os.path.expanduser('~/wisp_templates')])
+        if 'NIRCAM_WISP_TEMPLATES' in os.environ:
+            logger.info('template_dir is not given but found system variable NIRCAM_WISP_TEMPLATES')
+            search_dirs.append(os.environ['NIRCAM_WISP_TEMPLATES'])
+        else:
+            logger.info('template_dir is not given and system variable NIRCAM_WISP_TEMPLATES is not found, will search current dir and home dir')
+            search_dirs.extend(['.', 'wisp_templates', os.path.expanduser('~/wisp_templates')])
     else:
         if not os.path.isdir(template_dir):
             errmsg = 'Error! template_dir {} does not exist?'.format(template_dir)
