@@ -25,7 +25,7 @@ if [[ $# -eq 0 ]]; then
     echo "    A backup will be created with a suffix of \"*_before_removing_wisps.fits\""
     exit 255
 fi
-if [[ "$1" == *"nrca"* ]] || [[ "$1" != *"nrcb"* ]] || [[ "$1" != *"nrclong"* ]]; then
+if [[ "$1" == *"nrca"* ]] || [[ "$1" == *"nrcb"* ]] || [[ "$1" == *"nrclong"* ]]; then
     echo $script_dir/util_remove_wisps_with_templates.py $@
     $script_dir/util_remove_wisps_with_templates.py $@
     # 

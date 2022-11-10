@@ -25,7 +25,7 @@ if [[ $# -eq 0 ]]; then
     echo "    --apply-flat : for MIRI"
     exit 255
 fi
-if [[ "$1" == *"nrca"* ]] || [[ "$1" != *"nrcb"* ]] || [[ "$1" != *"nrclong"* ]]; then
+if [[ "$1" == *"nrca"* ]] || [[ "$1" == *"nrcb"* ]] || [[ "$1" == *"nrclong"* ]]; then
     echo $script_dir/util_remove_stripes_along_four_angles.py $@
     $script_dir/util_remove_stripes_along_four_angles.py $@
     if [[ $? -ne 0 ]]; then

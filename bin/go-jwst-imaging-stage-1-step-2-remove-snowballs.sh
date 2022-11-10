@@ -20,7 +20,7 @@ if [[ $# -eq 0 ]]; then
     echo "    ./this_script jw01837022001_02201_00002_nrca1_rate.fits"
     exit 255
 fi
-if [[ "$1" == *"nrca"* ]] || [[ "$1" != *"nrcb"* ]] || [[ "$1" != *"nrclong"* ]]; then
+if [[ "$1" == *"nrca"* ]] || [[ "$1" == *"nrcb"* ]] || [[ "$1" == *"nrclong"* ]]; then
     echo $script_dir/util_remove_snowballs_by_expanding_dq_mask.py $@
     $script_dir/util_remove_snowballs_by_expanding_dq_mask.py $@
     # 
