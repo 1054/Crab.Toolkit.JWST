@@ -76,7 +76,7 @@ def main(
         logger.info('mirage version: {}'.format(mirage.__version__))
     
     # get sim_data_filepath
-    with open(yamlfile, 'r') as fp:
+    with open(yaml_file, 'r') as fp:
         yamldict = yaml.safe_load(fp)
         if output_dir is None:
             output_dir = yamldict['Output']['directory']
