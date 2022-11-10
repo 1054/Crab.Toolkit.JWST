@@ -33,6 +33,9 @@ if not ('CRDS_SERVER_URL' in os.environ):
 #    os.environ['CRDS_CONTEXT'] = 
 
 # Import JWST pipeline-related modules
+import jwst
+import stcal
+from asdf import AsdfFile
 
 # The entire calwebb_detector1 pipeline
 from jwst.pipeline import calwebb_detector1
@@ -50,11 +53,11 @@ from jwst.jump import JumpStep
 from jwst.ramp_fitting import RampFitStep
 from jwst import datamodels
 
-# Import jwst package itself
-import jwst
-
 # Setup logging
 import logging
+
+# Version control
+from packaging import version
 
 # Define utility functions
 def get_script_dir():
@@ -94,12 +97,14 @@ def setup_logger():
 @click.argument('input_uncal_file', type=click.Path(exists=True))
 @click.argument('output_rate_file', type=click.Path(exists=False))
 @click.option('--maximum-cores', type=str, default='all')
+@click.option('--remove-snowballs/--no-remove-snowballs', is_flag=True, default=True)
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 def main(
         input_uncal_file, 
         output_rate_file, 
         maximum_cores, 
-        overwrite = False, 
+        remove_snowballs, 
+        overwrite, 
     ):
     
     # Add script dir to sys path
@@ -111,6 +116,17 @@ def main(
     
     # Print JWST pipeline version
     logger.info('JWST pipeline version: {}'.format(jwst.__version__))
+    
+    if version.parse(jwst.__version__) < version.parse('1.8.0'):
+        logger.error("Error! Requiring JWST pipeline version newer than 1.8.0!") # for the jump step to deal with snowballs
+        sys.exit(-1)
+    
+    # Print STCAL pipeline version
+    logger.info('STCAL pipeline version: {}'.format(stcal.__version__))
+    
+    if version.parse(stcal.__version__) < version.parse('1.2.0'):
+        logger.error("Error! Requiring STCAL pipeline version newer than 1.2.0!") # for the jump step to deal with snowballs
+        sys.exit(-1)
     
     # check CRDS 
     try:
@@ -153,6 +169,11 @@ def main(
     # Print progress
     logger.info("Processing {} -> {}".format(input_filepath, output_filepath))
     
+    # Get instrument
+    instrument_name = ''
+    with datamodels.open(input_filepath) as model:
+        instrument_name = model.meta.instrument.name
+    
     # Prepare parameters to run the JWST pipeline
     pipeline_object = calwebb_detector1.Detector1Pipeline()
     pipeline_object.output_dir = output_dir
@@ -161,6 +182,13 @@ def main(
     pipeline_object.persistence.skip = False # turn on PersistenceStep (default is already on)
     pipeline_object.persistence.maximum_cores = maximum_cores
     pipeline_object.jump.maximum_cores = maximum_cores
+    if remove_snowballs:
+        pipeline_object.jump.min_jump_area = 100.0 # 5.0 is the default, minimum area to trigger large events processing
+        pipeline_object.jump.expand_factor = 1.5 # 2.0 is the default, The expansion factor for the enclosing circles or ellipses
+        pipeline_object.jump.sat_required_snowball = False
+        pipeline_object.jump.expand_large_events = True
+        if instrument_name.upper() == 'MIRI':
+            pipeline_object.jump.use_ellipses = True # "stcal/jump/jump.py" says that "Use ellipses rather than circles (better for MIRI)"
     pipeline_object.ramp_fit.maximum_cores = maximum_cores
     pipeline_object.save_calibrated_ramp = True
     
@@ -169,6 +197,21 @@ def main(
     
     # Check
     assert os.path.isfile(output_filepath)
+    
+    # Save pars
+    asdf_filepath = os.path.splitext(output_filepath, '.fits') + '_calwebb_detector1.asdf'
+    if os.path.isfile(asdf_filepath):
+        shutil.move(asdf_filepath, asdf_filepath+'.backup')
+    asdf_object = AsdfFile(pipeline_object.get_pars())
+    asdf_object.write_to(asdf_filepath)
+    logger.info('Parameters are saved into {}'.format(asdf_filepath))
+    
+    # Write history about removed snowballs
+    if remove_snowballs:
+        with datamodels.open(output_filepath) as model:
+            model.history.append('Removed snowballs with JWST pipeline {} JumpStep module (min_jump_area = {}, expand_factor = {}, sat_required_snowball = {}, expand_large_events = {})'.format(
+                    jwst.__version__, pipeline_object.jump.min_jump_area, pipeline_object.jump.expand_factor, pipeline_object.jump.sat_required_snowball, pipeline_object.jump.expand_large_events
+                ))
     
     # Print progress
     logger.info("Processed {} -> {}".format(input_filepath, output_filepath))

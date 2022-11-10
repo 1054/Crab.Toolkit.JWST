@@ -17,6 +17,7 @@ from astropy.nddata.bitmask import (
 )
 from astropy.stats import sigma_clipped_stats
 from scipy.optimize import curve_fit
+from scipy.ndimage import median_filter, gaussian_filter, binary_dilation, generate_binary_structure
 from tqdm import tqdm
 
 # jwst
@@ -26,13 +27,16 @@ from jwst.flatfield.flat_field import do_correction, do_flat_field, apply_flat_f
 from stdatamodels import util
 import crds
 
+# code name and version
+CODE_NAME = 'util_remove_stripes_along_four_angles.py'
+CODE_AUTHOR = 'Daizhong Liu'
+CODE_VERSION = '20221109'
+CODE_HOMEPAGE = ''
+
 # logging
 import logging
-logger = logging.getLogger('remstriping-dzliu')
+logger = logging.getLogger(CODE_NAME)
 logger.setLevel(logging.DEBUG)
-
-# version
-VERSION = '20221002'
 
 # Rect
 class Rect():
@@ -76,7 +80,7 @@ class Scan():
                 # dqmask>0 means good pixel here, invert means bad pixels.
         if len(self.data) > np.count_nonzero(nanmask):
             self.mean, self.median, self.std = sigma_clipped_stats(self.data, 
-                mask=nanmask) 
+                mask=nanmask)
                 # mask here means bad pixels to exclude.
         else:
             self.mean, self.median, self.std = np.nan, np.nan, np.nan
@@ -180,9 +184,9 @@ def apply_flat_to_model(model):
 @click.command()
 @click.argument('input_file', type=click.Path(exists=True))
 @click.argument('output_file', required=False, type=click.Path(exists=False), default=None)
-@click.option('--mask-image', type=click.Path(exists=True), default=None, help='A mask image containing pixels which will not be analyzed, e.g., due to bright emission.')
+@click.option('--mask-image', type=click.Path(exists=True), default=None, help='A mask image containing pixels which will not be analyzed, e.g., due to bright emission. If not given we will automatically determine the mask.')
 @click.option('--mask-threshold', type=float, default=None, help='Pixels with values above this threshold in the mask image will be not be analyzed.')
-@click.option('--apply-flat', is_flag=True, default=None, help='Apply CRDS flat correction before destripping?')
+@click.option('--apply-flat', is_flag=True, default=None, help='Apply CRDS flat correction before destriping?')
 def main(
         input_file, 
         output_file, 
@@ -193,70 +197,79 @@ def main(
     """
     Input rate image. 
     """
-    model = ImageModel(input_file)
+    with ImageModel(input_file) as model:
 
-    # check that striping hasn't already been removed
-    for entry in model.history:
-        for k,v in entry.items():
-            if 'Processed with remstriping-dzliu.py' in v:
-                logger.info('{!r} already processed. Skipping!'.format(input_file))
-                return
-    
-    # Apply flat (and dq)
-    if apply_flat:
-        model, applied_flat = apply_flat_to_model(model)
-    
-    # Get image and dqmask
-    # dqmask = bitfield_to_boolean_mask(
-    #         model.dq,
-    #         interpret_bit_flags('~DO_NOT_USE+NON_SCIENCE', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
-    #             flag_name_map=dqflags_pixel), 
-    #         good_mask_value=1,
-    #         dtype=np.uint8
-    #     ) * np.isfinite(model.data) # following "jwst/skymatch/skymatch_step.py", this is valid data
-    dqmask = None # 
-    image = model.data.copy()
-    #image[~dqmask] = np.nan
-    
-    # Get image shape
-    logger.info('image.shape {}'.format(image.shape))
-    ny, nx = image.shape
-    
-    # Assign rect area(s), each rect will be destripped separately
-    rects = []
-    instrument_name = model.meta.instrument.name
-    if instrument_name.upper() == 'NIRCAM':
-        rects.append(Rect(0, 0, nx-1, ny-1)) # x0, y0, x1, y1
-    elif instrument_name.upper() == 'MIRI':
-        rects.append(Rect(356, 0, nx-1, ny-1)) # MIRI imager area
-        rects.append(Rect(7, 746, 280, 1019)) # MIRI Lyot coronagraph
-        rects.append(Rect(7, 464, 233, 683)) # MIRI 4QPM coronagraph
-        rects.append(Rect(7, 243, 233, 463)) # MIRI 4QPM coronagraph
-        rects.append(Rect(7,  21, 233, 242)) # MIRI 4QPM coronagraph
-    else:
-        raise Exception('The input data can only be NIRCAM or MIRI data!')
-    
-    # Mask out sources
-    image_masked = image.copy()
-    if mask_image is not None:
-        logger.info('Using the input mask image {!r} to mask out source flux'.format(mask_image))
-        mask_image_data = fits.getdata(mask_image)
-        if mask_threshold is not None:
-            mask_image_bool = (mask_image_data > mask_threshold)
-            n_masked = np.count_nonzero(mask_image_bool)
-            logger.info('Masked {} pixels with values above the mask threshold {}'.format(n_masked, mask_threshold))
-        else:
-            mask_image_bool = mask_image_data.astype(bool)
-            n_masked = np.count_nonzero(mask_image_bool)
-            logger.info('Masked {} pixels'.format(n_masked))
-        image_masked[mask_image_bool] = np.nan
-    else:
-        # overall sigma clip
-        overall_mean, overall_median, overall_stddev = sigma_clipped_stats(
-            image, mask=np.isnan(image))
-        mask_image_bool = (np.abs(image_masked - overall_mean) > 3.0 * overall_stddev)
-        image_masked[mask_image_bool] = np.nan
+        # check if already processed
+        for entry in model.history:
+            for k,v in entry.items():
+                if v.startswith('Removed stripes'):
+                    logger.info('{!r} already had stripes removed. Skipping!'.format(input_file))
+                    return
         
+        # Apply flat (and dq)
+        apply_flat_status = None
+        if apply_flat:
+            model, applied_flat = apply_flat_to_model(model)
+            apply_flat_status = model.meta.cal_step.flat_field
+        
+        # Get image and dqmask
+        # dqmask = bitfield_to_boolean_mask(
+        #         model.dq,
+        #         interpret_bit_flags('~DO_NOT_USE+NON_SCIENCE', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
+        #             flag_name_map=dqflags_pixel), 
+        #         good_mask_value=1,
+        #         dtype=np.uint8
+        #     ) * np.isfinite(model.data) # following "jwst/skymatch/skymatch_step.py", this is valid data
+        dqmask = None # 
+        image = model.data.copy()
+        #image[~dqmask] = np.nan
+        
+        # Get image shape
+        logger.info('image.shape {}'.format(image.shape))
+        ny, nx = image.shape
+        
+        # Assign rect area(s), each rect will be destriped separately
+        rects = []
+        instrument_name = model.meta.instrument.name
+        if instrument_name.upper() == 'NIRCAM':
+            rects.append(Rect(0, 0, nx-1, ny-1)) # x0, y0, x1, y1
+        elif instrument_name.upper() == 'MIRI':
+            rects.append(Rect(356, 0, nx-1, ny-1)) # MIRI imager area
+            rects.append(Rect(7, 746, 280, 1019)) # MIRI Lyot coronagraph
+            rects.append(Rect(7, 464, 233, 683)) # MIRI 4QPM coronagraph
+            rects.append(Rect(7, 243, 233, 463)) # MIRI 4QPM coronagraph
+            rects.append(Rect(7,  21, 233, 242)) # MIRI 4QPM coronagraph
+        else:
+            raise Exception('The input data can only be NIRCAM or MIRI data!')
+        
+        # Mask out sources
+        image_masked = copy.deepcopy(image)
+        if mask_image is not None:
+            logger.info('Using the input mask image {!r} to mask out source flux'.format(mask_image))
+            mask_image_data = fits.getdata(mask_image)
+            if mask_threshold is not None:
+                mask_image_bool = (mask_image_data > mask_threshold)
+                n_masked = np.count_nonzero(mask_image_bool)
+                logger.info('Masked {} pixels with values above the mask threshold {}'.format(n_masked, mask_threshold))
+            else:
+                mask_image_bool = mask_image_data.astype(bool)
+                n_masked = np.count_nonzero(mask_image_bool)
+                logger.info('Masked {} pixels'.format(n_masked))
+            image_masked[mask_image_bool] = np.nan
+        else:
+            # overall sigma clip
+            logger.info('Auto masking with 3-sigma clipping')
+            overall_mean, overall_median, overall_stddev = sigma_clipped_stats(
+                image, mask=np.isnan(image))
+            mask_image_bool = (np.abs(image_masked - overall_mean) > 3.0 * overall_stddev)
+            mask_image_float = mask_image_bool.astype(float)
+            mask_image_float = binary_dilation(mask_image_float, generate_binary_structure(2,1), iterations=2)
+            mask_image_bool = mask_image_float.astype(bool)
+            image_masked[mask_image_bool] = np.nan
+            
+        # close model
+        #model.close()
+    
     
     # Grid
     #gy, gx = np.mgrid[0:ny, 0:nx]
@@ -279,6 +292,9 @@ def main(
             for iscan in range(len(scans)):
                 scan = scans[iscan]
                 scan.subtract_median_for_image(image, bkgs[irect, iangle])
+                #if iangle == 2 and iscan > 800 and iscan < 1000 and scan.median > 0.2:
+                #    print('iscan', iscan, 'scan', scan, 'scan.data', scan.data.tolist())
+                #    raise Exception('')
                 # if iscan > 10:
                 #     print('iscan', iscan, 'scan', scan)
                 #     break
@@ -289,8 +305,11 @@ def main(
         output_file = input_file
     if os.path.abspath(output_file) == os.path.abspath(input_file):
         logger.info('Updating the input file in-place!')
-        output_orig = re.sub(r'\.fits$', r'', output_file) + '_orig.fits'
-        if not os.path.isfile(output_orig):
+        output_orig = re.sub(r'\.fits$', r'', output_file) + '_before_removing_stripes.fits'
+        if os.path.isfile(output_orig):
+            logger.info('Found backup file {}, skipping backup.'.format(output_orig))
+        else:
+            logger.info('Backing up input file as {}'.format(output_orig))
             shutil.copy2(output_file, output_orig) # do not overwrite
     else:
         if os.path.isfile(output_file):
@@ -301,35 +320,34 @@ def main(
     
     out_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     with ImageModel(output_file) as out_model:
-        validmask = np.isfinite(model.data)
+        validmask = np.isfinite(out_model.data)
         out_model.data[validmask] = image[validmask] # only copy valid pixel values
         #out_model.data = image
         # check flat
         if apply_flat:
-            out_model.meta.cal_step.flat_field = model.meta.cal_step.flat_field
+            out_model.meta.cal_step.flat_field = apply_flat_status
         # add history entry following CEERS
-        stepdescription = 'Processed with remstriping-dzliu.py; '+ out_timestamp
-        software_dict = {'name':'remstriping-dzliu.py',
-                         'author':'Daizhong Liu',
-                         'version':VERSION,
-                         'homepage':''}
+        stepdescription = f'Removed stripes with {CODE_NAME} ({out_timestamp})'
+        software_dict = {'name':CODE_NAME,
+                         'author':CODE_AUTHOR,
+                         'version':CODE_VERSION,
+                         'homepage':CODE_HOMEPAGE}
         substr = util.create_history_entry(stepdescription, software=software_dict)
         out_model.history.append(substr)
-        print('out_model.history', out_model.history)
+        logger.info('Adding model history: {}'.format(substr))
         out_model.save(output_file)
-        logger.info('Saved destripped data into {!r}'.format(output_file))
+        logger.info('Saved destriped data into {!r}'.format(output_file))
     
     
-    output_bkg = re.sub(r'\.fits$', r'', output_file) + '_bkg.fits'
+    output_bkg = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_bkg.fits'
     shutil.copy2(output_file, output_bkg)
     with ImageModel(output_bkg) as out_bkg_model:
         out_bkg_model.data = bkg
-        out_bkg_model.history.append(substr)
         out_bkg_model.save(output_bkg)
-        logger.info('Saved destripping background into {!r}'.format(output_bkg))
+        logger.info('Saved destriping background into {!r}'.format(output_bkg))
     
     
-    output_bkgs = re.sub(r'\.fits$', r'', output_file) + '_bkgs.fits'
+    output_bkgs = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_bkgs.fits'
     header0 = fits.getheader(output_bkg, 0)
     header1 = fits.getheader(output_bkg, 1)
     hdulist = [fits.PrimaryHDU(data=None, header=header0)]
@@ -345,7 +363,23 @@ def main(
     hdul = fits.HDUList(hdulist)
     hdul.writeto(output_bkgs, overwrite=True)
     hdul.close()
-    logger.info('Saved destripping backgrounds into {!r}'.format(output_bkgs))
+    logger.info('Saved destriping backgrounds into {!r}'.format(output_bkgs))
+    
+    
+    output_mask = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_mask.fits'
+    shutil.copy2(output_file, output_mask)
+    with ImageModel(output_mask) as out_mask_model:
+        out_mask_model.data = mask_image_bool.astype(int)
+        out_mask_model.save(output_mask)
+        logger.info('Saved destriping mask into {!r}'.format(output_mask))
+    
+    
+    output_mask = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_masked.fits'
+    shutil.copy2(output_file, output_mask)
+    with ImageModel(output_mask) as out_mask_model:
+        out_mask_model.data = image_masked
+        out_mask_model.save(output_mask)
+        logger.info('Saved destriping masked data into {!r}'.format(output_mask))
     
 
 

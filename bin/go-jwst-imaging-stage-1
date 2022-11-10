@@ -15,6 +15,11 @@
 #    For each input jwst dataset name, the main output file is: 
 #        {dataset_name}/calibrated1_rates/{dataset_name}_rate.fits
 # 
+# Notes:
+# 
+#    Need python packages: crds jwst stcal stpipe lmfit click
+# 
+# 
 # 
 set -e
 
@@ -186,23 +191,56 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         exit 255
     fi
     
-    # Run step 2
-    file_in="calibrated1_rates/${dataset_name}_rate.fits"
-    file_out1="calibrated1_rates/${dataset_name}_rate_orig.fits"
-    #file_out2="calibrated1_rates/${dataset_name}_rate_galaxy_seed_image.fits"
-    file_out2="calibrated1_rates/${dataset_name}_rate_bkg.fits" # 20221002 using remstriping-dzliu.py
-    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-1-step-2-remstriping.sh "$file_in"
-    $script_dir/go-jwst-imaging-stage-1-step-2-remstriping.sh "$file_in"
-    if [[ $? -ne 0 ]]; then
-        echo "Error?! Please check previous messages."
-        exit 255
-    fi
-    #for file_out in "$file_out1" "$file_out2"; do
+    # # Run step 2 -- skip manually removing snowballs because jwst pipeline > 1.8.0 has this functionality
+    # file_in="calibrated1_rates/${dataset_name}_rate.fits"
+    # file_out1="calibrated1_rates/${dataset_name}_rate_removing_snowballs_orig.fits"
+    # file_out2="calibrated1_rates/${dataset_name}_rate_removing_snowballs_bkg.fits"
+    # echo "*** Running ***" $script_dir/go-jwst-imaging-stage-1-step-2-remove-snowballs.sh "$file_in"
+    # $script_dir/go-jwst-imaging-stage-1-step-2-remove-snowballs.sh "$file_in"
+    # if [[ $? -ne 0 ]]; then
+    #     echo "Error?! Please check previous messages."
+    #     exit 255
+    # fi
+    # for file_out in "$file_out1" "$file_out2"; do
     #    if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
     #        echo "Error! Failed to produce the output file: $file_out"
     #        exit 255
     #    fi
-    #done
+    # done
+    
+    # Run step 3 -- removing wisps using NIRCam team's templates
+    file_in="calibrated1_rates/${dataset_name}_rate.fits"
+    file_out1="calibrated1_rates/${dataset_name}_rate_removing_wisps_orig.fits"
+    file_out2="calibrated1_rates/${dataset_name}_rate_removing_wisps_bkg.fits"
+    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-1-step-3-remove-wisps.sh "$file_in"
+    $script_dir/go-jwst-imaging-stage-1-step-3-remove-wisps.sh "$file_in"
+    if [[ $? -ne 0 ]]; then
+        echo "Error?! Please check previous messages."
+        exit 255
+    fi
+    for file_out in "$file_out1" "$file_out2"; do
+       if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+           echo "Error! Failed to produce the output file: $file_out"
+           exit 255
+       fi
+    done
+    
+    # Run step 4
+    file_in="calibrated1_rates/${dataset_name}_rate.fits"
+    file_out1="calibrated1_rates/${dataset_name}_rate_removing_stripes_orig.fits"
+    file_out2="calibrated1_rates/${dataset_name}_rate_removing_stripes_bkg.fits" # 20221002 using remstriping-dzliu.py
+    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-1-step-4-remove-stripes "$file_in"
+    $script_dir/go-jwst-imaging-stage-1-step-4-remove-stripes "$file_in"
+    if [[ $? -ne 0 ]]; then
+        echo "Error?! Please check previous messages."
+        exit 255
+    fi
+    for file_out in "$file_out1" "$file_out2"; do
+       if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+           echo "Error! Failed to produce the output file: $file_out"
+           exit 255
+       fi
+    done
     
     echo cd ../
     cd ../
