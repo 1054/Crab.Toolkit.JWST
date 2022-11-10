@@ -54,6 +54,7 @@ current_dir=$(pwd)
 overwrite=0
 mast_download_dirs=()
 crds_context=""
+skip_precache=0
 unused_args=()
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^[-]+/--/g')
@@ -74,6 +75,9 @@ while [[ $iarg -le $# ]]; do
                     exit 255
                 fi
             fi
+        elif [[ "$argstr" == "--skip-precache" ]]; then
+            skip_precache=1
+            echo "skip_precache = \"$skip_precache\""
         else
             unused_args+=("${!iarg}")
         fi
@@ -124,7 +128,9 @@ ${script_dir}/go-jwst-imaging-precopy-uncal-files $mast_download_dir/jw*/jw*_unc
 
 
 # precache crds reference files
-${script_dir}/go-jwst-imaging-precache-crds-reference-files
+if [[ $skip_precache -eq 0 ]]; then
+    ${script_dir}/go-jwst-imaging-precache-crds-reference-files
+fi
 
 
 

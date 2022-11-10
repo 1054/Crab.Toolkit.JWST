@@ -7,8 +7,8 @@ if [[ ${#dataset_names[@]} -eq 0 ]]; then
     exit 255
 fi
 crds_context="$CRDS_CONTEXT" # "jwst_0986.pmap"
-conda_env="jwstpmap0995" # "base"
-concurrent=10
+conda_env="$CONDA_DEFAULT_ENV" # "jwstpmap1009" # "jwstpmap0995" # "base"
+concurrent=20
 ncpu=1
 mem="40gb" # maximum-cores 48 processes will need 68GB
 maxcores="none" # "quarter"
