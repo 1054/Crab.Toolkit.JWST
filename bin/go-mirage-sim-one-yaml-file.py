@@ -170,7 +170,7 @@ def main(
     with fits.open(photom_file) as photom_hdul:
         pixar_sr = photom_hdul[0].header['PIXAR_SR'] # u.sr
         for irow in range(len(photom_hdul[1].data)):
-            photom_filter, photom_pupil, photom_photmjsr, photom_uncertainty = photom_hdul[1][irow]
+            photom_filter, photom_pupil, photom_photmjsr, photom_uncertainty = photom_hdul[1].data[irow]
             if photom_filter == filter_name and photom_pupil == pupil_name:
                 photmjsr = photom_photmjsr
                 break
