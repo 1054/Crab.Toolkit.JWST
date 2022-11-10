@@ -216,7 +216,8 @@ def main(
         fp.write(' '.join([str(t) for t in flux_cal_dict.values()])+'\n')
     
     # Filter Pupil Module Detector VEGAMAG ABMAG STMAG PHOTFLAM PHOTFNU Pivot_wave
-    ABMAG = ((photmjsr * u.MJy/u.sr) * (9.31E-14 * u.sr)).to(u.ABmag)
+    ABMAG = ((photmjsr * u.MJy/u.sr) * (pixar_sr * u.sr)).to(u.ABmag)
+    logger.info('ABMAG: {}'.format(ABMAG))
     PHOTFNU = ABMAG.to(u.erg/u.s/u.cm**2/u.Hz)
     Pivot_wave = pivot_wave * u.um
     PHOTFLAM = PHOTFNU * (const.c.cgs/Pivot_wave.cgs).to(u.Hz) / (Pivot_wave).to(u.AA)
