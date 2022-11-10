@@ -35,6 +35,7 @@ if not ('CRDS_SERVER_URL' in os.environ):
 # Import JWST pipeline-related modules
 import jwst
 import stcal
+import stdatamodels
 from asdf import AsdfFile
 
 # The entire calwebb_detector1 pipeline
@@ -199,7 +200,7 @@ def main(
     assert os.path.isfile(output_filepath)
     
     # Save pars
-    asdf_filepath = os.path.splitext(output_filepath, '.fits') + '_calwebb_detector1.asdf'
+    asdf_filepath = os.path.splitext(output_filepath)[0] + '_calwebb_detector1.asdf'
     if os.path.isfile(asdf_filepath):
         shutil.move(asdf_filepath, asdf_filepath+'.backup')
     asdf_object = AsdfFile(pipeline_object.get_pars())
@@ -209,9 +210,13 @@ def main(
     # Write history about removed snowballs
     if remove_snowballs:
         with datamodels.open(output_filepath) as model:
-            model.history.append('Removed snowballs with JWST pipeline {} JumpStep module (min_jump_area = {}, expand_factor = {}, sat_required_snowball = {}, expand_large_events = {})'.format(
+            history_entry = stdatamodels.util.create_history_entry(
+                'Removed snowballs with JWST pipeline {} JumpStep module (min_jump_area = {}, expand_factor = {}, sat_required_snowball = {}, expand_large_events = {})'.format(
                     jwst.__version__, pipeline_object.jump.min_jump_area, pipeline_object.jump.expand_factor, pipeline_object.jump.sat_required_snowball, pipeline_object.jump.expand_large_events
-                ))
+                )
+            )
+            model.history.append(history_entry)
+            model.save(output_filepath, overwrite=True)
     
     # Print progress
     logger.info("Processed {} -> {}".format(input_filepath, output_filepath))
