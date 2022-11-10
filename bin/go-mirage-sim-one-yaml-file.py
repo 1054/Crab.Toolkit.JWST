@@ -114,7 +114,7 @@ def main(
     with open(new_yaml_file, 'w') as fp:
         yaml.dump(yamldict, fp)
     if verbose:
-        logger.info('Updated {!r} with new PSF library {!r}'.format(output_yamlfile, new_psf_library))
+        logger.info('Updated {!r} with new PSF library {!r}'.format(new_yaml_file, new_psf_library))
     
     # Run simulation to generate data file
     if verbose:
