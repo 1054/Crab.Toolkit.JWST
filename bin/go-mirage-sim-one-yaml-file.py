@@ -56,7 +56,7 @@ DEFAULT_NEW_PSF_LIBRARY = '/automnt/n17data/dzliu/Work/JWST-MIRAGE-Simulation/20
 ####################
 
 @click.command()
-@click.argument(yaml_file, type=click.Path(exists=True))
+@click.argument('yaml_file', type=click.Path(exists=True))
 @click.option('--output-dir', type=click.Path(exists=False), default=None, help='Can specifiy a new output directory.')
 @click.option('--output-file', type=str, default=None, help='Can specifiy a new output filename.')
 @click.option('--new-psf-library', type=click.Path(exists=True), default=DEFAULT_NEW_PSF_LIBRARY, help='New psf library directory.')
