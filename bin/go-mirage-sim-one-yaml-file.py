@@ -220,11 +220,11 @@ def main(
     logger.info('ABMAG: {}'.format(repr(ABMAG)))
     PHOTFNU = ABMAG.to(u.erg/u.s/u.cm**2/u.Hz)
     logger.info('PHOTFNU: {}'.format(repr(PHOTFNU)))
-    Pivot_wave = pivot_wave * u.um
+    Pivot_wave = u.Quantity(pivot_wave, u.um)
     logger.info('Pivot_wave: {}'.format(repr(Pivot_wave)))
     PHOTFLAM = PHOTFNU * (const.c.cgs/Pivot_wave.cgs).to(u.Hz) / (Pivot_wave).to(u.AA)
     logger.info('PHOTFLAM: {}'.format(repr(PHOTFLAM)))
-    STMAG = ABMAG.to(u.STmag, u.spectral_density(Pivot_wave))
+    STMAG = ABMAG.to(u.STmag, u.spectral_density(Pivot_wave)) #TODO error?
     logger.info('STMAG: {}'.format(STMAG))
     #VEGAMAG = -2.5*np.log10(PHOTFNU.value) - 48.6
     VEGAMAG = PHOTFNU.to(u.ABmag).value
