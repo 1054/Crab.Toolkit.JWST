@@ -420,6 +420,7 @@ class SkyCoordOption(click.Option):
 @click.option('--yaml-output-dir', type=click.Path(exists=False), default=DEFAULT_YAML_OUTPUT_DIR)
 @click.option('--sim-output-dir', type=click.Path(exists=False), default=DEFAULT_SIM_OUTPUT_DIR)
 @click.option('--observation-list-file', type=click.Path(exists=False), default=DEFAULT_OBSERVATION_LIST_FILE)
+@click.option('--only-dataset', type=str, multiple=True, default=[])
 @click.option('--overwrite-siminput', is_flag=True, default=False)
 @click.option('--overwrite-simprep', is_flag=True, default=False)
 @click.option('--overwrite-simdata', is_flag=True, default=False)
@@ -440,6 +441,7 @@ def main(
         yaml_output_dir,
         sim_output_dir,
         observation_list_file,
+        only_dataset,
         overwrite_siminput, 
         overwrite_simprep, 
         overwrite_simdata, 
@@ -547,6 +549,20 @@ def main(
             if not check_yamlfile_matches_the_filter(yaml_file, filter_name):
                 if verbose:
                     logger.info('*** Skipping observation {!r} ({}/{}) because of non-matched filter'.format(
+                        yaml_name, i+1, len(observation_table)).ljust(96) + ' ***')
+                continue
+        
+        # Check if use has set an only_dataset
+        if only_dataset is not None:
+            if isinstance(only_dataset, str):
+                only_dataset = [only_dataset]
+            check_okay = False
+            for dataset_name in only_dataset:
+                if dataset_name in os.path.basename(yaml_file):
+                    check_okay = True
+            if not check_okay:
+                if verbose:
+                    logger.info('*** Skipping observation {!r} ({}/{}) because of non-matched dataset name'.format(
                         yaml_name, i+1, len(observation_table)).ljust(96) + ' ***')
                 continue
         
