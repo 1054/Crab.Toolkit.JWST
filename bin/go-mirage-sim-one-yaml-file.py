@@ -169,8 +169,10 @@ def main(
                 photmjsr = photom_photmjsr
                 break
     if photmjsr is None:
-        logger.error('Error! Could not find filter {} pupil {} in photom file {}'.format(filter_name, pupil_name, photom_file))
-        raise Exception('Error! Could not find filter {} pupil {} in photom file {}'.format(filter_name, pupil_name, photom_file))
+        logger.error('Error! Could not find filter {} pupil {} in photom file {}'.format(
+            filter_name, pupil_name, photom_file))
+        raise Exception('Error! Could not find filter {} pupil {} in photom file {}'.format(
+            filter_name, pupil_name, photom_file))
     
     # read flux_cal file to get Pivot_wave
     pivot_wave = None
@@ -195,8 +197,10 @@ def main(
                         pivot_wave = flux_cal_dict['Pivot_wave']
                         break
     if pivot_wave is None:
-        logger.error('Error! Could not find filter {} pupil {} module {} detector {} in flux_cal file {}'.format(filter_name, pupil_name, array_name[3], array_name[0:5], flux_cal_file))e:
-        raise Exception('Error! Could not find filter {} pupil {} module {} detector {} in flux_cal file {}'.format(filter_name, pupil_name, array_name[3], array_name[0:5], flux_cal_file))
+        logger.error('Error! Could not find filter {} pupil {} module {} detector {} in flux_cal file {}'.format(
+            filter_name, pupil_name, array_name[3], array_name[0:5], flux_cal_file))
+        raise Exception('Error! Could not find filter {} pupil {} module {} detector {} in flux_cal file {}'.format(
+            filter_name, pupil_name, array_name[3], array_name[0:5], flux_cal_file))
     
     # prepare new flux_cal file
     old_flux_cal_file = os.path.join(output_dir, os.path.splitext(os.path.basename(yaml_file))[0] + '_flux_cal_old.txt')
