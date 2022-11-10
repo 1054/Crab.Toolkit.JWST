@@ -10,6 +10,7 @@ if "CRDS_SERVER_URL" not in os.environ:
 
 import click
 import astropy.units as u
+import astropy.constants as const
 import numpy as np
 #import pysiaf
 import photutils # used by mirage.seed_image.fits_seed_image
