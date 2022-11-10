@@ -216,10 +216,10 @@ def main(
     
     # Filter Pupil Module Detector VEGAMAG ABMAG STMAG PHOTFLAM PHOTFNU Pivot_wave
     ABMAG = ((photmjsr * u.MJy/u.sr) * (9.31E-14 * u.sr)).to(u.ABmag)
-    PHOTFNU = (ABMAG * u.ABmag).to(u.erg/u.s/u.cm**2/u.Hz)
+    PHOTFNU = ABMAG.to(u.erg/u.s/u.cm**2/u.Hz)
     Pivot_wave = pivot_wave * u.um
     PHOTFLAM = PHOTFNU * (const.c.cgs/Pivot_wave.cgs).to(u.Hz) / (Pivot_wave).to(u.AA)
-    STMAG = (ABMAG * u.ABmag).to(u.STmag, u.spectral_density(Pivot_wave))
+    STMAG = ABMAG.to(u.STmag, u.spectral_density(Pivot_wave))
     #VEGAMAG = -2.5*np.log10(PHOTFNU.value) - 48.6
     VEGAMAG = PHOTFNU.to(u.ABmag).value
     flux_cal_dict['VEGAMAG'] = VEGAMAG
