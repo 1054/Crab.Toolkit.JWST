@@ -186,7 +186,7 @@ def main(
                 flux_cal_headers = line_text.split()
             else:
                 line_split = line_text.split()
-                if len(line_split) == len(flux_cal_headers)
+                if len(line_split) == len(flux_cal_headers):
                     flux_cal_dict = OrderedDict(zip(flux_cal_headers, line_split))
                     if flux_cal_dict['Filter'] == filter_name and \
                         flux_cal_dict['Pupil'] == pupil_name and \
