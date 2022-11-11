@@ -201,13 +201,19 @@ def main(
                         flux_cal_dict['Pupil'] == pupil_name and \
                         flux_cal_dict['Module'] == array_name[3] and \
                         flux_cal_dict['Detector'] == array_name[0:5]:
-                        pivot_wave = flux_cal_dict['Pivot_wave']
+                        pivot_wave = float(flux_cal_dict['Pivot_wave'])
                         break
     if pivot_wave is None:
         logger.error('Error! Could not find filter {} pupil {} module {} detector {} in flux_cal file {}'.format(
             filter_name, pupil_name, array_name[3], array_name[0:5], flux_cal_file))
         raise Exception('Error! Could not find filter {} pupil {} module {} detector {} in flux_cal file {}'.format(
             filter_name, pupil_name, array_name[3], array_name[0:5], flux_cal_file))
+    flux_cal_dict['VEGAMAG'] = float(flux_cal_dict['VEGAMAG'])
+    flux_cal_dict['ABMAG'] = float(flux_cal_dict['ABMAG'])
+    flux_cal_dict['STMAG'] = float(flux_cal_dict['STMAG'])
+    flux_cal_dict['PHOTFLAM'] = float(flux_cal_dict['PHOTFLAM'])
+    flux_cal_dict['PHOTFNU'] = float(flux_cal_dict['PHOTFNU'])
+    flux_cal_dict['Pivot_wave'] = float(flux_cal_dict['Pivot_wave'])
     
     # prepare new flux_cal file
     old_flux_cal_file = os.path.join(output_dir, os.path.splitext(os.path.basename(yaml_file))[0] + '_flux_cal_old.txt')
@@ -220,13 +226,13 @@ def main(
     logger.info('ABMAG: {} -> {}'.format(flux_cal_dict['ABMAG'], ABMAG))
     PHOTFNU = ABMAG.to(u.erg/u.s/u.cm**2/u.Hz)
     logger.info('PHOTFNU: {} -> {}'.format(flux_cal_dict['PHOTFNU'], PHOTFNU))
-    Pivot_wave = u.Quantity(pivot_wave, u.um)
+    Pivot_wave = pivot_wave * u.um
     logger.info('Pivot_wave: {}'.format(Pivot_wave))
     PHOTFLAM = PHOTFNU * (const.c.cgs/Pivot_wave.cgs).to(u.Hz) / (Pivot_wave).to(u.AA)
     logger.info('PHOTFLAM: {} -> {}'.format(flux_cal_dict['PHOTFLAM'], PHOTFLAM))
     STMAG = ABMAG.to(u.STmag, u.spectral_density(Pivot_wave)) #TODO error?
     logger.info('STMAG: {} -> {}'.format(flux_cal_dict['STMAG'], STMAG))
-    VEGAMAG = flux_cal_dict['VEGAMAG'] + (ABMAG.value - flux_cal_dict['ABMAG'])
+    VEGAMAG = float(flux_cal_dict['VEGAMAG']) + (ABMAG.value - float(flux_cal_dict['ABMAG']))
     logger.info('VEGAMAG: {} -> {}'.format(flux_cal_dict['VEGAMAG'], VEGAMAG))
     flux_cal_dict['VEGAMAG'] = VEGAMAG
     flux_cal_dict['ABMAG'] = ABMAG.value

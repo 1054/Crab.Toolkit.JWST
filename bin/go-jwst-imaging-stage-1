@@ -201,7 +201,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     # Run step 2 -- apply flatfield
     file_in="calibrated1_rates/${dataset_name}_rate.fits"
     file_out1="calibrated1_rates/${dataset_name}_rate_before_applying_flatfield.fits"
-    file_out2="calibrated1_rates/${dataset_name}_rate_before_applying_flatfield.fits"
+    file_out2="calibrated1_rates/${dataset_name}_rate_applying_flatfield_flatfile.fits"
     echo "*** Running ***" $script_dir/go-jwst-imaging-stage-1-step-2-apply-flatfield.sh "$file_in"
     $script_dir/go-jwst-imaging-stage-1-step-2-apply-flatfield.sh "$file_in"
     if [[ $? -ne 0 ]]; then
