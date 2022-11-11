@@ -198,6 +198,23 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         exit 255
     fi
     
+    # Run step 2 -- apply flatfield
+    file_in="calibrated1_rates/${dataset_name}_rate.fits"
+    file_out1="calibrated1_rates/${dataset_name}_rate_before_applying_flatfield.fits"
+    file_out2="calibrated1_rates/${dataset_name}_rate_before_applying_flatfield.fits"
+    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-1-step-2-apply-flatfield.sh "$file_in"
+    $script_dir/go-jwst-imaging-stage-1-step-2-apply-flatfield.sh "$file_in"
+    if [[ $? -ne 0 ]]; then
+        echo "Error?! Please check previous messages."
+        exit 255
+    fi
+    for file_out in "$file_out1" "$file_out2"; do
+       if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+           echo "Error! Failed to produce the output file: $file_out"
+           exit 255
+       fi
+    done
+    
     # # Run step 2 -- skip manually removing snowballs because jwst pipeline > 1.8.0 has this functionality
     # file_in="calibrated1_rates/${dataset_name}_rate.fits"
     # file_out1="calibrated1_rates/${dataset_name}_rate_before_removing_snowballs.fits"

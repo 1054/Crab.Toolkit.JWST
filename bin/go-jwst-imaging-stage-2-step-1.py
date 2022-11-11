@@ -212,28 +212,44 @@ def main(
     #pipeline_object.resample.pixfrac = 1.0 # default
     #pipeline_object.bkg_subtract.sigma = 3.0 # default
     
-    override_flat = None
-    if user_flat_file is not None:
-        override_flat = os.path.abspath(user_flat_file)
-    elif user_flat_dir is not None:
-        with datamodels.open(input_filepath) as model:
-            filter_name = model.meta.instrument.filter
-            for file_name in os.listdir(user_flat_dir):
-                if re.match(r'^.*[\b_]'+filter_name+r'[\b_].*\.fits', file_name): # case sensitive
-                    override_flat = os.path.abspath(os.path.join(user_flat_dir, file_name))
-                    break
-    if override_flat is not None:
-        logger.info("Applying user-specified flat: {}".format(override_flat))
-        pipeline_object.flat_field.override_flat = override_flat
+    
+    # check flat
+    already_applied_flat = False
+    with datamodels.open(input_filepath) as model:
+        # check if already processed
+        for entry in model.history:
+            for k,v in entry.items():
+                if v.startswith('Applied flat field correction'):
+                    logger.info('{!r} already had flat field correction applied. Skipping!'.format(input_filepath))
+                    already_applied_flat = False
+    
+    if already_applied_flat:
+        pipeline_object.flat_field.skip = True
+    
+    else:
+        override_flat = None
+        if user_flat_file is not None:
+            override_flat = os.path.abspath(user_flat_file)
+        elif user_flat_dir is not None:
+            with datamodels.open(input_filepath) as model:
+                filter_name = model.meta.instrument.filter
+                for file_name in os.listdir(user_flat_dir):
+                    if re.match(r'^.*[\b_]'+filter_name+r'[\b_].*\.fits', file_name): # case sensitive
+                        override_flat = os.path.abspath(os.path.join(user_flat_dir, file_name))
+                        break
+        if override_flat is not None:
+            logger.info("Applying user-specified flat: {}".format(override_flat))
+            pipeline_object.flat_field.override_flat = override_flat
     
     
     # run
     run_output = pipeline_object.run(input_filepath)
     
     
-    
     # Check
     assert os.path.isfile(output_filepath)
+    
+    
     
     # Print progress
     logger.info("Processed {} -> {}".format(input_filepath, output_filepath))

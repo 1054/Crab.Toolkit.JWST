@@ -91,9 +91,11 @@ class Scan():
         else:
             return 'Scan(({}, {}) -> ({}, {}), angle={}, npix={}, median={})'.format(
                 self.ipx[0], self.ipy[0], self.ipx[-1], self.ipy[-1], self.angle, len(self.data), self.median)
-    def subtract_median_for_image(self, image, median_image=None):
+    def subtract_median_for_image(self, image, median_image=None, masked_image=None):
         if not np.isnan(self.median):
             image[self.iipy, self.iipx] -= self.median
+            if masked_image is not None:
+                masked_image[self.iipy, self.iipx] -= self.median
         if median_image is not None:
             median_image[self.iipy, self.iipx] += self.median
             return image, median_image
@@ -291,7 +293,8 @@ def main(
             scans = draw_scans(image_masked, angle, rect=rect, dqmask=dqmask)
             for iscan in range(len(scans)):
                 scan = scans[iscan]
-                scan.subtract_median_for_image(image, bkgs[irect, iangle])
+                scan.subtract_median_for_image(image, median_image=bkgs[irect, iangle], masked_image=image_masked)
+                # 20221110 also need to subtract this image_masked
                 #if iangle == 2 and iscan > 800 and iscan < 1000 and scan.median > 0.2:
                 #    print('iscan', iscan, 'scan', scan, 'scan.data', scan.data.tolist())
                 #    raise Exception('')
@@ -374,12 +377,12 @@ def main(
         logger.info('Saved destriping mask into {!r}'.format(output_mask))
     
     
-    output_mask = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_masked.fits'
-    shutil.copy2(output_file, output_mask)
-    with ImageModel(output_mask) as out_mask_model:
-        out_mask_model.data = image_masked
-        out_mask_model.save(output_mask)
-        logger.info('Saved destriping masked data into {!r}'.format(output_mask))
+    # output_mask = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_masked.fits'
+    # shutil.copy2(output_file, output_mask)
+    # with ImageModel(output_mask) as out_mask_model:
+    #     out_mask_model.data = image_masked
+    #     out_mask_model.save(output_mask)
+    #     logger.info('Saved destriping masked data into {!r}'.format(output_mask))
     
 
 

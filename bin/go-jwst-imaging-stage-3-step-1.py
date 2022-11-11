@@ -135,7 +135,7 @@ def setup_logger():
 # Defaults
 # see -- https://jwst-pipeline.readthedocs.io/en/latest/jwst/resample/arguments.html
 DEFAULT_KERNEL = 'square'
-DEFAULT_PIXFRAC = 0.5
+DEFAULT_PIXFRAC = 1.0 # 0.5
 DEFAULT_PIXEL_SCALE_RATIO = 0.48
 DEFAULT_PIXEL_SCALE = None
 
