@@ -200,9 +200,10 @@ def main(
     
     # save additional file
     output_flatfile = re.sub(r'\.fits$', r'', output_file) + '_applying_flatfield_flatfile.fits'
-    with ImageModel(output_flatfile) as out_model:
-        out_model = applied_flat
-        out_model.save(output_flatfile)
+    applied_flat.save(output_flatfile)
+    #with ImageModel(output_flatfile) as out_model:
+    #    out_model = applied_flat
+    #    out_model.save(output_flatfile)
     logger.info('Saved the applied flat into {!r}'.format(output_flatfile))
 
 
