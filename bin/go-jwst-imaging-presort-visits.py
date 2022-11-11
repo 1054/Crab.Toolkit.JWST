@@ -21,6 +21,9 @@ import click
 # Setup logging
 import logging
 
+# Import multiprocessing
+import multiprocessing
+
 # Define utility functions
 def get_script_dir():
     """Get current script file's directory path."""
@@ -68,12 +71,38 @@ def parse_jwst_dataset_name(input_str, raise_exception=True):
         return None
 
 
+def store_into_jwst_dataset_dict(i, d, all_jwst_uncal_files, all_jwst_dataset_name, all_jwst_dataset_info):
+    jwst_uncal_file = all_jwst_uncal_files[i]
+    with datamodels.open(jwst_uncal_file) as model:
+        instrument_name = model.meta.instrument.name
+        filter_name = model.meta.instrument.filter
+        detector_name = model.meta.instrument.detector
+        ra_v1, dec_v1, pa_v3 = model.meta.pointing.ra_v1, model.meta.pointing.dec_v1, model.meta.pointing.pa_v3
+        s_region = model.meta.wcsinfo.s_region
+    dataset_name = all_jwst_dataset_name[i]
+    dataset_info = all_jwst_dataset_info[i]
+    d['dataset_name'][i] = dataset_name
+    d['proposal_id'][i] = dataset_info.proposal_id
+    d['obs_num'][i] = dataset_info.obs_num
+    d['visit_num'][i] = dataset_info.visit_num
+    d['instrument'][i] = instrument_name
+    d['filter'][i] = filter_name
+    d['detector'][i] = detector_name
+    d['parallel'][i] = dataset_info.parallel
+    d['ra_v1'][i] = ra_v1
+    d['dec_v1'][i] = dec_v1
+    d['pa_v3'][i] = pa_v3
+    d['s_region'][i] = s_region
+
+
 
 # Main 
 @click.command()
 @click.argument('jwst_dataset_dir', required=False, default='.', type=click.Path(exists=True))
+@click.option('--ncpu', type=int, default=None)
 def main(
         jwst_dataset_dir,
+        ncpu, 
     ):
 
     # Add script dir to sys path
@@ -85,6 +114,10 @@ def main(
     
     # Prepare output
     output_name = 'table_of_jwst_dataset_visit_instrument_filter_groups.csv'
+    
+    # check input ncpu
+    if ncpu is None:
+        ncpu = max(1, os.cpu_count()//2)
     
     # 
     all_jwst_uncal_files = []
@@ -104,6 +137,7 @@ def main(
         raise Exception('Error! Some files are not found! See previous message.')
     
     # 
+    ndataset = len(all_jwst_uncal_files)
     all_jwst_dataset_dict = OrderedDict()
     all_jwst_dataset_dict['dataset_name'] = []
     all_jwst_dataset_dict['proposal_id'] = []
@@ -117,30 +151,44 @@ def main(
     all_jwst_dataset_dict['dec_v1'] = []
     all_jwst_dataset_dict['pa_v3'] = []
     all_jwst_dataset_dict['s_region'] = []
-    for i, jwst_uncal_file in enumerate(all_jwst_uncal_files):
-        
-        with datamodels.open(jwst_uncal_file) as model:
-            instrument_name = model.meta.instrument.name
-            filter_name = model.meta.instrument.filter
-            detector_name = model.meta.instrument.detector
-            ra_v1, dec_v1, pa_v3 = model.meta.pointing.ra_v1, model.meta.pointing.dec_v1, model.meta.pointing.pa_v3
-            s_region = model.meta.wcsinfo.s_region
-        
-        dataset_name = all_jwst_dataset_name[i]
-        dataset_info = all_jwst_dataset_info[i]
-        
-        all_jwst_dataset_dict['dataset_name'].append(dataset_name)
-        all_jwst_dataset_dict['proposal_id'].append(dataset_info.proposal_id)
-        all_jwst_dataset_dict['obs_num'].append(dataset_info.obs_num)
-        all_jwst_dataset_dict['visit_num'].append(dataset_info.visit_num)
-        all_jwst_dataset_dict['instrument'].append(instrument_name)
-        all_jwst_dataset_dict['filter'].append(filter_name)
-        all_jwst_dataset_dict['detector'].append(detector_name)
-        all_jwst_dataset_dict['parallel'].append(dataset_info.parallel)
-        all_jwst_dataset_dict['ra_v1'].append(ra_v1)
-        all_jwst_dataset_dict['dec_v1'].append(dec_v1)
-        all_jwst_dataset_dict['pa_v3'].append(pa_v3)
-        all_jwst_dataset_dict['s_region'].append(s_region)
+    
+    # for i, jwst_uncal_file in enumerate(all_jwst_uncal_files):
+    # 
+    #     with datamodels.open(jwst_uncal_file) as model:
+    #         instrument_name = model.meta.instrument.name
+    #         filter_name = model.meta.instrument.filter
+    #         detector_name = model.meta.instrument.detector
+    #         ra_v1, dec_v1, pa_v3 = model.meta.pointing.ra_v1, model.meta.pointing.dec_v1, model.meta.pointing.pa_v3
+    #         s_region = model.meta.wcsinfo.s_region
+    # 
+    #     dataset_name = all_jwst_dataset_name[i]
+    #     dataset_info = all_jwst_dataset_info[i]
+    # 
+    #     all_jwst_dataset_dict['dataset_name'].append(dataset_name)
+    #     all_jwst_dataset_dict['proposal_id'].append(dataset_info.proposal_id)
+    #     all_jwst_dataset_dict['obs_num'].append(dataset_info.obs_num)
+    #     all_jwst_dataset_dict['visit_num'].append(dataset_info.visit_num)
+    #     all_jwst_dataset_dict['instrument'].append(instrument_name)
+    #     all_jwst_dataset_dict['filter'].append(filter_name)
+    #     all_jwst_dataset_dict['detector'].append(detector_name)
+    #     all_jwst_dataset_dict['parallel'].append(dataset_info.parallel)
+    #     all_jwst_dataset_dict['ra_v1'].append(ra_v1)
+    #     all_jwst_dataset_dict['dec_v1'].append(dec_v1)
+    #     all_jwst_dataset_dict['pa_v3'].append(pa_v3)
+    #     all_jwst_dataset_dict['s_region'].append(s_region)
+    
+    # 
+    with multiprocessing.Manager() as manager:
+        with multiprocessing.Pool(ncpu) as pool:
+            d = manager.dict()
+            for key in all_jwst_dataset_dict:
+                d[key] = [None]*ndataset
+            for i in range(ndataset):
+                pool.apply_async(store_into_jwst_dataset_dict, args=(i, d, all_jwst_uncal_files, all_jwst_dataset_name, all_jwst_dataset_info))
+            pool.close()
+            pool.join()
+            for key in all_jwst_dataset_dict.keys():
+                all_jwst_dataset_dict[key] = d[key]
     
     # 
     all_jwst_dataset_table = Table(all_jwst_dataset_dict)
