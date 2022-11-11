@@ -219,13 +219,18 @@ def main(
         # check if already processed
         for entry in model.history:
             for k,v in entry.items():
-                if v.startswith('Applied flat field correction'):
-                    logger.info('{!r} already had flat field correction applied. Skipping!'.format(input_filepath))
-                    already_applied_flat = False
+                if v.startswith('Applied flatfield'):
+                    logger.info('{!r} already had flatfield applied (found entry in history). Skipping!'.format(input_filepath))
+                    already_applied_flat = True
+        # check if cal_step.flat
+        if not already_applied_flat:
+            if model.meta.cal_step.flat_field == 'COMPLETE':
+                logger.info('{!r} already had flatfield applied (found S_FLAT is COMPLETE). Skipping!'.format(input_filepath))
+                already_applied_flat = True
     
+    # set skip flat or not
     if already_applied_flat:
         pipeline_object.flat_field.skip = True
-    
     else:
         override_flat = None
         if user_flat_file is not None:
@@ -249,6 +254,13 @@ def main(
     # Check
     assert os.path.isfile(output_filepath)
     
+    
+    # Modify flat status
+    if already_applied_flat:
+        with datamodels.open(output_filepath) as model:
+            if model.meta.cal_step.flat_field != 'COMPLETE':
+                model.meta.cal_step.flat_field = 'COMPLETE'
+            model.save(output_filepath)
     
     
     # Print progress
