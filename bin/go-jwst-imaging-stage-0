@@ -141,7 +141,7 @@ ${script_dir}/go-jwst-imaging-presort-visits.py
 
 
 # create qsub job array script
-${script_dir}/go-qsub-jwst-imaging-jobarray.bash
+${script_dir}/go-qsub-jwst-imaging-jobarray-group.bash
 
 
 

@@ -11,6 +11,7 @@ conda_env="$CONDA_DEFAULT_ENV" # "jwstpmap1009" # "jwstpmap0995" # "base"
 concurrent=20
 groupsize=10
 ndataset=${#dataset_names[@]}
+ngroups=$(awk "BEGIN {print (int((${ndataset}+${groupsize}-1)/${groupsize}));}") # round up
 #maxiter=$(awk "BEGIN {print (int(${ndataset}/${groupsize})+1)*${groupsize};}") # round up
 ncpu=1
 mem="16gb" # maximum-cores 48 processes will need 68GB
@@ -28,7 +29,7 @@ echo "#PBS -j oe" >> $goscript # join stdout and stderr
 #echo "#PBS -k oe" >> $goscript # keep stdout and stderr on running hostname
 #echo "#PBS -m abe" >> $goscript # send email notifications for all, begin, end
 echo "#PBS -m n" >> $goscript # do not send emails -- not working
-echo "#PBS -t 1-${ndataset}:${groupsize}%${concurrent}" >> $goscript
+echo "#PBS -t 1-${ngroups}%${concurrent}" >> $goscript
 #
 echo "set -e" >> $goscript
 if [[ ! -z $crds_context ]]; then
@@ -57,6 +58,10 @@ echo "type go-jwst-imaging-stage-1" >> $goscript
 echo "type go-jwst-imaging-stage-2" >> $goscript
 echo "type go-jwst-imaging-stage-3" >> $goscript
 # 
+echo "ndataset=$ndataset" >> $goscript
+echo "ngroups=$ngroups" >> $goscript
+echo "concurrent=$concurrent" >> $goscript
+# 
 echo "" >> $goscript
 echo "dataset_names=( \\" >> $goscript
 for (( i=0; i<${#dataset_names[@]}; i++ )); do
@@ -77,12 +82,12 @@ check_cal_files () {
 
 mark_end=0
 for (( igroup=0; igroup<${groupsize}; igroup++ )); do
-    idataset=\$((\${PBS_ARRAYID}+\${igroup}-1))
+    idataset=\$(awk "BEGIN {print ((\${PBS_ARRAYID}-1)*${groupsize}+\${igroup});}")
     if [[ \${idataset} -lt \${#dataset_names[@]} ]]; then
         echo "************************"
-        echo "dataset_name=\${dataset_names[\${idataset}]}"
+        echo "dataset_name=\${dataset_names[idataset]}"
         echo "************************"
-        dataset_name=\${dataset_names[\${idataset}]}
+        dataset_name=\${dataset_names[idataset]}
         
         echo "************************"
         echo "go-jwst-imaging-stage-1 \${dataset_name} --maximum-cores $maxcores"
