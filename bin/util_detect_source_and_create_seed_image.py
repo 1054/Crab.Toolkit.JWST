@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 # 
 """
-Finding source emission in the image, obtain 2D background.
+Detect source emission and 2D background in the input image, output seed image.
 
 Usage: 
-    ./util_make_seed_image_for_rate_image.py ngc0628_miri_lvl3_f770w_i2d_hackedbgr.fits
+    ./util_detect_source_and_create_seed_image.py some_image.fits
 
 By Daizhong Liu @MPE. 
 
-Last update: 2022-07-27.
-Last update: 2022-10-03 rewritten based on "util_make_seed_image_for_rate_image.py".
+Last updates: 
+    2022-07-27.
+    2022-10-03 rewritten based on "util_make_seed_image_for_rate_image.py".
+    2022-11-11 
+
 """
 import os, sys, re, shutil
 import click
@@ -20,6 +23,7 @@ from astropy.modeling import fitting as apy_fitting
 from astropy.convolution import convolve as apy_convolve
 from astropy.convolution import Gaussian2DKernel
 from photutils.background import Background2D
+from scipy.ndimage import median_filter as scipy_median_filter
 # import matplotlib as mpl
 # import matplotlib.pyplot as plt
 # mpl.rcParams['savefig.dpi'] = 300
@@ -51,17 +55,21 @@ from jwst.datamodels.dqflags import pixel as dqflags_pixel
 
 from jwst.datamodels import ImageModel, FlatModel
 
+# code name and version
+CODE_NAME = 'util_detect_source_and_create_seed_image.py'
+CODE_AUTHOR = 'Daizhong Liu'
+CODE_VERSION = '20221111'
+CODE_HOMEPAGE = ''
+
 # logging
 import logging
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(CODE_NAME)
 logger.setLevel(logging.DEBUG)
 
-# version
-VERSION = '20221003'
 
 
-
+# define functions
 def prep_crds_getreferences_kwargs(model):
     crds_getreferences_kwargs = {}
     
@@ -183,7 +191,10 @@ def get_dqmask_for_image(
         
         if extension == '':
             try:
-                dqmask = (hdul['CON'].data != 0).astype(int)
+                context_image = hdul['CON'].data
+                while len(context_image.shape) > 2:
+                    context_image = context_image[0]
+                dqmask = (context_image != 0).astype(int)
                 extension = 'CON'
                 # CON: 2-D context image, which encodes information about 
                 # which input images contribute to a specific output pixel
@@ -195,7 +206,7 @@ def get_dqmask_for_image(
         if dqmask is None and dq is not None:
             dqmask = get_dqmask_from_dq(dq)
     
-    if combine_flat_dqmask:
+    if extension == '' and combine_flat_dqmask:
         # 
         #DZLIU: 2022-07-27 the problem is that MIRI cal.fits DQ are not distinguishing 4QPM or coronograph support shadow areas!
         #                  the DQ flags are only correct in the 'flat' calibration file "jwst_miri_flat_0786.fits"
@@ -221,6 +232,9 @@ def detect_source_and_background_for_image(
         lsigma = None, 
         usigma = None, 
         sigma = 3.0, 
+        box_size = None, 
+        box_frac = 0.05, 
+        median_filter = 1, 
         smooth = 0.0, 
         minpixarea = 1, # 
         flat_file = None, # for MIRI only, will combine DQ from the flat file.
@@ -232,7 +246,7 @@ def detect_source_and_background_for_image(
     ):
     
     if verbose:
-        logger.info('detect_source_and_background_for_image: {!r}'.format(fits_image))
+        logger.info('Detecting source and background for image: {!r}'.format(fits_image))
     
     # strip off file name suffix
     fits_name = os.path.splitext(os.path.basename(fits_image))[0]
@@ -266,7 +280,7 @@ def detect_source_and_background_for_image(
     
     # check output file
     if verbose:
-        logger.info('output_fits_image: {!r}'.format(output_fits_image))
+        logger.info('Output image file: {!r}'.format(output_fits_image))
     if os.path.isfile(output_fits_image): 
         if not overwrite:
             if verbose:
@@ -308,8 +322,9 @@ def detect_source_and_background_for_image(
                        exclude_percentile = 50.0, # default is 10.0 percent bad pixel per box
                       ) 
     pixval_median = bkg.background_median
-    pixval_rms = np.nanmax(bkg.background_rms)
-    
+    pixval_rms = np.nanmean(bkg.background_rms)
+    bkg2d_map = bkg.background
+    rms2d_map = bkg.background_rms
     if verbose:
         logger.info('Computed background median {} rms {}'.format(pixval_median, pixval_rms))
     
@@ -325,20 +340,24 @@ def detect_source_and_background_for_image(
     
     
     # improve the mask
-    nonbright_mask = np.logical_and(image > pixval_median - lsigma * pixval_rms, 
-                                    image < pixval_median + usigma * pixval_rms)
+    #nonbright_mask = np.logical_and(image > pixval_median - lsigma * pixval_rms, 
+    #                                image < pixval_median + usigma * pixval_rms)
+    nonbright_mask = np.logical_and(image > bkg2d_map - lsigma * pixval_rms, 
+                                    image < bkg2d_map + usigma * pixval_rms)
     
     
-    # analyze Background2D with a 1/20 box size
+    # analyze Background2D with a 1/30 box size
     box_size = min(header['NAXIS1'], header['NAXIS2']) // 30
     bkg2 = Background2D(image, box_size = box_size, 
                        mask = ~np.logical_and(valid_mask, nonbright_mask), # mask means invalid here. 
                        exclude_percentile = 50.0, # default is 10.0 percent bad pixel per box
                       ) 
     pixval_median = bkg2.background_median
-    pixval_rms = np.nanmax(bkg2.background_rms)
+    pixval_rms = np.nanmean(bkg2.background_rms)
     bkg2d_map = bkg2.background
     rms2d_map = bkg2.background_rms
+    if verbose:
+        logger.info('Computed background median {} rms {}'.format(pixval_median, pixval_rms))
     
     output_bkg2d_image = re.sub(r'\.fits$', '_bkg2d.fits', output_fits_image) # 1 means valid pixel
     output_hdu = fits.PrimaryHDU(data=bkg2d_map, header=header)
@@ -354,13 +373,21 @@ def detect_source_and_background_for_image(
     
     
     # update the mask
-    bright_mask = (image > bkg2d_map + usigma * rms2d_map)
+    #bright_mask = (image > bkg2d_map + usigma * rms2d_map)
+    bright_mask = (image > bkg2d_map + usigma * pixval_rms)
     
     
     # mask sources by 3-sigma and invalid data
     #mask = np.logical_or(bright_mask, dqmask == 0) # mask bright sources (>3sigma) and invalid pixels (dqmask == 0)
     mask = bright_mask # mask bright sources (>3sigma), IGNORING invalid pixels (dqmask == 0)
     arr = mask.astype(int)
+    
+    
+    # median filter
+    if median_filter > 0:
+        if verbose:
+            logger.info('Median-filtering pixels with size {} pixels'.format(median_filter))
+        arr = scipy_median_filter(arr, median_filter)
     
     
     # minpixarea
@@ -401,6 +428,13 @@ def detect_source_and_background_for_image(
         logger.info('Output to "{}"'.format(output_fits_image))
     
     # save masked image
+    output_masked_image = re.sub(r'\.fits$', '_nonbrigthmask.fits', output_fits_image) # 1 means valid pixel
+    output_hdu = fits.PrimaryHDU(data=nonbright_mask.astype(int), header=header)
+    output_hdu.writeto(output_masked_image, overwrite=True)
+    if verbose:
+        logger.info('Output to "{}"'.format(output_masked_image))
+    
+    # save masked image
     masked_image = np.full(image.shape, fill_value=0.0)
     #mask1 = np.logical_and(arr>0, dqmask > 0)
     mask1 = (arr>0)
@@ -419,8 +453,11 @@ def detect_source_and_background_for_image(
 @click.option('--lsigma', type=float, default=None)
 @click.option('--usigma', type=float, default=None)
 @click.option('--sigma', type=float, default=3.0)
-@click.option('--smooth', type=float, default=0.0)
+@click.option('--box-size', type=int, default=None)
+@click.option('--box-frac', type=float, default=0.05)
+@click.option('--median-filter', type=int, default=1) # median_filter
 @click.option('--minpixarea', type=int, default=1)
+@click.option('--smooth', type=float, default=0.0)
 @click.option('--flat-file', type=click.Path(exists=True), default=None)
 @click.option('--output-dir', type=click.Path(exists=False), default=None)
 @click.option('--with-filter-in-output-name', is_flag=True, default=False)
@@ -431,8 +468,11 @@ def main(
         lsigma, 
         usigma, 
         sigma, 
-        smooth, 
+        box_size,
+        box_frac,
+        median_filter, 
         minpixarea, 
+        smooth, 
         flat_file, 
         output_dir,
         with_filter_in_output_name, 
@@ -445,8 +485,11 @@ def main(
         lsigma = lsigma, 
         usigma = usigma, 
         sigma = sigma, 
-        smooth = smooth, 
+        box_size = box_size, 
+        box_frac = box_frac, 
+        median_filter = median_filter, 
         minpixarea = minpixarea, 
+        smooth = smooth, 
         flat_file = flat_file, 
         output_dir = output_dir, 
         with_filter_in_output_name = with_filter_in_output_name, 

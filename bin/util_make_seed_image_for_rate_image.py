@@ -52,7 +52,8 @@ from jwst.datamodels import ImageModel, FlatModel
 
 # logging
 import logging
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger('util_make_seed_image_for_rate_image.py')
 logger.setLevel(logging.DEBUG)
 
 

@@ -46,27 +46,52 @@ done
 
 
 
+# this_file_in="$mosaic_image"
+# this_file_out=$(echo "$this_file_in" | perl -p -e 's/\.fits$//g')"_remstriping_galaxy_seed_image.fits"
+# this_dir_out=$(dirname "$this_file_out")
+# if [[ ! -f "$this_file_out" ]] || [[ $overwrite -gt 0 ]]; then
+#     echo $script_dir/remstriping "$this_file_in" \
+#         --no-apply-flat \
+#         --no-inplace \
+#         --output-dir "$this_dir_out" \
+#         --output-suffix "remstriping" \
+#         --smooth 1.0
+#     $script_dir/remstriping "$this_file_in" \
+#         --no-apply-flat \
+#         --no-inplace \
+#         --output-dir "$this_dir_out" \
+#         --output-suffix "remstriping" \
+#         --smooth 1.0
+# fi
+# if [[ ! -f "$this_file_out" ]]; then
+#     echo "Error! Failed to produce the output files: \"$this_file_out\""
+#     exit 255
+# fi
+
 this_file_in="$mosaic_image"
-this_file_out=$(echo "$this_file_in" | perl -p -e 's/\.fits$//g')"_remstriping_galaxy_seed_image.fits"
+this_file_out=$(echo "$this_file_in" | perl -p -e 's/\.fits$//g')"_galaxy_seed_image.fits"
+this_script_out=$(echo "$this_file_in" | perl -p -e 's/\.fits$//g')"_galaxy_seed_image_script.sh"
 this_dir_out=$(dirname "$this_file_out")
 if [[ ! -f "$this_file_out" ]] || [[ $overwrite -gt 0 ]]; then
-    echo $script_dir/remstriping "$this_file_in" \
-        --no-apply-flat \
-        --no-inplace \
-        --output-dir "$this_dir_out" \
-        --output-suffix "remstriping" \
-        --smooth 1.0
-    $script_dir/remstriping "$this_file_in" \
-        --no-apply-flat \
-        --no-inplace \
-        --output-dir "$this_dir_out" \
-        --output-suffix "remstriping" \
-        --smooth 1.0
+    echo "#!/bin/bash" > "$this_script_out"
+    echo "#cd $(pwd)" >> "$this_script_out"
+    echo "$script_dir/util_detect_source_and_create_seed_image.py \\" >> "$this_script_out"
+    echo "    \"$this_file_in\" \\" >> "$this_script_out"
+    echo "    --smooth 1.0 \\" >> "$this_script_out"
+    if [[ $overwrite -gt 0 ]]; then
+        echo "    --overwrite \\" >> "$this_script_out"
+    fi
+    echo "    " >> "$this_script_out"
+    cat "$this_script_out"
+    chmod +x "$this_script_out"
+    bash "$this_script_out"
 fi
 if [[ ! -f "$this_file_out" ]]; then
     echo "Error! Failed to produce the output files: \"$this_file_out\""
     exit 255
 fi
+
+
 
 seed_image="$this_file_out"
 
@@ -83,21 +108,22 @@ for (( k = 0; k < ${#cal_images[@]}; k++ )); do
     fi
     rate_image=$(echo "$cal_image" | perl -p -e 's%/calibrated2_cals/%/calibrated1_rates/%g' | perl -p -e 's%_cal.fits$%_rate.fits%g')
     masked_rate=$(echo "$rate_image" | perl -p -e 's%_rate\.fits$%%g')"_masked_source_emission_rate.fits"
-    masked_rate_seed_txt=$(echo "$rate_image" | perl -p -e 's%_rate.fits$%%g')"_masked_source_emission_rate_seed.txt"
+    masked_rate_script=$(echo "$rate_image" | perl -p -e 's%_rate.fits$%%g')"_masked_source_emission_rate_script.sh"
     # make source-emission-masked rate image
     if [[ ! -f "$masked_rate" ]] || [[ $overwrite -gt 0 ]]; then
-        echo $script_dir/util_mask_rate_data_with_seed_image.py \
-            "$rate_image" \
-            "$seed_image" \
-            "$masked_rate"
-        $script_dir/util_mask_rate_data_with_seed_image.py \
-            "$rate_image" \
-            "$seed_image" \
-            "$masked_rate"
-        echo "$script_dir/util_mask_rate_data_with_seed_image.py \\" > "$masked_rate_seed_txt"
-        echo "    $rate_image \\" >> "$masked_rate_seed_txt"
-        echo "    $seed_image \\" >> "$masked_rate_seed_txt"
-        echo "    $masked_rate" >> "$masked_rate_seed_txt"
+        echo "#!/bin/bash" > "$masked_rate_script"
+        echo "#cd $(pwd)" >> "$masked_rate_script"
+        echo "$script_dir/util_mask_rate_data_with_seed_image.py \\" >> "$masked_rate_script"
+        echo "    \"$rate_image\" \\" >> "$masked_rate_script"
+        echo "    \"$seed_image\" \\" >> "$masked_rate_script"
+        echo "    \"$masked_rate\" \\" >> "$masked_rate_script"
+        if [[ $overwrite -gt 0 ]]; then
+            echo "    --overwrite \\" >> "$masked_rate_script"
+        fi
+        echo "    " >> "$masked_rate_script"
+        cat "$masked_rate_script"
+        chmod +x "$masked_rate_script"
+        bash "$masked_rate_script"
     fi
     if [[ ! -f "$masked_rate" ]]; then
         echo "Error! Failed to produce the output files: \"$masked_rate\""
