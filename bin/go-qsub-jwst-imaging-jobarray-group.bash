@@ -58,9 +58,10 @@ echo "type go-jwst-imaging-stage-1" >> $goscript
 echo "type go-jwst-imaging-stage-2" >> $goscript
 echo "type go-jwst-imaging-stage-3" >> $goscript
 # 
+echo "" >> $goscript
 echo "ndataset=$ndataset" >> $goscript
 echo "ngroups=$ngroups" >> $goscript
-echo "concurrent=$concurrent" >> $goscript
+echo "groupsize=$groupsize" >> $goscript
 # 
 echo "" >> $goscript
 echo "dataset_names=( \\" >> $goscript
