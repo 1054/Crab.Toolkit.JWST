@@ -182,13 +182,13 @@ def main(
         with multiprocessing.Pool(ncpu) as pool:
             d = manager.dict()
             for key in all_jwst_dataset_dict:
-                d[key] = [None]*ndataset
+                d[key] = manager.list([None]*ndataset)
             for i in range(ndataset):
                 pool.apply_async(store_into_jwst_dataset_dict, args=(i, d, all_jwst_uncal_files, all_jwst_dataset_name, all_jwst_dataset_info))
             pool.close()
             pool.join()
             for key in all_jwst_dataset_dict.keys():
-                all_jwst_dataset_dict[key] = d[key]
+                all_jwst_dataset_dict[key] = list(d[key])
     
     # 
     all_jwst_dataset_table = Table(all_jwst_dataset_dict)
@@ -203,6 +203,7 @@ def main(
     all_jwst_group_id = []
     all_jwst_group_sizes = []
     group_id = 0
+    total_group_number = len(grouped.groups)
     for key, group in zip(grouped.groups.keys, grouped.groups):
         group_id += 1
         group_text = '# group_id = {}'.format(group_id) + '\n'
@@ -217,7 +218,7 @@ def main(
                 shutil.move(output_list_file, output_list_file+'.backup')
             with open(output_list_file, 'w') as fp:
                 fp.write(group_text)
-            logger.info('Output to {!r}'.format(output_list_file))
+            logger.info('Output to {!r} (progress {}/{})'.format(output_list_file, group_id, total_group_number))
     
     # 
     all_jwst_dataset_table.add_column(all_jwst_group_id, index=0, name='group_id')
