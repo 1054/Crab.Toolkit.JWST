@@ -13,7 +13,7 @@ groupsize=10
 ndataset=${#dataset_names[@]}
 #maxiter=$(awk "BEGIN {print (int(${ndataset}/${groupsize})+1)*${groupsize};}") # round up
 ncpu=1
-mem="10gb" # maximum-cores 48 processes will need 68GB
+mem="16gb" # maximum-cores 48 processes will need 68GB
 maxcores="none" # use single core, multiple core large memory is not as efficient as using single core small memory but large number of concurrent processes
 timestamp=$(date +"%Y%m%d_%Hh%Mm%Ss")
 currentdir=$(pwd -P)
@@ -79,16 +79,39 @@ mark_end=0
 for (( igroup=0; igroup<${groupsize}; igroup++ )); do
     idataset=\$((\${PBS_ARRAYID}+\${igroup}-1))
     if [[ \${idataset} -lt \${#dataset_names[@]} ]]; then
+        echo "************************"
+        echo "dataset_name=\${dataset_names[\${idataset}]}"
+        echo "************************"
         dataset_name=\${dataset_names[\${idataset}]}
-        go-jwst-imaging-stage-1 \${dataset_name} --maximum-cores \"$maxcores\"
+        
+        echo "************************"
+        echo "go-jwst-imaging-stage-1 \${dataset_name} --maximum-cores $maxcores"
+        echo "************************"
+        go-jwst-imaging-stage-1 \${dataset_name} --maximum-cores $maxcores
+        
+        echo "************************"
+        echo "go-jwst-imaging-stage-2 \${dataset_name}"
+        echo "************************"
         go-jwst-imaging-stage-2 \${dataset_name}
+        
         if [[ -f \${dataset_name}/list_of_jwst_datasets_in_the_same_group.txt ]]; then
             same_group_datasets=(\$(cat \${dataset_name}/list_of_jwst_datasets_in_the_same_group.txt | grep -v '^#'))
             n_same_group_datasets=\${#same_group_datasets[@]}
-            if [[ "\${same_group_datasets[n_same_group_datasets-1]}" == \${dataset_name} ]]; then
+            # if this is the last one in the group
+            if [[ "\${same_group_datasets[n_same_group_datasets-1]}" == "\${dataset_name}" ]]; then
+                echo "************************"
+                echo "Checking cal files for \${same_group_datasets[@]}"
+                echo "************************"
                 while ! check_cal_files \${same_group_datasets[@]}; do
-                    
+                    sleep 60
+                    echo "************************"
+                    echo "Rechecking cal files for \${same_group_datasets[@]}"
+                    echo "************************"
                 done
+                echo "************************"
+                echo go-jwst-imaging-stage-3 \${same_group_datasets[@]}
+                echo "************************"
+                go-jwst-imaging-stage-3 \${same_group_datasets[@]}
             fi
         fi
     else
@@ -99,28 +122,28 @@ done
 
 EOF
 # 
-cat << EOF >> $goscript
-
-if [[ \${mark_end} -eq 1 ]]; then
-    waitseconds=\$(awk "BEGIN {print int(\${#dataset_names[@]}*2);}") # 2 sec per dataset
-    echo "sleep \$waitseconds"
-    sleep \$waitseconds
-    echo "Checking cal files ..."
-    echo "go-jwst-imaging-check-cal-files > log_checking_cal_files.txt"
-    go-jwst-imaging-check-cal-files > log_checking_cal_files.txt
-    while [[ \$(tail -n 1 log_checking_cal_files.txt | grep "All good" | wc -l) -eq 0 ]]; do
-        waitseconds2=\$(awk "BEGIN {print int(\${#dataset_names[@]}*0.5);}") # 0.5 sec per dataset
-        echo "sleep \$waitseconds2"
-        sleep \$waitseconds2
-        echo "Checking cal files ..."
-        echo "go-jwst-imaging-check-cal-files > log_checking_cal_files.txt"
-        go-jwst-imaging-check-cal-files > log_checking_cal_files.txt
-    done
-    echo "Finally, running go-jwst-imaging-stage-3 ..."
-    go-jwst-imaging-stage-3 \${dataset_names[@]}
-fi
-
-EOF
+# cat << EOF >> $goscript
+# 
+# if [[ \${mark_end} -eq 1 ]]; then
+#     waitseconds=\$(awk "BEGIN {print int(\${#dataset_names[@]}*2);}") # 2 sec per dataset
+#     echo "sleep \$waitseconds"
+#     sleep \$waitseconds
+#     echo "Checking cal files ..."
+#     echo "go-jwst-imaging-check-cal-files > log_checking_cal_files.txt"
+#     go-jwst-imaging-check-cal-files > log_checking_cal_files.txt
+#     while [[ \$(tail -n 1 log_checking_cal_files.txt | grep "All good" | wc -l) -eq 0 ]]; do
+#         waitseconds2=\$(awk "BEGIN {print int(\${#dataset_names[@]}*0.5);}") # 0.5 sec per dataset
+#         echo "sleep \$waitseconds2"
+#         sleep \$waitseconds2
+#         echo "Checking cal files ..."
+#         echo "go-jwst-imaging-check-cal-files > log_checking_cal_files.txt"
+#         go-jwst-imaging-check-cal-files > log_checking_cal_files.txt
+#     done
+#     echo "Finally, running go-jwst-imaging-stage-3 ..."
+#     go-jwst-imaging-stage-3 \${dataset_names[@]}
+# fi
+# 
+# EOF
 # 
 echo "Prepared qsub script: $goscript"
 while true; do
