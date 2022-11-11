@@ -6,6 +6,14 @@ if [[ ${#dataset_names[@]} -eq 0 ]]; then
     echo "under current directory: $(pwd -P)"
     exit 255
 fi
+if [[ -z "$CONDA_DEFAULT_ENV" ]] || [[ "$CONDA_DEFAULT_ENV" == "base" ]]; then
+    echo "Please set conda environment first!"
+    exit 255
+fi
+if [[ -z "$CRDS_CONTEXT" ]]; then
+    echo "Please set CRDS_CONTEXT!"
+    exit 255
+fi
 crds_context="$CRDS_CONTEXT" # "jwst_0986.pmap"
 conda_env="$CONDA_DEFAULT_ENV" # "jwstpmap1009" # "jwstpmap0995" # "base"
 concurrent=20

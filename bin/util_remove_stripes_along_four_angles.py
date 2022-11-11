@@ -188,13 +188,15 @@ def apply_flat_to_model(model):
 @click.argument('output_file', required=False, type=click.Path(exists=False), default=None)
 @click.option('--mask-image', type=click.Path(exists=True), default=None, help='A mask image containing pixels which will not be analyzed, e.g., due to bright emission. If not given we will automatically determine the mask.')
 @click.option('--mask-threshold', type=float, default=None, help='Pixels with values above this threshold in the mask image will be not be analyzed.')
-@click.option('--apply-flat', is_flag=True, default=None, help='Apply CRDS flat correction before destriping?')
+@click.option('--apply-flat', is_flag=True, default=False, help='Apply CRDS flat correction before destriping?')
+@click.option('--tilted-angle/--no-tilted-angle', is_flag=True, default=True, help='Destriping also along tiled angles? If not then only horizontal and vertical angles.')
 def main(
         input_file, 
         output_file, 
         mask_image, 
         mask_threshold, 
         apply_flat, 
+        tilted_angle, 
     ):
     """
     Input rate image. 
@@ -277,7 +279,11 @@ def main(
     #gy, gx = np.mgrid[0:ny, 0:nx]
     
     # Four angles to scan the image
-    angles = [0.0, 90.0, 30.0, 150.0] # order is important!
+    #angles = [0.0, 90.0, 30.0, 150.0] # order is important!
+    if tilted_angle:
+        angles = [0.0, 90.0, 30.0, 150.0] # order is important!
+    else:
+        angles = [0.0, 90.0] # order is important!
     
     bkgs = np.zeros((len(rects), len(angles), ny, nx))
     
