@@ -222,7 +222,7 @@ def main(
     with open(old_flux_cal_file, 'w') as fp:
         fp.write(' '.join(flux_cal_headers)+'\n')
         fp.write(' '.join([str(t) for t in flux_cal_dict.values()])+'\n')
-            logger.info('Extracted MIRAGE flux_cal file {!r} to temporary file {!r}'.format(flux_cal_file, old_flux_cal_file))
+        logger.info('Extracted MIRAGE flux_cal file {!r} to temporary file {!r}'.format(flux_cal_file, old_flux_cal_file))
     
     # Filter Pupil Module Detector VEGAMAG ABMAG STMAG PHOTFLAM PHOTFNU Pivot_wave
     ABMAG = ((photmjsr * u.MJy/u.sr) * (pixar_sr * u.sr)).to(u.ABmag)
