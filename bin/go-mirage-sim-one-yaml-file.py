@@ -64,6 +64,7 @@ DEFAULT_NEW_PSF_WING_THRESHOLD = None # '/n17data/dzliu/Work/JWST-MIRAGE-Simulat
 @click.option('--output-file', type=str, default=None, help='Can specifiy a new output filename.')
 @click.option('--new-psf-library', type=click.Path(exists=True), default=DEFAULT_NEW_PSF_LIBRARY, help='New psf library directory.')
 @click.option('--new-psf-wing-threshold', type=click.Path(exists=True), default=DEFAULT_NEW_PSF_LIBRARY, help='New psf library directory.')
+@click.option('--match-zeropoints/--no-match-zeropoint', is_flag=True, default=True, help='Create a temporary flux_cal file using the CRDS photom reference file.')
 @click.option('--overwrite', is_flag=True, default=False)
 @click.option('--verbose', is_flag=True, default=True)
 def main(
@@ -72,6 +73,7 @@ def main(
         output_file, 
         new_psf_library,
         new_psf_wing_threshold, 
+        match_zeropoints, 
         overwrite, 
         verbose, 
     ):
@@ -216,10 +218,11 @@ def main(
     flux_cal_dict['Pivot_wave'] = float(flux_cal_dict['Pivot_wave'])
     
     # prepare new flux_cal file
-    old_flux_cal_file = os.path.join(output_dir, os.path.splitext(os.path.basename(yaml_file))[0] + '_flux_cal_old.txt')
+    old_flux_cal_file = os.path.join(output_dir, os.path.splitext(os.path.basename(yaml_file))[0] + '_flux_cal_mirage.txt')
     with open(old_flux_cal_file, 'w') as fp:
         fp.write(' '.join(flux_cal_headers)+'\n')
         fp.write(' '.join([str(t) for t in flux_cal_dict.values()])+'\n')
+            logger.info('Extracted MIRAGE flux_cal file {!r} to temporary file {!r}'.format(flux_cal_file, old_flux_cal_file))
     
     # Filter Pupil Module Detector VEGAMAG ABMAG STMAG PHOTFLAM PHOTFNU Pivot_wave
     ABMAG = ((photmjsr * u.MJy/u.sr) * (pixar_sr * u.sr)).to(u.ABmag)
@@ -240,14 +243,19 @@ def main(
     flux_cal_dict['PHOTFLAM'] = PHOTFLAM.value
     flux_cal_dict['PHOTFNU'] = PHOTFNU.value
     
-    new_flux_cal_file = os.path.join(output_dir, os.path.splitext(os.path.basename(yaml_file))[0] + '_flux_cal.txt')
+    new_flux_cal_file = os.path.join(output_dir, os.path.splitext(os.path.basename(yaml_file))[0] + '_flux_cal_crds.txt')
     with open(new_flux_cal_file, 'w') as fp:
         fp.write(' '.join(flux_cal_headers)+'\n')
         fp.write(' '.join([str(t) for t in flux_cal_dict.values()])+'\n')
+        logger.info('Converted CRDS photom file {!r} to new flux_cal file {!r}'.format(photom_file, new_flux_cal_file))
     
-    yamldict['Reffiles']['flux_cal'] = new_flux_cal_file
-    if verbose:
-        logger.info('Using new flux_cal file {!r}'.format(new_flux_cal_file))
+    if match_zeropoints:
+        yamldict['Reffiles']['flux_cal'] = new_flux_cal_file
+        if verbose:
+            logger.info('Using new CRDS-based flux_cal file {!r}'.format(new_flux_cal_file))
+    else:
+        if verbose:
+            logger.info('Using original mirage flux_cal file {!r}'.format(old_flux_cal_file))
     
     
     # Write yaml dict to disk
