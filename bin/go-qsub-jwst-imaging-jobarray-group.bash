@@ -66,12 +66,31 @@ echo ")" >> $goscript
 # 
 cat << EOF >> $goscript
 
+check_cal_files () {
+    for (( i=1; i<=\$#; i++ )); do
+        if [[ ! -f "\${!i}/calibrated2_cals/\${!i}_cal.fits" ]]; then
+            return 2
+        fi
+    done
+    return 0
+}
+
 mark_end=0
 for (( igroup=0; igroup<${groupsize}; igroup++ )); do
     idataset=\$((\${PBS_ARRAYID}+\${igroup}-1))
     if [[ \${idataset} -lt \${#dataset_names[@]} ]]; then
-        go-jwst-imaging-stage-1 \${dataset_names[\${idataset}]} --maximum-cores \"$maxcores\"
-        go-jwst-imaging-stage-2 \${dataset_names[\${idataset}]}
+        dataset_name=\${dataset_names[\${idataset}]}
+        go-jwst-imaging-stage-1 \${dataset_name} --maximum-cores \"$maxcores\"
+        go-jwst-imaging-stage-2 \${dataset_name}
+        if [[ -f \${dataset_name}/list_of_jwst_datasets_in_the_same_group.txt ]]; then
+            same_group_datasets=(\$(cat \${dataset_name}/list_of_jwst_datasets_in_the_same_group.txt | grep -v '^#'))
+            n_same_group_datasets=\${#same_group_datasets[@]}
+            if [[ "\${same_group_datasets[n_same_group_datasets-1]}" == \${dataset_name} ]]; then
+                while ! check_cal_files \${same_group_datasets[@]}; do
+                    
+                done
+            fi
+        fi
     else
         mark_end=1
         break

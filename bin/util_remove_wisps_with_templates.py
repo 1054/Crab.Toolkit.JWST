@@ -68,10 +68,20 @@ def do_template_fitting(data_image, error_image, template_image):
     # then define a strict mask in the templates image so that we will focus on matching that part of image
     # there are some annoying small 3x3 areas in the templates image that have a high pixel value and affect later fitting
     # we need to do some median filter then dilation to remove them and get a better mask
+    template_max = np.max(template_image[valid_mask])
     template_mean = np.mean(template_image[valid_mask])
     template_stddev = np.std(template_image[valid_mask]-template_mean)
-    #signal_mask = np.logical_and(valid_mask, template_image>=np.nanpercentile(template_image,50))
-    signal_mask = np.logical_and(valid_mask, template_image>=(template_mean+2.0*template_stddev)) # select template signal > 2-sigma
+    template_P95 = np.percentile(template_image[valid_mask], 95.) # use top 5% pixels
+    logger.info('template_max: {}'.format(template_stddev))
+    logger.info('template_mean: {}'.format(template_mean))
+    logger.info('template_stddev: {}'.format(template_stddev))
+    logger.info('template_P95: {}'.format(template_P95))
+    if template_mean+2.0*template_stddev < template_P95:
+        signal_mask = np.logical_and(valid_mask, template_image>=(template_mean+2.0*template_stddev)) # select template signal > 2-sigma
+        logger.info('np.count_nonzero(signal_mask): {} (2-sigma)'.format(np.count_nonzero(signal_mask)))
+    else:
+        signal_mask = np.logical_and(valid_mask, template_image>=template_P95) # select template signal > 2-sigma
+        logger.info('np.count_nonzero(signal_mask): {} (top 5%)'.format(np.count_nonzero(signal_mask)))
     
     #filtered_mask = gaussian_filter(signal_mask, sigma=0.5) # filters out small mask areas
     filtered_mask = median_filter(signal_mask, size=5) # filters out small mask areas
@@ -194,7 +204,7 @@ def main(
             template_filepath = search_path
             break
     if template_filepath is None:
-        errmsg = 'Error! Could not find template file! Searched paths: {}'.format(repr(searched_paths))
+        errmsg = 'Error! Could not find template file! Searched paths: {}. Please specify --template-dir.'.format(repr(searched_paths))
         logger.error(errmsg)
         raise Exception(errmsg) # template file not found
     
