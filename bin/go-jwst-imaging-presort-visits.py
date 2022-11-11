@@ -201,6 +201,7 @@ def main(
     output_list_name = 'list_of_jwst_datasets_in_the_same_group.txt'
     grouped = all_jwst_dataset_table.group_by(['proposal_id', 'obs_num', 'visit_num', 'instrument', 'filter'])
     all_jwst_group_id = []
+    all_jwst_group_sizes = []
     group_id = 0
     for key, group in zip(grouped.groups.keys, grouped.groups):
         group_id += 1
@@ -209,16 +210,18 @@ def main(
             group_text += group[irow]['dataset_name'] + '\n'
         for irow in range(len(group)):
             all_jwst_group_id.append(group_id)
+            all_jwst_group_sizes.append(len(group))
             dataset_name = group[irow]['dataset_name']
             output_list_file = os.path.join(jwst_dataset_dir, dataset_name, output_list_name)
             if os.path.isfile(output_list_file):
                 shutil.move(output_list_file, output_list_file+'.backup')
             with open(output_list_file, 'w') as fp:
                 fp.write(group_text)
-            #logger.info('Output to {!r}'.format(output_list))
+            logger.info('Output to {!r}'.format(output_list_file))
     
     # 
     all_jwst_dataset_table.add_column(all_jwst_group_id, index=0, name='group_id')
+    all_jwst_dataset_table.add_column(all_jwst_group_sizes, index=1, name='group_size')
     
     # 
     output_file = os.path.join(jwst_dataset_dir, output_name)
