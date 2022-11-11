@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-dataset_names=($(ls -1d jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_*))
+dataset_names=($(ls -1d jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_* | grep -v ".ecsv$"))
 if [[ ${#dataset_names[@]} -eq 0 ]]; then
     echo "No dataset dir is found: jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_*"
     echo "under current directory: $(pwd -P)"
@@ -93,10 +93,15 @@ mark_end=0
 for (( igroup=0; igroup<${groupsize}; igroup++ )); do
     idataset=\$(awk "BEGIN {print ((\${PBS_ARRAYID}-1)*${groupsize}+\${igroup});}")
     if [[ \${idataset} -lt \${#dataset_names[@]} ]]; then
+    
         echo "************************"
         echo "dataset_name=\${dataset_names[idataset]}"
         echo "************************"
         dataset_name=\${dataset_names[idataset]}
+        
+        if [[ "\$dataset_name" == *".ecsv" ]]; then
+            continue
+        fi
         
         echo "************************"
         echo "go-jwst-imaging-stage-1 \${dataset_name} --maximum-cores $maxcores"

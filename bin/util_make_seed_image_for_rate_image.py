@@ -120,6 +120,8 @@ def make_seed_image_for_rate_image(
         #error = fits.getdata(fits_image, header=False, extname='ERR')
         #dqmask = np.isfinite(error).astype(int)
         context_image = fits.getdata(fits_image, header=False, extname='CON')
+        while len(context_image.shape) > 2:
+            context_image = context_image[0]
         dqmask = context_image
     # deal with masked data using the error map
     elif fits_image.find('_miri_flat') >= 0:
