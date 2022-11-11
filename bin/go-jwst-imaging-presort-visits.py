@@ -64,7 +64,7 @@ def parse_jwst_dataset_name(input_str, raise_exception=True):
         return JWST_Dataset_Name(*regex_match.groups())
     else:
         if raise_exception:
-            raise Exception('Error! The input prefix does not seem to have the right format: {}'.format(regex_format))
+            raise Exception('Error! The input str {!r} does not seem to have the right format: {!r}'.format(input_str, regex_format))
         return None
 
 
@@ -92,7 +92,7 @@ def main(
     all_jwst_dataset_info = []
     has_error = False
     for dataset_name in os.listdir(jwst_dataset_dir):
-        dataset_info = parse_jwst_dataset_name(dataset_name)
+        dataset_info = parse_jwst_dataset_name(dataset_name, raise_exception=False)
         if dataset_info is not None:
             uncal_file = os.path.join(jwst_dataset_dir, dataset_name, 'uncals', dataset_name + '_uncal.fits')
             if not os.path.isfile(uncal_file):
