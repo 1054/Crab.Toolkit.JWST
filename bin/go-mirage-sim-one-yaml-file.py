@@ -64,7 +64,7 @@ DEFAULT_NEW_PSF_WING_THRESHOLD = None # '/n17data/dzliu/Work/JWST-MIRAGE-Simulat
 @click.option('--output-file', type=str, default=None, help='Can specifiy a new output filename.')
 @click.option('--new-psf-library', type=click.Path(exists=True), default=DEFAULT_NEW_PSF_LIBRARY, help='New psf library directory.')
 @click.option('--new-psf-wing-threshold', type=click.Path(exists=True), default=DEFAULT_NEW_PSF_LIBRARY, help='New psf library directory.')
-@click.option('--match-zeropoints/--no-match-zeropoint', is_flag=True, default=True, help='Create a temporary flux_cal file using the CRDS photom reference file.')
+@click.option('--match-zeropoints/--no-match-zeropoints', is_flag=True, default=True, help='Create a temporary flux_cal file using the CRDS photom reference file.')
 @click.option('--overwrite', is_flag=True, default=False)
 @click.option('--verbose', is_flag=True, default=True)
 def main(
