@@ -89,7 +89,6 @@ check_cal_files () {
     return 0
 }
 
-mark_end=0
 for (( igroup=0; igroup<${groupsize}; igroup++ )); do
     idataset=\$(awk "BEGIN {print ((\${PBS_ARRAYID}-1)*${groupsize}+\${igroup});}")
     if [[ \${idataset} -lt \${#dataset_names[@]} ]]; then
@@ -113,6 +112,21 @@ for (( igroup=0; igroup<${groupsize}; igroup++ )); do
         echo "************************"
         go-jwst-imaging-stage-2 \${dataset_name}
         
+    else
+        break
+    fi
+done
+
+for (( igroup=0; igroup<${groupsize}; igroup++ )); do
+    idataset=\$(awk "BEGIN {print ((\${PBS_ARRAYID}-1)*${groupsize}+\${igroup});}")
+    if [[ \${idataset} -lt \${#dataset_names[@]} ]]; then
+        
+        dataset_name=\${dataset_names[idataset]}
+        
+        if [[ "\$dataset_name" == *".ecsv" ]]; then
+            continue
+        fi
+        
         if [[ -f \${dataset_name}/list_of_jwst_datasets_in_the_same_group.txt ]]; then
             same_group_datasets=(\$(cat \${dataset_name}/list_of_jwst_datasets_in_the_same_group.txt | grep -v '^#'))
             n_same_group_datasets=\${#same_group_datasets[@]}
@@ -133,8 +147,8 @@ for (( igroup=0; igroup<${groupsize}; igroup++ )); do
                 go-jwst-imaging-stage-3 \${same_group_datasets[@]}
             fi
         fi
+        
     else
-        mark_end=1
         break
     fi
 done

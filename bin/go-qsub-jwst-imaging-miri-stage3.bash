@@ -1,31 +1,38 @@
 #!/bin/bash
 # 
-dataset_names=($(ls -1d jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_* | grep -v ".ecsv$"))
+dataset_names=($(ls -1d jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_mirimage))
 if [[ ${#dataset_names[@]} -eq 0 ]]; then
-    echo "No dataset dir is found: jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_*"
+    echo "No dataset dir is found: jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_mirimage"
     echo "under current directory: $(pwd -P)"
+    exit 255
+fi
+if [[ -z "$CONDA_DEFAULT_ENV" ]] || [[ "$CONDA_DEFAULT_ENV" == "base" ]]; then
+    echo "Please set conda environment first!"
+    exit 255
+fi
+if [[ -z "$CRDS_CONTEXT" ]]; then
+    echo "Please set CRDS_CONTEXT!"
     exit 255
 fi
 crds_context="$CRDS_CONTEXT" # "jwst_0986.pmap"
 conda_env="$CONDA_DEFAULT_ENV" # "jwstpmap1009" # "jwstpmap0995" # "base"
 concurrent=20
 ncpu=1
-mem="40gb" # maximum-cores 48 processes will need 68GB
+mem="20gb" # 
 maxcores="none" # "quarter"
 timestamp=$(date +"%Y%m%d_%Hh%Mm%Ss")
 currentdir=$(pwd -P)
-goscript="go_qsub_processing_jwst_imaging_${timestamp}.bash"
+goscript="go_qsub_processing_jwst_imaging_${timestamp}_miri_stage3.bash"
 echo "#!/bin/bash" > $goscript
 echo "#PBS -N JW${timestamp}" >> $goscript
 echo "#PBS -l nodes=1:ppn=${ncpu},mem=${mem},walltime=24:00:00" >> $goscript
 echo "#PBS -d ${currentdir}/" >> $goscript
-echo "#PBS -o log_processing_jwst_imaging_${timestamp}" >> $goscript
+echo "#PBS -o log_processing_jwst_imaging_${timestamp}_miri_stage3" >> $goscript
 #echo "#PBS -e log_processing_jwst_imaging_${timestamp}_\${PBS_ARRAYID}.err" >> $goscript
 echo "#PBS -j oe" >> $goscript # join stdout and stderr
 #echo "#PBS -k oe" >> $goscript # keep stdout and stderr on running hostname
 #echo "#PBS -m abe" >> $goscript # send email notifications for all, begin, end
 echo "#PBS -m n" >> $goscript # do not send emails -- not working
-echo "#PBS -t 1-$((${#dataset_names[@]}+1))%${concurrent}" >> $goscript
 #
 echo "set -e" >> $goscript
 if [[ ! -z $crds_context ]]; then
@@ -50,8 +57,6 @@ if [[ ! -z $CONDA_EXE ]] && [[ ! -z $conda_env ]]; then
 fi
 #
 echo "" >> $goscript
-echo "type go-jwst-imaging-stage-1" >> $goscript
-echo "type go-jwst-imaging-stage-2" >> $goscript
 echo "type go-jwst-imaging-stage-3" >> $goscript
 # 
 echo "" >> $goscript
@@ -61,35 +66,21 @@ for (( i=0; i<${#dataset_names[@]}; i++ )); do
 done
 echo ")" >> $goscript
 # 
-echo "" >> $goscript
-echo "if [[ \${PBS_ARRAYID} -le \${#dataset_names[@]} ]]; then" >> $goscript
-echo "" >> $goscript
-echo "  go-jwst-imaging-stage-1 \${dataset_names[\${PBS_ARRAYID}-1]} --maximum-cores \"$maxcores\"" >> $goscript
-echo "" >> $goscript
-echo "  go-jwst-imaging-stage-2 \${dataset_names[\${PBS_ARRAYID}-1]}" >> $goscript
-echo "" >> $goscript
-echo "fi" >> $goscript
-# 
 cat << EOF >> $goscript
 
-if [[ \${PBS_ARRAYID} -gt \${#dataset_names[@]} ]]; then
-    waitseconds=\$(awk "BEGIN {print int(\${#dataset_names[@]}*2);}") # 2 sec per dataset
-    echo "sleep \$waitseconds"
-    sleep \$waitseconds
-    echo "Checking cal files ..."
-    echo "go-jwst-imaging-check-cal-files > log_checking_cal_files.txt"
-    go-jwst-imaging-check-cal-files > log_checking_cal_files.txt
-    while [[ \$(tail -n 1 log_checking_cal_files.txt | grep "All good" | wc -l) -eq 0 ]]; do
-        waitseconds2=\$(awk "BEGIN {print int(\${#dataset_names[@]}*0.5);}") # 0.5 sec per dataset
-        echo "sleep \$waitseconds2"
-        sleep \$waitseconds2
-        echo "Checking cal files ..."
-        echo "go-jwst-imaging-check-cal-files > log_checking_cal_files.txt"
-        go-jwst-imaging-check-cal-files > log_checking_cal_files.txt
-    done
-    echo "Finally, running go-jwst-imaging-stage-3 ..."
-    go-jwst-imaging-stage-3 \${dataset_names[@]}
-fi
+for (( i=0; i<\${#dataset_names[@]}; i++ )); do
+    dataset_name="\${dataset_names[i]}"
+    if [[ -f "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits" ]]; then
+        mv "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits" \\
+           "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits.backup"
+    fi
+    if [[ -f "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt" ]]; then
+        mv "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt" \\
+           "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt.backup"
+    fi
+done
+
+go-jwst-imaging-stage-3 \${dataset_names[@]}
 
 EOF
 # 

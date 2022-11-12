@@ -76,6 +76,7 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     masked_rate_image="${multiobs_masked_rate_images[i]}"
     merged_masked_rate=$(dirname "$masked_rate_image")"/merged_other_visits_masked_source_emission_rate.fits"
     merged_masked_rate_list_file=$(dirname "$masked_rate_image")"/merged_other_visits_masked_source_emission_rate.list.txt"
+    merged_masked_rate_updated=0
     output_cal_image=$(echo "$cal_image" | perl -p -e 's/_cal.fits$/_bkgsub_masked_source_emission_cal.fits/g')
     
     if [[ ! -f "$merged_masked_rate" ]] || [[ $overwrite -gt 0 ]]; then
@@ -86,7 +87,7 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
             fi
         done
         if [[ ${#applicable_masked_rate_images[@]} -eq 0 ]]; then
-            echo "Error! No applicable_masked_rate_images?"
+            echo "Error! No applicable_masked_rate_images (no other dither/visit)?"
             exit 255
         fi
         
@@ -101,10 +102,13 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
             echo "${applicable_masked_rate_images[m]}" >> "$merged_masked_rate_list_file"
         done
         
+        merged_masked_rate_updated=1
+        
         if [[ -f "$output_cal_image" ]]; then
             mv "$output_cal_image" "$output_cal_image.backup"
         fi
-        
+    elif [[ -f "$merged_masked_rate" ]]; then
+        echo "Found existing file \"$merged_masked_rate\" and overwrite is False. Skipping."
     fi
     if [[ ! -f "$merged_masked_rate" ]]; then
         echo "Error! Failed to produce the output files: \"$merged_masked_rate\""
@@ -113,9 +117,9 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     
     
     # then also re-run stage2
-    if [[ ! -f "$output_cal_image" ]] || [[ $overwrite -gt 0 ]]; then
+    if [[ ! -f "$output_cal_image" ]] || [[ $overwrite -gt 0 ]] || [[ $merged_masked_rate_updated -gt 0 ]]; then
         proc_args=(--darkobs "$merged_masked_rate")
-        if [[ $overwrite -gt 0 ]]; then
+        if [[ $overwrite -gt 0 ]] || [[ $merged_masked_rate_updated -gt 0 ]]; then
             proc_args+=(--overwrite)
         fi
         echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
@@ -130,6 +134,8 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
             echo "Error! Failed to produce the output file: $output_cal_image"
             exit 255
         fi
+    elif [[ -f "$output_cal_image" ]]; then
+        echo "Found existing file \"$output_cal_image\" and overwrite is False and merged_masked_rate_updated is False. Skipping."
     fi
     
 done

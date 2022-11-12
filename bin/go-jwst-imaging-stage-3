@@ -280,9 +280,9 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
     redo_files_in=()
     for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         dataset_name="${dataset_names[i]}"
-        if [[ -f "$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits" ]]; then
+        #if [[ -f "$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits" ]]; then
             redo_files_in+=("$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits")
-        fi
+        #fi
     done
 
 
