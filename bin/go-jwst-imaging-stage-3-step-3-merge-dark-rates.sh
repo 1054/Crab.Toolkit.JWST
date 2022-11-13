@@ -110,9 +110,12 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     elif [[ -f "$merged_masked_rate" ]]; then
         echo "Found existing file \"$merged_masked_rate\" and overwrite is False. Skipping."
     fi
+    # check result
     if [[ ! -f "$merged_masked_rate" ]]; then
         echo "Error! Failed to produce the output files: \"$merged_masked_rate\""
         exit 255
+    else
+        echo "Successfully produced the output files: \"$merged_masked_rate\""
     fi
     
     
@@ -136,6 +139,13 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
         fi
     elif [[ -f "$output_cal_image" ]]; then
         echo "Found existing file \"$output_cal_image\" and overwrite is False and merged_masked_rate_updated is False. Skipping."
+    fi
+    # check result
+    if [[ ! -f "$output_cal_image" ]]; then
+        echo "Error! Failed to produce the output files: \"$output_cal_image\""
+        exit 255
+    else
+        echo "Successfully produced the output files: \"$output_cal_image\""
     fi
     
 done
