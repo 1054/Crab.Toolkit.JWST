@@ -121,7 +121,7 @@ def hack_image_center(fits_file, out_file, ra, dec):
 def resample_mosaic_image(
         yaml_file, 
         mosaic_file,
-        psf_file = None,
+        mosaic_psf = None, # can be a float number or psf_file
         instrument = 'nircam',
         filter_name = 'F200W',
         output_name = None, 
@@ -135,7 +135,7 @@ def resample_mosaic_image(
     """
     Inputs:
         User given mosaic image and psf. 
-        If psf_file is None, we will construct a single-pixel PSF.
+        If mosaic_psf is None, we will construct a single-pixel PSF.
     
     Outputs:
         FITS images for Mirage simulation, 
@@ -177,15 +177,23 @@ def resample_mosaic_image(
     pixel_scale = get_pixel_scale(mosaic_file)
     # 
     # Prepare psf_file
-    if psf_file is None:
+    if mosaic_psf is None:
         # create a single pixel psf_file
         psf_file = re.sub(r'\.fits$', r'', mosaic_file) + '.psf.fits'
         prepare_mosaic_psf_file(psf_file, pixel_scale=pixel_scale, overwrite=True)
         mosaic_fwhm = pixel_scale # 1
         mosaic_fwhm_units = 'arcsec' # 'pixels' -- there is a bug in "mirage/seed_image/fits_seed_image.py", line 364, in crop_and_blot -- UnboundLocalError: local variable 'mosaic_fwhm_arcsec' referenced before assignment
     else:
-        mosaic_fwhm = None # If None, a Gaussian2D model will be fit to the PSF to estimate the FWHM -- "mirage/seed_image/fits_seed_image.py"
-        mosaic_fwhm_units = 'arcsec'
+        #if re.match(r'^[0-9eE.+-]+$', mosaic_psf):
+        try:
+            float(mosaic_psf)
+            psf_file = None # 
+            mosaic_fwhm = float(mosaic_psf)
+            mosaic_fwhm_units = 'arcsec'
+        except ValueError:
+            psf_file = mosaic_psf
+            mosaic_fwhm = None # If None, a Gaussian2D model will be fit to the PSF to estimate the FWHM -- "mirage/seed_image/fits_seed_image.py"
+            mosaic_fwhm_units = 'arcsec'
     # 
     # Create ImgSeed
     seed = ImgSeed(
@@ -410,6 +418,7 @@ class SkyCoordOption(click.Option):
 @click.option('--pointing-file', type=click.Path(exists=True), default=DEFAULT_POINTING_FILE)
 @click.option('--mosaic-file', type=click.Path(exists=True), default=DEFAULT_MOSAIC_FILE)
 @click.option('--mosaic-center', nargs=2, cls=SkyCoordOption, type=SkyCoordParamType_, default=DEFAULT_MOSAIC_CENTER, help='Center coordinate in the input mosaic image.')
+@click.option('--mosaic-psf', type=str, default=None, help='If the input mosaic image has a PSF, please provide a PSF FWHM in arcsec or a PSF file. In the latter case, a Gaussian2D model will be fit to the PSF to estimate the FWHM, see "mirage/seed_image/fits_seed_image.py".')
 @click.option('--star-catalog', type=click.Path(exists=True), default=DEFAULT_STAR_CATALOG)
 @click.option('--galaxy-catalog', type=click.Path(exists=True), default=None)
 @click.option('--instrument', type=str, default=DEFAULT_INSTRUMENT)
@@ -431,6 +440,7 @@ def main(
         pointing_file, 
         mosaic_file, 
         mosaic_center,
+        mosaic_psf,
         star_catalog, 
         galaxy_catalog, 
         instrument, 
@@ -470,6 +480,9 @@ def main(
     
     if mosaic_file is not None:
         mosaic_metadata = mirage.psf.tools.get_psf_metadata(mosaic_file) # make sure this runs
+    
+    if mosaic_psf == '':
+        mosaic_psf = None
     
     # Check input catalogs
     catalogs = {}
@@ -620,6 +633,7 @@ def main(
                 extended_img = resample_mosaic_image(
                     yaml_file = yaml_file, 
                     mosaic_file = mosaic_file, 
+                    mosaic_psf = mosaic_psf, 
                     output_dir = sim_output_dir, 
                     output_name = yaml_name+'_ext', 
                     recenter = recenter, 

@@ -125,6 +125,11 @@ go-jwst-imaging-stage-3-step-1.py \
 ```
 
 
+## Notes: 
+
+- Require JWST pipeline version `>= 1.8.2`.
+
+
 ## Last updates: 
 
 - 2022-11-14 Daizhong Liu

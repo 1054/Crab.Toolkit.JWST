@@ -46,6 +46,11 @@ go-jwst-imaging-stage-0
 it will almost do every preparation as written in the [Reducing one dataset](reducing_one_dataset.md) document, then create a qsub script, then ask you if you want to submit that script to the cluster. You can check the source code of these scripts to see how it works or get inspired. 
 
 
+## Notes: 
+
+- Require JWST pipeline version `>= 1.8.2`.
+
+
 ## Last updates: 
 
 - 2022-11-14 Daizhong Liu
