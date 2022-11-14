@@ -694,6 +694,11 @@ def main(
             yaml_file = yaml_ext_file
         
         
+        # match zeropoints by updating flux_cal file! TODO
+        # see "go-mirage-sim-one-yaml-file.py" for now. Will insert code to here.
+        
+        
+        # Run actual simulation to generate uncal files
         if not skip_simdata:
             
             # Check sim data output file
