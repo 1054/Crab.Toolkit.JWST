@@ -118,6 +118,12 @@ fi
 if [[ $(python -c 'import click' 2>&1 | grep ModuleNotFoundError | wc -l) -gt 0 ]]; then 
     pip install click
 fi
+if [[ $(python -c 'import lmfit' 2>&1 | grep ModuleNotFoundError | wc -l) -gt 0 ]]; then 
+    pip install lmfit
+fi
+if [[ $(python -c 'import reproject' 2>&1 | grep ModuleNotFoundError | wc -l) -gt 0 ]]; then 
+    pip install reproject
+fi
 
 
 

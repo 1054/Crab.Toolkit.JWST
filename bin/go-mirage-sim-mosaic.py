@@ -2,9 +2,9 @@
 # 
 import os, sys, re, shutil, glob, time, json, yaml, asdf
 if "CRDS_PATH" not in os.environ:
-    os.environ["CRDS_PATH"] = '/n17data/dzliu/Data/jwst_crds_cache'
+    os.environ["CRDS_PATH"] = os.path.expanduser('~/jwst_crds_cache')
 if "MIRAGE_DATA" not in os.environ:
-    os.environ["MIRAGE_DATA"] = '/n23data1/hjmcc/jwst/mirage/mirage_data'
+    os.environ["MIRAGE_DATA"] = os.path.expanduser('~/jwst_mirage_data')
 if "CRDS_SERVER_URL" not in os.environ:
     os.environ["CRDS_SERVER_URL"] = 'https://jwst-crds.stsci.edu'
 
@@ -68,9 +68,9 @@ DEFAULT_OBSERVATION_LIST_FILE = 'observation_list.yaml'
 # paramfile = 'jw01727043001_01101_00001_nrca1_go.yaml'
 # with open(templateParamFile, 'r') as ifp:
 #     y = yaml.safe_load(ifp)
-#     print("y['simSignals']['galaxyListFile'] = {}".format(y['simSignals']['galaxyListFile'])) # e.g., /automnt/n17data/dzliu/Work/20220919-Max-script/catalogs/galaxies_DEC_2022_input.cat
-#     print("y['simSignals']['pointsource'] = {}".format(y['simSignals']['pointsource'])) # e.g., /automnt/n17data/dzliu/Work/20220919-Max-script/catalogs/ptsrc_all_filters_region_BEST_sw.cat
-#     print("y['simSignals']['psfpath'] = {}".format(y['simSignals']['psfpath'])) # e.g., psfpath: /n23data1/hjmcc/jwst/mirage/mirage_data/nircam/gridded_psf_library
+#     print("y['simSignals']['galaxyListFile'] = {}".format(y['simSignals']['galaxyListFile'])) # e.g., ~/Work/20220919*/catalogs/galaxies_DEC_2022_input.cat
+#     print("y['simSignals']['pointsource'] = {}".format(y['simSignals']['pointsource'])) # e.g., ~/Work/20220919*/catalogs/ptsrc_all_filters_region_BEST_sw.cat
+#     print("y['simSignals']['psfpath'] = {}".format(y['simSignals']['psfpath'])) # e.g., psfpath: ~/jwst_mirage_data/nircam/gridded_psf_library
 #     with open(paramfile, 'w') as ofp:
 #         yaml.dump(y, ofp)
 
@@ -234,24 +234,24 @@ def resample_mosaic_image(
     # FIXING -- setting "seed.center_ra = ra # TODO: hack the center" and "...dec..." above
     # BUG AGAIN -- AttributeError: None object has no attribute 'search_output_file' -- "stpipe/step.py", line 1071, in _make_output_path
     # FIXING -- 
-    #   edit "/home/dzliu/Software/CONDA/miniconda3/lib/python3.9/site-packages/jwst/outlier_detection/outlier_detection.py", 
+    #   edit "~/Software/CONDA/miniconda3/lib/python3.9/site-packages/jwst/outlier_detection/outlier_detection.py", 
     #       find "model_path = self.make_output_path(", go to next line, CHANGE 
     #           "basename=blot_root," -> "basepath=blot_root,"
     #       then add following new line:
     #           "ext='fits',"
     #       #find "self.make_output_path = pars.get", got to second next line, CHANGE
     #       #    "partial(Step._make_output_path, None)" -> "partial(Step._make_output_path, self)"
-    #   edit "/home/dzliu/Software/CONDA/miniconda3/lib/python3.9/site-packages/mirage/seed_image/blot_image.py", 
+    #   edit "~/Software/CONDA/miniconda3/lib/python3.9/site-packages/mirage/seed_image/blot_image.py", 
     #   must pass a 'make_output_path' object to 'pars' when calling outlier_detection.OutlierDetection:
     #       find "outlier_detection.OutlierDetection()", two lines above, add new line:
     #           from functools import partial
     #           from jwst.stpipe import Step
     #           stepx = OutlierDetectionStep()
-    #           pars['make_output_path'] = stepx.make_output_path # partial(Step._make_output_path, ) #<DZLIU>#
+    #           pars['make_output_path'] = stepx.make_output_path # partial(Step._make_output_path, )
     #       
     # BUG AGAIN -- AttributeError: None object has no attribute 'search_output_file' -- "stpipe/step.py", line 1071, in _make_output_path
     # FIXING -- 
-    #   edit "/home/dzliu/Software/CONDA/miniconda3/lib/python3.9/site-packages/mirage/seed_image/save_seed.py", 
+    #   edit "~/Software/CONDA/miniconda3/lib/python3.9/site-packages/mirage/seed_image/save_seed.py", 
     #   comment out the following line:
     #       #<DZLIU># kw['PIXARMAP'] = parameters['Reffiles']['pixelAreaMap'] #<DZLIU># pixelAreaMap is not used
     # 

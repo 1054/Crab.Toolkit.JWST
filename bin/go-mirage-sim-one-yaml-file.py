@@ -2,9 +2,9 @@
 # 
 import os, sys, re, shutil, glob, time, json, yaml, asdf
 if "CRDS_PATH" not in os.environ:
-    os.environ["CRDS_PATH"] = '/n17data/dzliu/Data/jwst_crds_cache'
+    os.environ["CRDS_PATH"] = os.path.expanduser('~/jwst_crds_cache')
 if "MIRAGE_DATA" not in os.environ:
-    os.environ["MIRAGE_DATA"] = '/n23data1/hjmcc/jwst/mirage/mirage_data'
+    os.environ["MIRAGE_DATA"] = os.path.expanduser('~/jwst_mirage_data')
 if "CRDS_SERVER_URL" not in os.environ:
     os.environ["CRDS_SERVER_URL"] = 'https://jwst-crds.stsci.edu'
 
@@ -48,8 +48,8 @@ logging.basicConfig(level='DEBUG')
 logger = logging.getLogger('go-mirage-sim-mosaic')
 
 
-DEFAULT_NEW_PSF_LIBRARY = None # '/n17data/dzliu/Work/JWST-MIRAGE-Simulation/20221008_make_mirage_psf_library/mirage_data/nircam/gridded_psf_library'
-DEFAULT_NEW_PSF_WING_THRESHOLD = None # '/n17data/dzliu/Work/JWST-MIRAGE-Simulation/20221008_make_mirage_psf_library/custom_nircam_psf_wing_rate_thresholds.txt'
+DEFAULT_NEW_PSF_LIBRARY = None # '~/Work/JWST-MIRAGE-Simulation/20221008_make_mirage_psf_library/mirage_data/nircam/gridded_psf_library'
+DEFAULT_NEW_PSF_WING_THRESHOLD = None # '~/Work/JWST-MIRAGE-Simulation/20221008_make_mirage_psf_library/custom_nircam_psf_wing_rate_thresholds.txt'
 
 
 
@@ -152,7 +152,7 @@ def main(
     #   pixar_sr   =  9.31E-14 for the lw
     #   --> (27.312679347975052 * u.ABmag).to(u.MJy) / (9.31E-14 * u.sr) = 0.46342406 MJy/sr
     # CRDS: 
-    #   [2022-11-10 19:48:45] Prefetch for PHOTOM reference file is '/home/dzliu/jwst_crds_cache/references/jwst/nircam/jwst_nircam_photom_0111.fits'.
+    #   [2022-11-10 19:48:45] Prefetch for PHOTOM reference file is '~/jwst_crds_cache/references/jwst/nircam/jwst_nircam_photom_0111.fits'.
     #   hdul[0].header
     #   PIXAR_SR = 9.31E-14 / Nominal pixel area in steradians
     #   hdul[1].data

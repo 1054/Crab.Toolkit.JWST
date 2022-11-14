@@ -2,9 +2,9 @@
 # 
 import os, sys, re, json, shutil
 if "CRDS_PATH" not in os.environ:
-    os.environ["CRDS_PATH"] = '/n17data/dzliu/Data/jwst_crds_cache'
+    os.environ["CRDS_PATH"] = os.path.expanduser('~/jwst_crds_cache')
 if "MIRAGE_DATA" not in os.environ:
-    os.environ["MIRAGE_DATA"] = '/n23data1/hjmcc/jwst/mirage/mirage_data'
+    os.environ["MIRAGE_DATA"] = os.path.expanduser('~/jwst_mirage_data')
 if "CRDS_SERVER_URL" not in os.environ:
     os.environ["CRDS_SERVER_URL"] = 'https://jwst-crds.stsci.edu'
 

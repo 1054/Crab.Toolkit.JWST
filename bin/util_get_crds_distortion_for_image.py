@@ -60,16 +60,16 @@ def prep_crds_getreferences_kwargs(model):
     # CRDS query parameters
     # https://jwst-pipeline.readthedocs.io/en/latest/jwst/flatfield/reference_files.html
     instrument_name = model.meta.instrument.name
-    if instrument_name.upper() in ['NIRCAM', 'NIRISS']: #<DZLIU>#
-        crds_dict = {'INSTRUME':instrument_name, #<DZLIU>#
+    if instrument_name.upper() in ['NIRCAM', 'NIRISS']: 
+        crds_dict = {'INSTRUME':instrument_name, 
                      'DETECTOR':model.meta.instrument.detector, 
                      'CHANNEL':model.meta.instrument.channel, 
                      'FILTER':model.meta.instrument.filter, 
                      'PUPIL':model.meta.instrument.pupil, 
                      'DATE-OBS':model.meta.observation.date,
                      'TIME-OBS':model.meta.observation.time}
-    elif instrument_name.upper() == 'MIRI': #<DZLIU>#
-        crds_dict = {'INSTRUME':instrument_name, #<DZLIU>#
+    elif instrument_name.upper() == 'MIRI': 
+        crds_dict = {'INSTRUME':instrument_name, 
                      'DETECTOR':model.meta.instrument.detector, 
                      'FILTER':model.meta.instrument.filter, 
                      'BAND':model.meta.instrument.band, 
@@ -97,7 +97,7 @@ def get_distortion_from_CRDS(model, raise_exception=True):
             crds_getreferences_kwargs = prep_crds_getreferences_kwargs(model)
     else:
         crds_getreferences_kwargs = prep_crds_getreferences_kwargs(model)
-    logger.info('crds_getreferences_kwargs: {}'.format(crds_getreferences_kwargs)) #<DZLIU>#
+    logger.info('crds_getreferences_kwargs: {}'.format(crds_getreferences_kwargs))
     ret = crds.getreferences(**crds_getreferences_kwargs)
     
     # check if CRDS got the flat correctly

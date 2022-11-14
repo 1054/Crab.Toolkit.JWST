@@ -2,20 +2,19 @@
 # 
 import os, sys, re, shutil, glob, time, json, yaml, asdf
 if "CRDS_PATH" not in os.environ:
-    os.environ["CRDS_PATH"] = os.path.expanduser('~/Data/JWST-CRDS') # '/n17data/dzliu/Data/jwst_crds_cache'
+    os.environ["CRDS_PATH"] = os.path.expanduser('~/jwst_crds_cache')
 if "CRDS_SERVER_URL" not in os.environ:
     os.environ["CRDS_SERVER_URL"] = 'https://jwst-crds.stsci.edu'
 if "MIRAGE_DATA" not in os.environ:
-    os.environ["MIRAGE_DATA"] = os.path.expanduser('~/Data/JWST-MIRAGE') # '/n23data1/hjmcc/jwst/mirage/mirage_data'
+    os.environ["MIRAGE_DATA"] = os.path.expanduser('~/jwst_mirage_data')
 if "MIRISIM_ROOT" not in os.environ:
-    os.environ["MIRISIM_ROOT"] = os.path.expanduser('~/Data/JWST-MIRISIM/mirisim') # os.path.expanduser('~/mirisim')
+    os.environ["MIRISIM_ROOT"] = os.path.expanduser('~/jwst_mirisim_data')
 if "PYSYN_CDBS" not in os.environ:
-    os.environ["PYSYN_CDBS"] = os.path.expanduser('~/Data/JWST-MIRISIM/mirisim/cdbs/') # os.path.expanduser('~/mirisim/cdbs')
+    os.environ["PYSYN_CDBS"] = os.path.expanduser('~/jwst_mirisim_data/cdbs/')
 if "CDP_DIR" not in os.environ:
-    os.environ["CDP_DIR"] = os.path.expanduser('~/Data/mirisim_data/CDP')
+    os.environ["CDP_DIR"] = os.path.expanduser('~/jwst_mirisim_data/CDP')
 
 sys.path.insert(0, os.path.expanduser('~/Cloud/Github/mirage'))
-sys.path.insert(0, os.path.expanduser('~/Cloud/Github/mirisim_iap_fr'))
 
 import click
 import astropy.units as u
@@ -329,7 +328,7 @@ def main(
     # Post-process illum_models, add WCS.
     for i in range(len(simulation.events)):
         if isinstance(simulation.events[i], mirisim.obssim.event.ExposureEvent):
-            # DZLIU fixing WCS of illum_models
+            # manually fixing WCS of illum_models
             file_base = os.path.join(
                 simulation.events[i].path_out, 
                 simulation.events[i].exposures['IMA'].path_illum_models, 
