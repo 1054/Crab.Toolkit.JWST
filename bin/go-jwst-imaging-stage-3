@@ -35,6 +35,12 @@ output_dir="calibrated3_mosaics"
 current_dir=$(pwd)
 overwrite=0
 dataset_names=()
+info_table_argnames=("--save-info-table-dir" "--save-info-table-name")
+info_table_kwargs=()
+info_table_dir=""
+info_table_name="mosaic_info_table" # must match the default in "go-jwst-imaging-stage-3-step-1.py"
+tweakreg_argnames=("--abs-refcat")
+tweakreg_kwargs=()
 resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
 resample_kwargs=()
 reprocess_NIRCam=0
@@ -60,6 +66,27 @@ while [[ $iarg -le $# ]]; do
         elif [[ "$argstr" == "--reprocess-miri" ]]; then
             reprocess_MIRI=1
             echo "reprocess_MIRI = $reprocess_MIRI"
+        elif [[ " $argstr " == *" ${info_table_argnames[@]} "* ]]; then
+            info_table_kwargs+=("${!iarg}")
+            echo -n "${!iarg} = "
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                info_table_kwargs+=("${!iarg}")
+                echo "\"${!iarg}\""
+                if [[ " $argstr " == " --save-info-table-dir " ]]; then
+                    info_table_dir="${!iarg}"
+                elif [[ " $argstr " == " --save-info-table-name " ]]; then
+                    info_table_name="${!iarg}"
+                fi
+            fi
+        elif [[ " $argstr " == *" ${tweakreg_argnames[@]} "* ]]; then
+            tweakreg_kwargs+=("${!iarg}")
+            echo -n "${!iarg} = "
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                tweakreg_kwargs+=("${!iarg}")
+                echo "\"${!iarg}\""
+            fi
         elif [[ " $argstr " == *" ${resample_argnames[@]} "* ]]; then
             resample_kwargs+=("${!iarg}")
             echo -n "${!iarg} = "
@@ -154,6 +181,12 @@ done
 # Run step 1
 dir_out="${output_dir}"
 proc_args=()
+for (( i = 0; i < ${#info_table_kwargs[@]}; i++ )); do
+    proc_args+=(${info_table_kwargs[i]})
+done
+for (( i = 0; i < ${#tweakreg_kwargs[@]}; i++ )); do
+    proc_args+=(${tweakreg_kwargs[i]})
+done
 for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
     proc_args+=(${resample_kwargs[i]})
 done
@@ -167,7 +200,15 @@ if [[ $ret -ne 0 ]]; then
     echo "Error occurred?!"
     exit 255
 fi
-files_out=($(find $dir_out -maxdepth 2 -mindepth 2 -type f -name "jw*_obs*_*_i2d.fits" | sort -V | grep -v '+' | grep -v 'outlier'))
+# find out what mosaic files are the output
+if [[ "$info_table_dir"x == ""x ]]; then
+    info_table_dir="$dir_out"
+fi
+if [[ "$info_table_name"x != ""x ]]; then
+    
+fi
+#files_out=($(find $dir_out -maxdepth 2 -mindepth 2 -type f -name "jw*_obs*_*_i2d.fits" | sort -V | grep -v '+' | grep -v 'outlier'))
+files_out=($(cat "$info_table_dir/$info_table_name.out"))
 if [[ ${#files_out[@]} -eq 0 ]]; then
     echo "Error! Failed to produce the output files: \"$dir_out/jw*_obs*_*/jw*_obs*_*_i2d.fits\""
     exit 255

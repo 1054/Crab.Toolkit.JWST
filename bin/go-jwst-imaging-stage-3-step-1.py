@@ -167,6 +167,15 @@ DEFAULT_PIXEL_SCALE = None
                                help='Drizzle pixel scale. '+
                                     'Absolute pixel scale in arcsec. '+
                                     'When provided, overrides pixel_scale_ratio.')
+@click.option('--abs-refcat', type=click.Path(exists=True), 
+                              default=None, 
+                              help='Absolute reference catalog, must contain `RA` and `DEC` columns, optionally `weight`. See `tweakwcs/imalign.py` `align_wcs`.')
+@click.option('--save-info-table-dir', type=click.Path(exists=False), 
+                                       default=None, 
+                                       help='Save the dataset-grouped info table to disk. Default directory is the `output_dir`.')
+@click.option('--save-info-table-name', type=str, 
+                                        default='mosaic_info_table', 
+                                        help='Save the dataset-grouped info table to disk. Default file name is "info_table" and two formats are saved, "csv" and "txt".')
 @click.option('--combine-program/--no-combine-program', is_flag=True, default=False, help='Combine all programs into one.')
 @click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
@@ -182,6 +191,9 @@ def main(
         pixfrac, 
         pixel_scale_ratio, 
         pixel_scale, 
+        abs_refcat, 
+        save_info_table_dir, 
+        save_info_table_name, 
         combine_program, 
         combine_obsnum, 
         combine_filter, 
@@ -309,10 +321,12 @@ def main(
     info_table = Table(info_table_dict)
     
     
-    # output info table
-    info_table_file = os.path.join(output_dir, 'info_table')
-    if not os.path.isdir(os.path.dirname(info_table_file)):
-        os.makedirs(os.path.dirname(info_table_file))
+    # save info table to disk
+    if save_info_table_dir is None:
+        save_info_table_dir = output_dir
+    if not os.path.isdir(save_info_table_dir):
+        os.makedirs(save_info_table_dir)
+    info_table_file = os.path.join(save_info_table_dir, save_info_table_name)
     if os.path.isfile(f'{info_table_file}.txt'):
         shutil.move(f'{info_table_file}.txt', f'{info_table_file}.txt.backup')
     if os.path.isfile(f'{info_table_file}.csv'):
@@ -343,6 +357,7 @@ def main(
     
     
     # prepare association file to process all rate files into one single output file
+    output_lookup_dict = OrderedDict()
     for subgroup_key, subgroup_table in zip(groupped_table.groups.keys, groupped_table.groups):
         
         unique_programs = np.unique(subgroup_table['program'])
@@ -454,6 +469,10 @@ def main(
         pipeline_object.tweakreg.save_results = True # "{output_subdir}/*_cal_tweakreg.fits"
         pipeline_object.tweakreg.search_output_file = False # do not use output_file define in parent step
         pipeline_object.tweakreg.output_use_model = True # use DataModel.meta.filename as output_file
+        if abs_refcat is not None and abs_refcat != '':
+            pipeline_object.tweakreg.abs_refcat = abs_refcat
+            #pipeline_object.tweakreg.save_abs_catalog = True # only if abs_refcat `gaia_cat_name in SINGLE_GROUP_REFCAT`
+        
         # Turn on SkyMatchStep
         #pipeline_object.skymatch.skip = False
         pipeline_object.skymatch.subtract = True
@@ -463,15 +482,17 @@ def main(
         #pipeline_object.skymatch.nclip = 10
         #pipeline_object.skymatch.upper = 1.0
         pipeline_object.skymatch.save_results = True
+        
         # Set OutlierDetection
         #pipeline_object.outlier_detection.skip = False
         pipeline_object.outlier_detection.output_dir = output_subdir
         pipeline_object.outlier_detection.pixfrac = pixfrac
-        #pipeline_object.resample_data = True # True is the default
         pipeline_object.outlier_detection.in_memory = False
+        
         # Set the ratio of input to output pixels to create an output mosaic 
         # on a 0.015"/pixel scale
         # see -- https://jwst-pipeline.readthedocs.io/en/latest/jwst/resample/arguments.html
+        #pipeline_object.resample_data = True # True is the default
         pipeline_object.resample.kernel = kernel
         pipeline_object.resample.pixfrac = pixfrac
         #pipeline_object.resample.pixel_scale_ratio = 0.48
@@ -511,9 +532,23 @@ def main(
                 shutil.move(f'{output_name}_{i}_cal_cat.ecsv', 
                             f'{output_subdir}/{output_name}_{i}_cal_cat/{output_name}_{i}_cal_cat.ecsv')
         
+        # add to lookup dict
+        output_lookup_dict[output_filepath] = subgroup_files
         
         # log
         logger.info("Processed {} -> {}".format(subgroup_files, output_filepath))
+    
+    
+    # update info table with final mosaic
+    if os.path.isfile(f'{info_table_file}.json'):
+        shutil.move(f'{info_table_file}.json', f'{info_table_file}.json.backup')
+    with open(f'{info_table_file}.json', 'w') as fp:
+        json.dump(output_lookup_dict, fp, indent=4)
+    if os.path.isfile(f'{info_table_file}.list'):
+        shutil.move(f'{info_table_file}.out', f'{info_table_file}.out.backup')
+    with open(f'{info_table_file}.out', 'w') as fp:
+        for key in output_lookup_dict.keys():
+            fp.write(key+'\n')
     
     
     # log

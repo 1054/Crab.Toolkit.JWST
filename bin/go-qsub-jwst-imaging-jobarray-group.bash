@@ -130,8 +130,10 @@ for (( igroup=0; igroup<${groupsize}; igroup++ )); do
         if [[ -f \${dataset_name}/list_of_jwst_datasets_in_the_same_group.txt ]]; then
             same_group_datasets=(\$(cat \${dataset_name}/list_of_jwst_datasets_in_the_same_group.txt | grep -v '^#'))
             n_same_group_datasets=\${#same_group_datasets[@]}
+            last_dataset_name="\${same_group_datasets[n_same_group_datasets-1]}"
+            last_dataset_dir=\$(dirname \$(dirname "\${same_group_datasets[n_same_group_datasets-1]}"))
             # if this is the last one in the group
-            if [[ "\${same_group_datasets[n_same_group_datasets-1]}" == "\${dataset_name}" ]]; then
+            if [[ "\${last_dataset_name}" == "\${dataset_name}" ]]; then
                 echo "************************"
                 echo "Checking cal files for \${same_group_datasets[@]}"
                 echo "************************"
@@ -144,7 +146,7 @@ for (( igroup=0; igroup<${groupsize}; igroup++ )); do
                 echo "************************"
                 echo go-jwst-imaging-stage-3 \${same_group_datasets[@]}
                 echo "************************"
-                go-jwst-imaging-stage-3 \${same_group_datasets[@]}
+                go-jwst-imaging-stage-3 \${same_group_datasets[@]} --save-info-table-dir \${last_dataset_dir} --save-info-table-name mosaic_info_table
             fi
         fi
         

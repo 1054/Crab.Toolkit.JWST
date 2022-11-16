@@ -60,6 +60,8 @@ DEFAULT_PA_V3 = 293.09730273
 DEFAULT_YAML_OUTPUT_DIR = 'yaml_files'
 DEFAULT_SIM_OUTPUT_DIR = 'sim_data'
 DEFAULT_OBSERVATION_LIST_FILE = 'observation_list.yaml'
+DEFAULT_NEW_PSF_LIBRARY = None # '~/Work/JWST-MIRAGE-Simulation/20221008_make_mirage_psf_library/mirage_data/nircam/gridded_psf_library'
+DEFAULT_NEW_PSF_WING_THRESHOLD = None # '~/Work/JWST-MIRAGE-Simulation/20221008_make_mirage_psf_library/custom_nircam_psf_wing_rate_thresholds.txt'
 
 
 
@@ -429,7 +431,10 @@ class SkyCoordOption(click.Option):
 @click.option('--yaml-output-dir', type=click.Path(exists=False), default=DEFAULT_YAML_OUTPUT_DIR)
 @click.option('--sim-output-dir', type=click.Path(exists=False), default=DEFAULT_SIM_OUTPUT_DIR)
 @click.option('--observation-list-file', type=click.Path(exists=False), default=DEFAULT_OBSERVATION_LIST_FILE)
-@click.option('--only-dataset', type=str, multiple=True, default=[])
+@click.option('--only-dataset', type=str, multiple=True, default=[], help='Can specify which dataset(s) to process.')
+@click.option('--new-psf-library', type=click.Path(exists=True), default=DEFAULT_NEW_PSF_LIBRARY, help='New psf library directory.')
+@click.option('--new-psf-wing-threshold', type=click.Path(exists=True), default=DEFAULT_NEW_PSF_LIBRARY, help='New psf library directory.')
+@click.option('--match-zeropoints/--no-match-zeropoints', is_flag=True, default=True, help='Create a temporary flux_cal file with zeropoints matched to the CRDS photom reference file.')
 @click.option('--overwrite-siminput', is_flag=True, default=False)
 @click.option('--overwrite-simprep', is_flag=True, default=False)
 @click.option('--overwrite-simdata', is_flag=True, default=False)
@@ -452,6 +457,9 @@ def main(
         sim_output_dir,
         observation_list_file,
         only_dataset,
+        new_psf_library,
+        new_psf_wing_threshold, 
+        match_zeropoints, 
         overwrite_siminput, 
         overwrite_simprep, 
         overwrite_simdata, 
@@ -566,13 +574,16 @@ def main(
                 continue
         
         # Check if use has set an only_dataset
-        if only_dataset is not None:
-            if isinstance(only_dataset, str):
-                only_dataset = [only_dataset]
+        if only_dataset is None:
+            only_dataset = []
+        if isinstance(only_dataset, str):
+            only_dataset = [only_dataset]
+        if len(only_dataset) > 0:
             check_okay = False
             for dataset_name in only_dataset:
                 if dataset_name in os.path.basename(yaml_file):
                     check_okay = True
+                    break
             if not check_okay:
                 if verbose:
                     logger.info('*** Skipping observation {!r} ({}/{}) because of non-matched dataset name'.format(
@@ -694,9 +705,8 @@ def main(
             yaml_file = yaml_ext_file
         
         
-        # match zeropoints by updating flux_cal file! TODO
-        # see "go-mirage-sim-one-yaml-file.py" for now. Will insert code to here.
-        
+        # match zeropoints by updating flux_cal file, see below.
+        # see also "go-mirage-sim-one-yaml-file.py". 
         
         # Run actual simulation to generate uncal files
         if not skip_simdata:
@@ -707,17 +717,151 @@ def main(
                     shutil.move(sim_data_filepath, sim_data_filepath+'.backup')
                 else:
                     if verbose:
-                        logger.info('Found existing data file {!r} and overwrite is set to False.'.format(sim_data_filepath))
+                        logger.info('Found existing data file {!r} and overwrite is set to False. Skipping!'.format(sim_data_filepath))
+                        continue
+            
+            # Check sim data output dir
+            if not os.path.isdir(sim_output_dir):
+                os.makedirs(sim_output_dir)
+            
+            # load yaml_file
+            with open(yaml_file, 'r') as fp:
+                yamldict = yaml.safe_load(fp)
+            
+            # Update yaml file in the output directory, we will use that instead of the input yaml file for the simulation
+            original_yaml_file = yaml_file
+            new_yaml_file = os.path.join(sim_output_dir, os.path.basename(yaml_file))
+            
+            # Update yaml dict
+            #yamldict['Output']['directory'] = sim_output_dir
+            #yamldict['Output']['file'] = output_file
+            
+            if new_psf_library is not None:
+                # defaults 
+                # psfpath: $MIRAGE_DATA/nircam/gridded_psf_library/
+                # psf_wing_threshold_file: $CONDA_PREFIX/lib/python3.9/site-packages/mirage/config/nircam_psf_wing_rate_thresholds.txt
+                yamldict['simSignals']['psfpath'] = new_psf_library
+                if verbose:
+                    logger.info('Using new PSF library {!r}'.format(new_psf_library))
+            
+            if new_psf_wing_threshold is not None:
+                yamldict['simSignals']['psf_wing_threshold_file'] = new_psf_wing_threshold
+                if verbose:
+                    logger.info('Using new PSF wing threshold file {!r}'.format(new_psf_wing_threshold))
+            
+            # match zeropoints by creating a new flux_cal that matches the CRDS photom reference file
+            if match_zeropoints:
+                instrument_name = yamldict['Inst']['instrument']
+                filter_name = yamldict['Readout']['filter']
+                pupil_name = yamldict['Readout']['pupil']
+                array_name = yamldict['Readout']['array_name']
+                photom_file = yamldict['Reffiles']['photom']
+                flux_cal_file = yamldict['Reffiles']['flux_cal']
+                # read photom_file to get pixar_sr
+                pixar_sr = None
+                photmjsr = None
+                with fits.open(photom_file) as photom_hdul:
+                    pixar_sr = photom_hdul[0].header['PIXAR_SR'] # u.sr
+                    for irow in range(len(photom_hdul[1].data)):
+                        photom_filter, photom_pupil, photom_photmjsr, photom_uncertainty = photom_hdul[1].data[irow]
+                        if photom_filter == filter_name and photom_pupil == pupil_name:
+                            photmjsr = photom_photmjsr
+                            break
+                if photmjsr is None:
+                    logger.error('Error! Could not find filter {} pupil {} in photom file {}'.format(
+                        filter_name, pupil_name, photom_file))
+                    raise Exception('Error! Could not find filter {} pupil {} in photom file {}'.format(
+                        filter_name, pupil_name, photom_file))
+                
+                # read flux_cal file to get Pivot_wave
+                pivot_wave = None
+                flux_cal_headers = None
+                flux_cal_dict = None
+                with open(flux_cal_file, 'r') as fp:
+                    line_number = 0
+                    for line_text in fp:
+                        if line_text.strip() == '':
+                            continue
+                        line_number += 1
+                        if line_number == 1:
+                            flux_cal_headers = line_text.split()
+                        else:
+                            line_split = line_text.split()
+                            if len(line_split) == len(flux_cal_headers):
+                                flux_cal_dict = OrderedDict(zip(flux_cal_headers, line_split))
+                                if flux_cal_dict['Filter'] == filter_name and \
+                                    flux_cal_dict['Pupil'] == pupil_name and \
+                                    flux_cal_dict['Module'] == array_name[3] and \
+                                    flux_cal_dict['Detector'] == array_name[0:5]:
+                                    pivot_wave = float(flux_cal_dict['Pivot_wave'])
+                                    break
+                if pivot_wave is None:
+                    logger.error('Error! Could not find filter {} pupil {} module {} detector {} in flux_cal file {}'.format(
+                        filter_name, pupil_name, array_name[3], array_name[0:5], flux_cal_file))
+                    raise Exception('Error! Could not find filter {} pupil {} module {} detector {} in flux_cal file {}'.format(
+                        filter_name, pupil_name, array_name[3], array_name[0:5], flux_cal_file))
+                flux_cal_dict['VEGAMAG'] = float(flux_cal_dict['VEGAMAG'])
+                flux_cal_dict['ABMAG'] = float(flux_cal_dict['ABMAG'])
+                flux_cal_dict['STMAG'] = float(flux_cal_dict['STMAG'])
+                flux_cal_dict['PHOTFLAM'] = float(flux_cal_dict['PHOTFLAM'])
+                flux_cal_dict['PHOTFNU'] = float(flux_cal_dict['PHOTFNU'])
+                flux_cal_dict['Pivot_wave'] = float(flux_cal_dict['Pivot_wave'])
+                
+                # prepare new flux_cal file
+                old_flux_cal_file = os.path.join(sim_output_dir, os.path.splitext(os.path.basename(yaml_file))[0] + '_flux_cal_mirage.txt')
+                with open(old_flux_cal_file, 'w') as fp:
+                    fp.write(' '.join(flux_cal_headers)+'\n')
+                    fp.write(' '.join([str(t) for t in flux_cal_dict.values()])+'\n')
+                    logger.info('Extracted MIRAGE flux_cal file {!r} to temporary file {!r}'.format(flux_cal_file, old_flux_cal_file))
+                
+                # Filter Pupil Module Detector VEGAMAG ABMAG STMAG PHOTFLAM PHOTFNU Pivot_wave
+                ABMAG = ((photmjsr * u.MJy/u.sr) * (pixar_sr * u.sr)).to(u.ABmag)
+                logger.info('ABMAG: {} -> {}'.format(flux_cal_dict['ABMAG'], ABMAG))
+                PHOTFNU = ABMAG.to(u.erg/u.s/u.cm**2/u.Hz)
+                logger.info('PHOTFNU: {} -> {}'.format(flux_cal_dict['PHOTFNU'], PHOTFNU))
+                Pivot_wave = pivot_wave * u.um
+                logger.info('Pivot_wave: {}'.format(Pivot_wave))
+                PHOTFLAM = PHOTFNU * (const.c.cgs/Pivot_wave.cgs).to(u.Hz) / (Pivot_wave).to(u.AA)
+                logger.info('PHOTFLAM: {} -> {}'.format(flux_cal_dict['PHOTFLAM'], PHOTFLAM))
+                STMAG = ABMAG.to(u.STmag, u.spectral_density(Pivot_wave)) #TODO error?
+                logger.info('STMAG: {} -> {}'.format(flux_cal_dict['STMAG'], STMAG))
+                VEGAMAG = float(flux_cal_dict['VEGAMAG']) + (ABMAG.value - float(flux_cal_dict['ABMAG']))
+                logger.info('VEGAMAG: {} -> {}'.format(flux_cal_dict['VEGAMAG'], VEGAMAG))
+                flux_cal_dict['VEGAMAG'] = VEGAMAG
+                flux_cal_dict['ABMAG'] = ABMAG.value
+                flux_cal_dict['STMAG'] = STMAG.value
+                flux_cal_dict['PHOTFLAM'] = PHOTFLAM.value
+                flux_cal_dict['PHOTFNU'] = PHOTFNU.value
+                
+                new_flux_cal_file = os.path.join(sim_output_dir, os.path.splitext(os.path.basename(yaml_file))[0] + '_flux_cal_crds.txt')
+                with open(new_flux_cal_file, 'w') as fp:
+                    fp.write(' '.join(flux_cal_headers)+'\n')
+                    fp.write(' '.join([str(t) for t in flux_cal_dict.values()])+'\n')
+                    logger.info('Converted CRDS photom file {!r} to new flux_cal file {!r}'.format(photom_file, new_flux_cal_file))
+            
+                yamldict['Reffiles']['flux_cal'] = new_flux_cal_file
+                if verbose:
+                    logger.info('Using new CRDS-based flux_cal file {!r}'.format(new_flux_cal_file))
+            
+            
+            # Write yaml dict to disk
+            if os.path.isfile(new_yaml_file):
+                shutil.move(new_yaml_file, new_yaml_file+'.backup')
+            with open(new_yaml_file, 'w') as fp:
+                yaml.dump(yamldict, fp)
+            if verbose:
+                logger.info('Updated {!r}'.format(new_yaml_file))
+            
             
             # Run simulation to generate data file
             if not os.path.isfile(sim_data_filepath):
                 if verbose:
                     logger.info('*'*100)
                     logger.info('*** Running Actual Simulation for {!r}'.format(
-                        yaml_file).ljust(96) + ' ***')
+                        new_yaml_file).ljust(96) + ' ***')
                     logger.info('*'*100)
                 m = ImgSim() # override_dark=dark
-                m.paramfile = yaml_file
+                m.paramfile = new_yaml_file
                 m.create()
     
     
