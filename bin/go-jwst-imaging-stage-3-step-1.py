@@ -504,6 +504,12 @@ def main(
                     os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
                 shutil.move(f'{output_name}_{i}_tweakreg.fits', 
                             f'{output_subdir}/{output_name}_{i}_tweakreg/{output_name}_{i}_tweakreg.fits')
+            # 
+            if os.path.isfile(f'{output_name}_{i}_cal_cat.ecsv'):
+                if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_cal_cat'):
+                    os.makedirs(f'{output_subdir}/{output_name}_{i}_cal_cat')
+                shutil.move(f'{output_name}_{i}_cal_cat.ecsv', 
+                            f'{output_subdir}/{output_name}_{i}_cal_cat/{output_name}_{i}_cal_cat.ecsv')
         
         
         # log
