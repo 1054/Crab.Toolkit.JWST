@@ -66,7 +66,7 @@ while [[ $iarg -le $# ]]; do
         elif [[ "$argstr" == "--reprocess-miri" ]]; then
             reprocess_MIRI=1
             echo "reprocess_MIRI = $reprocess_MIRI"
-        elif [[ " $argstr " == *" ${info_table_argnames[@]} "* ]]; then
+        elif [[ " ${info_table_argnames[@]} " == *" $argstr "* ]]; then
             info_table_kwargs+=("${!iarg}")
             echo -n "${!iarg} = "
             iarg=$((iarg+1))
@@ -79,7 +79,7 @@ while [[ $iarg -le $# ]]; do
                     info_table_name="${!iarg}"
                 fi
             fi
-        elif [[ " $argstr " == *" ${tweakreg_argnames[@]} "* ]]; then
+        elif [[ " ${tweakreg_argnames[@]} " == *" $argstr "* ]]; then
             tweakreg_kwargs+=("${!iarg}")
             echo -n "${!iarg} = "
             iarg=$((iarg+1))
@@ -87,7 +87,7 @@ while [[ $iarg -le $# ]]; do
                 tweakreg_kwargs+=("${!iarg}")
                 echo "\"${!iarg}\""
             fi
-        elif [[ " $argstr " == *" ${resample_argnames[@]} "* ]]; then
+        elif [[ " ${resample_argnames[@]} " == *" $argstr "* ]]; then
             resample_kwargs+=("${!iarg}")
             echo -n "${!iarg} = "
             iarg=$((iarg+1))

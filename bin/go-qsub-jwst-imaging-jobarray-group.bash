@@ -131,7 +131,6 @@ for (( igroup=0; igroup<${groupsize}; igroup++ )); do
             same_group_datasets=(\$(cat \${dataset_name}/list_of_jwst_datasets_in_the_same_group.txt | grep -v '^#'))
             n_same_group_datasets=\${#same_group_datasets[@]}
             last_dataset_name="\${same_group_datasets[n_same_group_datasets-1]}"
-            last_dataset_dir=\$(dirname \$(dirname "\${same_group_datasets[n_same_group_datasets-1]}"))
             # if this is the last one in the group
             if [[ "\${last_dataset_name}" == "\${dataset_name}" ]]; then
                 echo "************************"
@@ -144,9 +143,9 @@ for (( igroup=0; igroup<${groupsize}; igroup++ )); do
                     echo "************************"
                 done
                 echo "************************"
-                echo go-jwst-imaging-stage-3 \${same_group_datasets[@]} --save-info-table-dir \${last_dataset_dir} --save-info-table-name mosaic_info_table
+                echo go-jwst-imaging-stage-3 \${same_group_datasets[@]} --save-info-table-dir \${last_dataset_name} --save-info-table-name mosaic_info_table
                 echo "************************"
-                go-jwst-imaging-stage-3 \${same_group_datasets[@]} --save-info-table-dir \${last_dataset_dir} --save-info-table-name mosaic_info_table
+                go-jwst-imaging-stage-3 \${same_group_datasets[@]} --save-info-table-dir \${last_dataset_name} --save-info-table-name mosaic_info_table
             fi
         fi
         
