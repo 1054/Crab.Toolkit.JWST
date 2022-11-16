@@ -144,7 +144,7 @@ for (( igroup=0; igroup<${groupsize}; igroup++ )); do
                     echo "************************"
                 done
                 echo "************************"
-                echo go-jwst-imaging-stage-3 \${same_group_datasets[@]}
+                echo go-jwst-imaging-stage-3 \${same_group_datasets[@]} --save-info-table-dir \${last_dataset_dir} --save-info-table-name mosaic_info_table
                 echo "************************"
                 go-jwst-imaging-stage-3 \${same_group_datasets[@]} --save-info-table-dir \${last_dataset_dir} --save-info-table-name mosaic_info_table
             fi
