@@ -125,6 +125,7 @@ def do_template_fitting(data_image, error_image, template_image):
     #fit_result = fitter.minimize(method='ampgo') # too slow to find global minima
     #fit_result.params.pretty_print()
     scaled_template = fit_result.params['A'] * template_image
+    scaled_template[np.isnan(scaled_template)] = 0.0
     subtracted_image = data_image - scaled_template
     return subtracted_image, scaled_template, fit_result.params['A'], fit_result.params['B'], mask
 
@@ -212,6 +213,10 @@ def main(
     # read wisps template image
     logger.info('Reading template file: {}'.format(template_filepath))
     template_image, template_header = fits.getdata(template_filepath, header=True)
+    # fix nan or invalid pixels
+    if np.isfinite(template_image[0,0]) and (template_image[0,0] == template_image[1,0]):
+        invalid_mask = (template_image==template_image[0,0]) # TODO: mind float == operation
+        template_image[invalid_mask] = np.nan
     
     
     # fit wisps scaling factor

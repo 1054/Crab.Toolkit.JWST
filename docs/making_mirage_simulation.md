@@ -106,6 +106,28 @@ class Observation():
 ```
 
 
+## How MIRAGE converts the countrates to flux densities and vice versa? 
+
+How MIRAGE converts the countrates to flux densities and vice versa?
+
+See source code `mirage/utils/utils.py`.
+
+```
+# mirage/utils/utils.py
+    ...
+    def magnitude_to_countrate():
+        if magsys.lower() == 'abmag':
+            try:
+                return count_scale * (10**((mag + 48.599934378) / -2.5) / photfnu)
+    ...
+    def countrate_to_magnitude():
+        if magsys.lower() == 'abmag':
+            try:
+                return -2.5 * np.log10(photfnu * count_rate / count_scale) - 48.599934378
+    ...
+```
+
+
 ## How to make custom PSFs with MIRAGE? 
 
 We need an old versoin of MIRAGE which has `psf_library.py` (can't find it now?), or webbpsf `gridded_library.py` [https://github.com/spacetelescope/webbpsf/blob/develop/webbpsf/gridded_library.py](https://github.com/spacetelescope/webbpsf/blob/develop/webbpsf/gridded_library.py). 
