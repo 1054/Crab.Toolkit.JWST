@@ -388,6 +388,9 @@ def main(
         output_file = output_name + '_i2d.fits'
         output_filepath = os.path.join(output_subdir, output_file)
         
+        # add to lookup dict
+        output_lookup_dict[output_filepath] = subgroup_files
+        
         # check existing output file, skip the processing or backup and overwrite it. 
         if not os.path.isdir(output_subdir):
             os.makedirs(output_subdir)
@@ -531,9 +534,6 @@ def main(
                     os.makedirs(f'{output_subdir}/{output_name}_{i}_cal_cat')
                 shutil.move(f'{output_name}_{i}_cal_cat.ecsv', 
                             f'{output_subdir}/{output_name}_{i}_cal_cat/{output_name}_{i}_cal_cat.ecsv')
-        
-        # add to lookup dict
-        output_lookup_dict[output_filepath] = subgroup_files
         
         # log
         logger.info("Processed {} -> {}".format(subgroup_files, output_filepath))
