@@ -63,6 +63,11 @@ go-jwst-imaging-stage-3-step-1.py \
 ```
 
 
+### Comparing before and after reprocessing
+
+![Comparing before and after reprocessing](reprocessing_MIRI_with_ImageForImageBackgroundSubtraction.pic/screenshot_ds9_comparing_miri_i4i_bkgsub_20221117.png)
+
+
 ## Notes: 
 
 - TBD
