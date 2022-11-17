@@ -204,9 +204,6 @@ fi
 if [[ "$info_table_dir"x == ""x ]]; then
     info_table_dir="$dir_out"
 fi
-if [[ "$info_table_name"x != ""x ]]; then
-    
-fi
 #files_out=($(find $dir_out -maxdepth 2 -mindepth 2 -type f -name "jw*_obs*_*_i2d.fits" | sort -V | grep -v '+' | grep -v 'outlier'))
 files_out=($(cat "$info_table_dir/$info_table_name.out"))
 if [[ ${#files_out[@]} -eq 0 ]]; then
