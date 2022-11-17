@@ -129,7 +129,7 @@ def main(
         else:
             if os.path.isfile(output_file):
                 shutil.move(output_file, output_file+'.backup')
-            elif not os.path.isdir(os.path.dirname(output_file)):
+            elif os.path.dirname(output_file) != '' and not os.path.isdir(os.path.dirname(output_file)):
                 os.makedirs(os.path.dirname(output_file))
             shutil.copy2(input_file, output_file) # copy input to output then update the model.data
         

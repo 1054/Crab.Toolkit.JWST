@@ -83,6 +83,7 @@ def do_template_fitting(data_image, error_image, template_image):
         signal_mask = np.logical_and(valid_mask, template_image>=template_P95) # select template signal > 2-sigma
         logger.info('np.count_nonzero(signal_mask): {} (top 5%)'.format(np.count_nonzero(signal_mask)))
     
+    # median filter the mask then smooth the mask
     #filtered_mask = gaussian_filter(signal_mask, sigma=0.5) # filters out small mask areas
     filtered_mask = median_filter(signal_mask, size=5) # filters out small mask areas
     #dilated_mask = binary_dilation(filtered_mask, iterations=6) # expand areas
@@ -236,7 +237,7 @@ def main(
     else:
         if os.path.isfile(output_file):
             shutil.move(output_file, output_file+'.backup')
-        elif not os.path.isdir(os.path.dirname(output_file)):
+        elif os.path.dirname(output_file) != '' and not os.path.isdir(os.path.dirname(output_file)):
             os.makedirs(os.path.dirname(output_file))
         shutil.copy2(input_file, output_file) # copy input to output then update the model.data
     

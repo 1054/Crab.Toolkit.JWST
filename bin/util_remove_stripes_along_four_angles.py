@@ -4,6 +4,21 @@
 """
 Measure and renormalize strips in JWST images. 
 
+Last updates:
+    2022-11-09 Renamed from "remstriping-dzliu.py". Improved code structure.
+               By Daizhong Liu.
+    2022-11-17 Fixed edge pixel problem by masking with error_image==0. 
+               Fixed bright stripes that are masked out as source emission 
+               with a brilliant method. The idea is that we do a first-pass
+               row/column/angled scans without any mask, then derive the 
+               stddev map, then detect source emission mask with sigma clipping,
+               then restore the masked pixels which have a low stddev, which 
+               means that although they are bright, the entire row/column/angled 
+               scan has a low stddev thus is nearly uniformly bright. That is 
+               exactly the case of a bright stripe instead of a star diffraction
+               spike. 
+               By Daizhong Liu.
+
 """
 
 import os, sys, re, copy, shutil, glob, datetime
@@ -15,8 +30,9 @@ from astropy.nddata.bitmask import (
     bitfield_to_boolean_mask,
     interpret_bit_flags,
 )
+from astropy.convolution import Gaussian2DKernel, convolve
 from astropy.stats import sigma_clipped_stats
-from scipy.optimize import curve_fit
+#from scipy.optimize import curve_fit
 from scipy.ndimage import median_filter, gaussian_filter, binary_dilation, generate_binary_structure
 from tqdm import tqdm
 
@@ -30,7 +46,7 @@ import crds
 # code name and version
 CODE_NAME = 'util_remove_stripes_along_four_angles.py'
 CODE_AUTHOR = 'Daizhong Liu'
-CODE_VERSION = '20221109'
+CODE_VERSION = '20221117' # '20221109'
 CODE_HOMEPAGE = ''
 
 # logging
@@ -57,7 +73,7 @@ class Rect():
 # Scan
 class Scan():
     """Define a Scan of pixels in an image."""
-    def __init__(self, image, px, py, angle=None, rect=None, dqmask=None):
+    def __init__(self, image, px, py, angle=None, rect=None, valid_mask=None):
         self.px = px
         self.py = py
         self.ipx = np.round(self.px).astype(int)
@@ -73,17 +89,25 @@ class Scan():
         self.iipy = self.ipy[self.imask]
         self.iipx = self.ipx[self.imask]
         self.data = image[self.iipy, self.iipx].flatten()
-        nanmask = np.isnan(self.data)
-        if dqmask is not None:
-            nanmask = np.logical_or(nanmask, 
-                np.invert(dqmask[self.iipy, self.iipx].flatten()))
-                # dqmask>0 means good pixel here, invert means bad pixels.
-        if len(self.data) > np.count_nonzero(nanmask):
-            self.mean, self.median, self.std = sigma_clipped_stats(self.data, 
-                mask=nanmask)
-                # mask here means bad pixels to exclude.
+        if np.all(self.data == 0.0):
+            # if the entire row is 0.0, return median 0.0
+            self.mean, self.median, self.std = 0.0, 0.0, 0.0
         else:
-            self.mean, self.median, self.std = np.nan, np.nan, np.nan
+            nanmask = np.isnan(self.data)
+            if valid_mask is not None:
+                valmask = valid_mask[self.iipy, self.iipx].flatten() # take the mask for this row
+                #if np.count_nonzero(valmask) == 0:
+                #    # if the entire row is invalid, ignore the valmask
+                #    valid_mask[self.iipy, self.iipx] = True
+                #else:
+                #    nanmask = np.logical_or(nanmask, np.invert(valmask)) # valid_mask>0 means good pixel, inverting means bad pixels.
+                nanmask = np.logical_or(nanmask, np.invert(valmask)) # valid_mask>0 means good pixel, inverting means bad pixels.
+            if len(self.data) > np.count_nonzero(nanmask):
+                self.mean, self.median, self.std = sigma_clipped_stats(self.data, 
+                    mask=nanmask)
+                    # mask here means bad pixels to exclude.
+            else:
+                self.mean, self.median, self.std = np.nan, np.nan, np.nan
     def __str__(self):
         if len(self.data) > 0:
             return 'Scan(({}, {}) -> ({}, {}), angle={}, npix={}, median={})'.format(
@@ -91,20 +115,26 @@ class Scan():
         else:
             return 'Scan(({}, {}) -> ({}, {}), angle={}, npix={}, median={})'.format(
                 self.ipx[0], self.ipy[0], self.ipx[-1], self.ipy[-1], self.angle, len(self.data), self.median)
-    def subtract_median_for_image(self, image, median_image=None, masked_image=None):
+    def subtract_median_for_image(self, image, median_image=None, stddev_image=None, masked_image=None, valid_mask=None):
+        # image, median_image, stddev_image, masked_image will hopefully be updated inplace!
         if not np.isnan(self.median):
-            image[self.iipy, self.iipx] -= self.median
+            if valid_mask is None:
+                valmask = 1.
+            else:
+                valmask = valid_mask[self.iipy, self.iipx].astype(int)
+            image[self.iipy, self.iipx] -= self.median * valmask
             if masked_image is not None:
-                masked_image[self.iipy, self.iipx] -= self.median
+                masked_image[self.iipy, self.iipx] -= self.median * valmask
         if median_image is not None:
             median_image[self.iipy, self.iipx] += self.median
-            return image, median_image
+        if stddev_image is not None:
+            stddev_image[self.iipy, self.iipx] = self.std
         return image
 
 
 
 # Draw scans
-def draw_scans(image, angle, rect=None, dqmask=None):
+def draw_scans(image, angle, rect=None, valid_mask=None):
     """Draw scans along an angle for the whole image.
     """
     scans = []
@@ -116,7 +146,7 @@ def draw_scans(image, angle, rect=None, dqmask=None):
         for iscan in range(nx):
             px = np.zeros(ny) + iscan
             py = np.arange(ny)
-            scans.append(Scan(image, px, py, angle=angle, rect=rect, dqmask=dqmask))
+            scans.append(Scan(image, px, py, angle=angle, rect=rect, valid_mask=valid_mask))
     else:
         nscan = ny + int(np.floor((nx-1)*np.abs(tan)))
         for iscan in range(nscan):
@@ -126,7 +156,7 @@ def draw_scans(image, angle, rect=None, dqmask=None):
             #    print(y0, y0+(nx-1)*dy, iscan)
             px = np.arange(nx)
             py = np.linspace(y0, y0+(nx-1)*dy, num=nx, endpoint=True)
-            scans.append(Scan(image, px, py, angle=angle, rect=rect, dqmask=dqmask))
+            scans.append(Scan(image, px, py, angle=angle, rect=rect, valid_mask=valid_mask))
     return scans
 
 
@@ -181,6 +211,41 @@ def apply_flat_to_model(model):
 
 
 
+# define function to dilate source emission mask
+def dilate_source_emission_mask(valid_mask, medfil=3, smooth=3):
+    signal_mask = valid_mask.astype(int)
+    # median filter the 3-sigma signal mask then smooth the mask
+    #filtered_mask = gaussian_filter(signal_mask, sigma=0.5) # filters out small mask areas
+    if medfil >= 1:
+        filtered_mask = median_filter(signal_mask, size=int(medfil)) # filters out small mask areas
+    else:
+        filtered_mask = signal_mask
+    # binary dilation or smooth
+    #dilated_mask = binary_dilation(filtered_mask, iterations=6) # expand areas
+    if smooth > 0.0:
+        dilated_mask = convolve(filtered_mask, kernel=Gaussian2DKernel(x_stddev=smooth))
+        dilated_mask[dilated_mask<0.1] = 0
+        dilated_mask[dilated_mask>=0.1] = 1
+    else:
+        dilated_mask = filtered_mask
+    final_mask = np.logical_and(valid_mask, dilated_mask.astype(bool))
+    return final_mask
+
+
+
+# define function to build source emission mask
+def build_source_emission_mask(data, sigma=3.0, medfil=3, smooth=3):
+    # compute simple 3-sigma signal mask
+    valid_mask = np.isfinite(data)
+    tmp_mean, tmp_median, tmp_stddev = sigma_clipped_stats(
+        data, mask=np.invert(valid_mask))
+    # 
+    # dilate the mask
+    return dilate_source_emission_mask(valid_mask, medfil=medfil, smooth=smooth)
+
+
+
+
 
 # main
 @click.command()
@@ -201,6 +266,7 @@ def main(
     """
     Input rate image. 
     """
+    logger.info('Reading image model {!r}'.format(input_file))
     with ImageModel(input_file) as model:
 
         # check if already processed
@@ -224,8 +290,9 @@ def main(
         #         good_mask_value=1,
         #         dtype=np.uint8
         #     ) * np.isfinite(model.data) # following "jwst/skymatch/skymatch_step.py", this is valid data
-        dqmask = None # 
+        #dqmask = None # 
         image = model.data.copy()
+        error_image = model.err.copy()
         #image[~dqmask] = np.nan
         
         # Get image shape
@@ -245,9 +312,14 @@ def main(
             rects.append(Rect(7,  21, 233, 242)) # MIRI 4QPM coronagraph
         else:
             raise Exception('The input data can only be NIRCAM or MIRI data!')
+            
+        # invalid error mask
+        invalid_error_mask = np.logical_and(image==0, error_image==0)
         
-        # Mask out sources
-        image_masked = copy.deepcopy(image)
+        # Mask out source emission
+        automask = False
+        valid_mask = np.logical_and(np.isfinite(image), np.invert(invalid_error_mask))
+        masked_image = copy.deepcopy(image)
         if mask_image is not None:
             logger.info('Using the input mask image {!r} to mask out source flux'.format(mask_image))
             mask_image_data = fits.getdata(mask_image)
@@ -259,17 +331,22 @@ def main(
                 mask_image_bool = mask_image_data.astype(bool)
                 n_masked = np.count_nonzero(mask_image_bool)
                 logger.info('Masked {} pixels'.format(n_masked))
-            image_masked[mask_image_bool] = np.nan
+            valid_mask = np.logical_and(valid_mask, np.invert(mask_image_bool))
+            masked_image[mask_image_bool] = np.nan
         else:
             # overall sigma clip
-            logger.info('Auto masking with 3-sigma clipping')
-            overall_mean, overall_median, overall_stddev = sigma_clipped_stats(
-                image, mask=np.isnan(image))
-            mask_image_bool = (np.abs(image_masked - overall_mean) > 3.0 * overall_stddev)
-            mask_image_float = mask_image_bool.astype(float)
-            mask_image_float = binary_dilation(mask_image_float, generate_binary_structure(2,1), iterations=2)
-            mask_image_bool = mask_image_float.astype(bool)
-            image_masked[mask_image_bool] = np.nan
+            # 20221117: this is problematic if there are bright stripes above 3-sigma
+            #logger.info('Auto masking with 3-sigma clipping')
+            #overall_mean, overall_median, overall_stddev = sigma_clipped_stats(
+            #    image, mask=np.isnan(image))
+            #mask_image_bool = (np.abs(masked_image - overall_mean) > 3.0 * overall_stddev)
+            #mask_image_float = mask_image_bool.astype(float)
+            #mask_image_float = binary_dilation(mask_image_float, generate_binary_structure(2,1), iterations=2)
+            #mask_image_bool = mask_image_float.astype(bool)
+            #mask_image_bool = build_source_emission_mask(image, medfil=2, smooth=2) # 20221117
+            #valid_mask = np.logical_and(valid_mask, np.invert(mask_image_bool))
+            #masked_image[mask_image_bool] = np.nan
+            automask = True
             
         # close model
         #model.close()
@@ -285,9 +362,17 @@ def main(
     else:
         angles = [0.0, 90.0] # order is important!
     
-    bkgs = np.zeros((len(rects), len(angles), ny, nx))
     
+    logger.info('Scanning along {} directions: {}'.format(len(angles), angles))
+    
+    # prepare scan arrays
+    bkgs = np.zeros((len(rects), len(angles), ny, nx))
+    stds = np.zeros((len(rects), len(angles), ny, nx))
+    
+    
+    # FIRST PASS
     # measure striping per rect, per angle
+    image_analyzed = copy.copy(image)
     #for irect in tqdm(range(len(rects))):
     #    for iangle in tqdm(range(len(angles)), leave=False):
     for irect in range(len(rects)):
@@ -296,11 +381,22 @@ def main(
             angle = angles[iangle]
             #bkg = np.zeros(image.shape)
             #msk = np.zeros(image.shape)
-            scans = draw_scans(image_masked, angle, rect=rect, dqmask=dqmask)
+            scans = draw_scans(
+                image_analyzed, 
+                angle, 
+                rect=rect, 
+                valid_mask=valid_mask,
+            )
             for iscan in range(len(scans)):
                 scan = scans[iscan]
-                scan.subtract_median_for_image(image, median_image=bkgs[irect, iangle], masked_image=image_masked)
-                # 20221110 also need to subtract this image_masked
+                scan.subtract_median_for_image(
+                    image_analyzed, 
+                    median_image=bkgs[irect, iangle], 
+                    stddev_image=stds[irect, iangle], 
+                    masked_image=masked_image,
+                    valid_mask=valid_mask,
+                )
+                # 20221110 also need to subtract this masked_image
                 #if iangle == 2 and iscan > 800 and iscan < 1000 and scan.median > 0.2:
                 #    print('iscan', iscan, 'scan', scan, 'scan.data', scan.data.tolist())
                 #    raise Exception('')
@@ -309,6 +405,91 @@ def main(
                 #     break
     
     bkg = np.sum(bkgs, axis=(0, 1))
+    bkg[invalid_error_mask] = np.nan
+    
+    std = np.sqrt(np.sum(stds**2, axis=(0, 1)))
+    
+    
+    # if automask
+    if automask:
+        logger.info('Auto masking with 3-sigma clipping and stddev analysis')
+        
+        # mask out source emission
+        tmp_mean, tmp_median, tmp_stddev = sigma_clipped_stats(image, mask=np.invert(valid_mask))
+        mask_source_emission = (np.abs(image - tmp_mean) > 3.0 * tmp_stddev)
+        #mask_source_emission = dilate_source_emission_mask(mask_source_emission, medfil=2, smooth=2)
+        threshold_source_emission = ('< {}'.format(tmp_mean - 3.0 * tmp_stddev), '> {}'.format(tmp_mean + 3.0 * tmp_stddev))
+        
+        # but do not mask out source emission which has a low stddev, 
+        # which probably means that it is a relatively flat stripe, 
+        # instead of a star
+        tmp_mean, tmp_median, tmp_stddev = sigma_clipped_stats(std)
+        mask_low_stddev = (std - tmp_median) < 3.0 * tmp_stddev # indicating bright source emission
+        threshold_stddev = '> {}'.format(tmp_mean + 3.0 * tmp_stddev)
+        mask_source_emission[mask_low_stddev] = False
+        
+        # apply this source emission mask
+        valid_mask = np.logical_and(valid_mask, np.invert(mask_source_emission))
+        # mind the error_image=0 problem
+        valid_mask[invalid_error_mask] = False
+        logger.info('Masking out {} pixels with a pixval threshold {} and stddev threshold {}'.format(
+            np.count_nonzero(mask_source_emission), threshold_source_emission, threshold_stddev))
+        
+        # recreate the masked image
+        masked_image = copy.copy(image)
+        masked_image[np.invert(valid_mask)] = np.nan
+        
+        
+        # prepare scan arrays
+        bkgs = np.zeros((len(rects), len(angles), ny, nx))
+        stds = np.zeros((len(rects), len(angles), ny, nx))
+        
+        
+        # SECOND PASS
+        # measure striping per rect, per angle
+        image_analyzed = copy.copy(image)
+        #for irect in tqdm(range(len(rects))):
+        #    for iangle in tqdm(range(len(angles)), leave=False):
+        for irect in range(len(rects)):
+            for iangle in range(len(angles)):
+                rect = rects[irect]
+                angle = angles[iangle]
+                #bkg = np.zeros(image.shape)
+                #msk = np.zeros(image.shape)
+                scans = draw_scans(
+                    image_analyzed, 
+                    angle, 
+                    rect=rect, 
+                    valid_mask=valid_mask,
+                )
+                for iscan in range(len(scans)):
+                    scan = scans[iscan]
+                    scan.subtract_median_for_image(
+                        image_analyzed, 
+                        median_image=bkgs[irect, iangle], 
+                        stddev_image=stds[irect, iangle], 
+                        masked_image=masked_image,
+                        valid_mask=valid_mask,
+                    )
+                    # 20221110 also need to subtract this masked_image
+                    #if iangle == 2 and iscan > 800 and iscan < 1000 and scan.median > 0.2:
+                    #    print('iscan', iscan, 'scan', scan, 'scan.data', scan.data.tolist())
+                    #    raise Exception('')
+                    # if iscan > 10:
+                    #     print('iscan', iscan, 'scan', scan)
+                    #     break
+        
+        bkg = np.sum(bkgs, axis=(0, 1))
+        bkg[invalid_error_mask] = np.nan
+        
+        #std = np.sqrt(np.sum(stds**2, axis=(0, 1)))
+    
+    
+    
+    # APPLY IT
+    bkg_nonan = copy.copy(bkg)
+    bkg_nonan[np.isnan(bkg)] = 0.0
+    image -= bkg_nonan
     
     if output_file is None:
         output_file = input_file
@@ -323,14 +504,14 @@ def main(
     else:
         if os.path.isfile(output_file):
             shutil.move(output_file, output_file+'.backup')
-        elif not os.path.isdir(os.path.dirname(output_file)):
+        elif os.path.dirname(output_file) != '' and not os.path.isdir(os.path.dirname(output_file)):
             os.makedirs(os.path.dirname(output_file))
         shutil.copy2(input_file, output_file) # copy input to output then update the model.data
     
     out_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     with ImageModel(output_file) as out_model:
-        validmask = np.isfinite(out_model.data)
-        out_model.data[validmask] = image[validmask] # only copy valid pixel values
+        tmp_mask = np.isfinite(out_model.data)
+        out_model.data[tmp_mask] = image[tmp_mask] # only copy valid pixel values
         #out_model.data = image
         # check flat
         if apply_flat:
@@ -348,17 +529,20 @@ def main(
         logger.info('Saved destriped data into {!r}'.format(output_file))
     
     
+    header0 = fits.getheader(output_file, 0)
+    header1 = fits.getheader(output_file, 1)
+    
+    
     output_bkg = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_bkg.fits'
-    shutil.copy2(output_file, output_bkg)
-    with ImageModel(output_bkg) as out_bkg_model:
-        out_bkg_model.data = bkg
-        out_bkg_model.save(output_bkg)
-        logger.info('Saved destriping background into {!r}'.format(output_bkg))
+    hdulist = [fits.PrimaryHDU(data=None, header=header0)]
+    hdulist.append(fits.ImageHDU(data=bkg, header=header1))
+    hdul = fits.HDUList(hdulist)
+    hdul.writeto(output_bkg, overwrite=True)
+    hdul.close()
+    logger.info('Saved destriping background into {!r}'.format(output_bkg))
     
     
     output_bkgs = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_bkgs.fits'
-    header0 = fits.getheader(output_bkg, 0)
-    header1 = fits.getheader(output_bkg, 1)
     hdulist = [fits.PrimaryHDU(data=None, header=header0)]
     for irect in range(len(rects)):
         for iangle in range(len(angles)):
@@ -375,20 +559,45 @@ def main(
     logger.info('Saved destriping backgrounds into {!r}'.format(output_bkgs))
     
     
-    output_mask = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_mask.fits'
-    shutil.copy2(output_file, output_mask)
-    with ImageModel(output_mask) as out_mask_model:
-        out_mask_model.data = mask_image_bool.astype(int)
-        out_mask_model.save(output_mask)
-        logger.info('Saved destriping mask into {!r}'.format(output_mask))
+    output_std = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_std.fits'
+    hdulist = [fits.PrimaryHDU(data=None, header=header0)]
+    hdulist.append(fits.ImageHDU(data=std, header=header1))
+    hdul = fits.HDUList(hdulist)
+    hdul.writeto(output_std, overwrite=True)
+    hdul.close()
+    logger.info('Saved destriping background into {!r}'.format(output_bkg))
     
     
-    # output_mask = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_masked.fits'
-    # shutil.copy2(output_file, output_mask)
-    # with ImageModel(output_mask) as out_mask_model:
-    #     out_mask_model.data = image_masked
-    #     out_mask_model.save(output_mask)
-    #     logger.info('Saved destriping masked data into {!r}'.format(output_mask))
+    output_stds = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_stds.fits'
+    hdulist = [fits.PrimaryHDU(data=None, header=header0)]
+    for irect in range(len(rects)):
+        for iangle in range(len(angles)):
+            rect = rects[irect]
+            angle = angles[iangle]
+            header2 = copy.deepcopy(header1)
+            header2['EXTNAME'] = 'RECT_{}_ANGLE_{}'.format(irect+1, iangle+1)
+            header2['RECT'] = str(rect)
+            header2['ANGLE'] = angle
+            hdulist.append(fits.ImageHDU(data=stds[irect, iangle], header=header2))
+    hdul = fits.HDUList(hdulist)
+    hdul.writeto(output_stds, overwrite=True)
+    hdul.close()
+    logger.info('Saved destriping backgrounds into {!r}'.format(output_stds))
+    
+    
+    output_mask_data = np.invert(valid_mask).astype(int)
+    output_mask_file = re.sub(r'\.fits$', r'', output_file) + '_removing_stripes_mask.fits'
+    hdulist = [fits.PrimaryHDU(data=None, header=header0)]
+    header2 = copy.deepcopy(header1)
+    header2['COMMENT'] = 'threshold_source_emission: {}'.format(threshold_source_emission)
+    header2['COMMENT'] = 'threshold_stddev: {}'.format(threshold_stddev)
+    hdulist.append(fits.ImageHDU(data=output_mask_data, header=header2))
+    hdul = fits.HDUList(hdulist)
+    hdul.writeto(output_mask_file, overwrite=True)
+    hdul.close()
+    logger.info('Saved destriping mask into {!r}'.format(output_mask_file))
+    
+    
     
 
 
