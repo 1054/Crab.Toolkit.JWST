@@ -2,7 +2,7 @@
 
 ## Aim
 
-MIRI imaging suffers from severe background issue. This example shows how to use multiple visit/exposure data to construct a "dark" like observation as a background, then use the jwst pipeline stage2 `calwebb_image2. Image2Pipeline.bkg_subtract` to subtract the background. 
+MIRI imaging suffers from severe background issue. This example shows how to use multiple visit/exposure data to construct a "dark" like observation as a background, then use the jwst pipeline stage2 `calwebb_image2.Image2Pipeline.bkg_subtract` to subtract the background. 
 
 ## How to
 
@@ -14,8 +14,8 @@ Assuming that:
 - MIRI imaging data have already been reduced througth stages 1-3, with 
 - stage3 mosaic image at `./calibrated3_mosaics/jw01345_obs002_MIRI_F1000W/jw01345_obs002_MIRI_F1000W_i2d.fits`, 
 - stage3 mosaic asn file at `./calibrated3_mosaics/jw01345_obs002_MIRI_F1000W_asn.json`, 
-- stage2 cal file at `../jw01345002001_04101_00001_mirimage/calibrated2_cals/jw01345002001_04101_00001_mirimage_cal.fits`,
-- stage1 rate file at `../jw01345002001_04101_00001_mirimage/calibrated1_rates/jw01345002001_04101_00001_mirimage_rate.fits`,
+- stage2 cal file at `./jw01345002001_04101_00001_mirimage/calibrated2_cals/jw01345002001_04101_00001_mirimage_cal.fits`,
+- stage1 rate file at `./jw01345002001_04101_00001_mirimage/calibrated1_rates/jw01345002001_04101_00001_mirimage_rate.fits`,
 - and same for many other datasets with the same detector.
 
 
