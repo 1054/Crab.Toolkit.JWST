@@ -1,0 +1,20 @@
+--- Software/CONDA/miniconda3/envs/miragepmap1009/lib/python3.9/site-packages/mirage/seed_image/fits_seed_image.py        2022-11-18 18:31:51.863789453 +0100
++++ Cloud/Github/mirage/seed_image/fits_seed_image.py  2022-09-23 18:05:50.945347155 +0200
+@@ -705,7 +705,7 @@
+         else:
+             # If a PSF file is provided, check for any metadata. Metadata
+             # from the mosaic takes precidence over metadata in the PSF file.
+-            psf_metadata = tools.get_psf_metadata(psf_filename)
++            psf_metadata = tools.get_psf_metadata(self.psf_file) #<DZLIU><20220923># psf_filename -> self.psf_file
+
+             # If the mosaic has no pixel scale info but the PSF file does,
+             # use the value from the PSF file.
+@@ -717,7 +717,7 @@
+                                       "file metadata (in CD1_1 header keyword). This information is "
+                                       "needed to be able to convolve the mosaic with the proper PSF "
+                                       "kernel."))
+-            self.mosaic_psf = fits.getdata(psf_filename)
++            self.mosaic_psf = fits.getdata(self.psf_file) #<DZLIU><20220923># psf_filename -> self.psf_file
+
+     def psf_convolution(self, model):
+         """Convolve the cropped image with the appropriate PSF for the

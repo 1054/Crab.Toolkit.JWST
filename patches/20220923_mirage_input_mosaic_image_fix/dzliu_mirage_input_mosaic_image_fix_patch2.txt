@@ -1,0 +1,22 @@
+--- Software/CONDA/miniconda3/envs/miragepmap1009/lib/python3.9/site-packages/mirage/seed_image/blot_image.py 2022-11-18 18:31:51.858789048 +0100
++++ Cloud/Github/mirage/seed_image/blot_image.py   2022-09-23 19:38:41.880569128 +0200
+@@ -16,7 +16,7 @@
+ import gwcs
+ from astropy.io import fits
+ from jwst import datamodels
+-from jwst.outlier_detection import outlier_detection
++from jwst.outlier_detection import outlier_detection, OutlierDetectionStep #<DZLIU>#
+ from jwst.assign_wcs import AssignWcsStep
+ from jwst.datamodels import container
+ import pysiaf
+@@ -205,6 +205,10 @@
+
+         # Blot the image to each of the WCSs in the blot_list
+         pars = {'sinscl': 1.0, 'interp': 'poly5'}
++        from functools import partial
++        from jwst.stpipe import Step
++        stepx = OutlierDetectionStep()
++        pars['make_output_path'] = stepx.make_output_path # partial(Step._make_output_path, ) #<DZLIU>#
+         reffiles = {}
+         blotter = outlier_detection.OutlierDetection(blot_list, reffiles=reffiles, **pars)
+         blotter.input_models = blot_list
