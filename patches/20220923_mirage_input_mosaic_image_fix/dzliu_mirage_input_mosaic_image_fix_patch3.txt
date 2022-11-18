@@ -1,5 +1,5 @@
 --- Software/CONDA/miniconda3/envs/miragepmap1009/lib/python3.9/site-packages/mirage/seed_image/save_seed.py  2022-11-18 18:31:51.867789778 +0100
-+++ Cloud/Github/mirage/seed_image/save_seed.py    2022-09-24 21:32:27.682570339 +0200
++++ modified/save_seed.py    2022-09-24 21:32:27.682570339 +0200
 @@ -82,7 +82,7 @@
      kw['GAINFILE'] = parameters['Reffiles']['gain']
      kw['DISTORTN'] = parameters['Reffiles']['astrometric']

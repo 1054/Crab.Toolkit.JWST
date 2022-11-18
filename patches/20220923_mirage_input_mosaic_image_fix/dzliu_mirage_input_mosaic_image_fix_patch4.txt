@@ -1,5 +1,5 @@
 --- Software/CONDA/miniconda3/envs/miragepmap1009/lib/python3.9/site-packages/jwst/outlier_detection/outlier_detection.py 2022-10-26 16:55:59.700789038 +0200
-+++ outlier_detection.py   2022-11-18 18:53:18.950122475 +0100
++++ modified/outlier_detection.py   2022-11-18 18:53:18.950122475 +0100
 @@ -79,7 +79,7 @@
          # Define how file names are created
          self.make_output_path = pars.get(

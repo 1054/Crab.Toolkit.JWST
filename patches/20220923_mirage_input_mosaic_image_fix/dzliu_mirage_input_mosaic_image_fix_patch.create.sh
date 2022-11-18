@@ -15,5 +15,6 @@ Cloud/Github/mirage/seed_image/save_seed.py \
 
 diff -u \
 Software/CONDA/miniconda3/envs/jwstpmap1009/lib/python3.9/site-packages/jwst/outlier_detection/outlier_detection.py \
-Software/CONDA/miniconda3/envs/miragepmap1009/lib/python3.9/site-packages/jwst/outlier_detection/outlier_detection.py \
+outlier_detection.py \
 > dzliu_mirage_input_mosaic_image_fix_patch4.txt
+

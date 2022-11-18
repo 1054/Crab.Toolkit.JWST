@@ -1,5 +1,5 @@
 --- Software/CONDA/miniconda3/envs/miragepmap1009/lib/python3.9/site-packages/mirage/seed_image/fits_seed_image.py        2022-11-18 18:31:51.863789453 +0100
-+++ Cloud/Github/mirage/seed_image/fits_seed_image.py  2022-09-23 18:05:50.945347155 +0200
++++ modified/fits_seed_image.py  2022-09-23 18:05:50.945347155 +0200
 @@ -705,7 +705,7 @@
          else:
              # If a PSF file is provided, check for any metadata. Metadata

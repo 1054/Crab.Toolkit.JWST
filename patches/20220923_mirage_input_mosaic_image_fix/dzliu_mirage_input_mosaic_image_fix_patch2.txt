@@ -1,5 +1,5 @@
 --- Software/CONDA/miniconda3/envs/miragepmap1009/lib/python3.9/site-packages/mirage/seed_image/blot_image.py 2022-11-18 18:31:51.858789048 +0100
-+++ Cloud/Github/mirage/seed_image/blot_image.py   2022-09-23 19:38:41.880569128 +0200
++++ modified/blot_image.py   2022-09-23 19:38:41.880569128 +0200
 @@ -16,7 +16,7 @@
  import gwcs
  from astropy.io import fits

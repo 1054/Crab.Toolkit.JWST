@@ -10,6 +10,7 @@ if "CRDS_SERVER_URL" not in os.environ:
 
 import click
 import astropy.units as u
+import astropy.constants as const
 import numpy as np
 #import pysiaf
 import photutils # used by mirage.seed_image.fits_seed_image
@@ -24,6 +25,7 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
 from astropy.wcs.utils import proj_plane_pixel_area
+from collections import OrderedDict
 from functools import partial
 from jwst.stpipe import Step
 from jwst.outlier_detection import outlier_detection, OutlierDetectionStep
