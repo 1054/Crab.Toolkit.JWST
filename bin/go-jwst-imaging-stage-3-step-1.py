@@ -517,23 +517,25 @@ def main(
         
         # clean up
         for i in range(len(subgroup_files)):
+            subgroup_file = subgroup_files[i]
+            dataset_name = subgroup_file.replace('_cal.fits', '')
             if os.path.isfile(f'{output_name}_{i}_outlier_i2d.fits'):
                 if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_outlier'):
                     os.makedirs(f'{output_subdir}/{output_name}_{i}_outlier')
                 shutil.move(f'{output_name}_{i}_outlier_i2d.fits', 
                             f'{output_subdir}/{output_name}_{i}_outlier/{output_name}_{i}_outlier_i2d.fits')
             # 
-            if os.path.isfile(f'{output_name}_{i}_tweakreg.fits'):
-                if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
-                    os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
-                shutil.move(f'{output_name}_{i}_tweakreg.fits', 
-                            f'{output_subdir}/{output_name}_{i}_tweakreg/{output_name}_{i}_tweakreg.fits')
+            if os.path.isfile(f'{output_subdir}/{dataset_name}_tweakreg.fits'):
+               if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
+                   os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
+               shutil.move(f'{output_subdir}/{dataset_name}_tweakreg.fits', 
+                           f'{output_subdir}/{output_name}_{i}_tweakreg/{dataset_name}_tweakreg.fits')
             # 
-            if os.path.isfile(f'{output_name}_{i}_cal_cat.ecsv'):
-                if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_cal_cat'):
-                    os.makedirs(f'{output_subdir}/{output_name}_{i}_cal_cat')
-                shutil.move(f'{output_name}_{i}_cal_cat.ecsv', 
-                            f'{output_subdir}/{output_name}_{i}_cal_cat/{output_name}_{i}_cal_cat.ecsv')
+            if os.path.isfile(f'{dataset_name}_cal_cat.ecsv'):
+               if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
+                   os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
+                shutil.move(f'{dataset_name}_cal_cat.ecsv', 
+                            f'{output_subdir}/{output_name}_{i}_tweakreg/{dataset_name}_cal_cat.ecsv')
         
         # log
         logger.info("Processed {} -> {}".format(subgroup_files, output_filepath))
