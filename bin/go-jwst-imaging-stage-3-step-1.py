@@ -526,14 +526,14 @@ def main(
                             f'{output_subdir}/{output_name}_{i}_outlier/{output_name}_{i}_outlier_i2d.fits')
             # 
             if os.path.isfile(f'{output_subdir}/{dataset_name}_tweakreg.fits'):
-               if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
-                   os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
-               shutil.move(f'{output_subdir}/{dataset_name}_tweakreg.fits', 
-                           f'{output_subdir}/{output_name}_{i}_tweakreg/{dataset_name}_tweakreg.fits')
+                if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
+                    os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
+                shutil.move(f'{output_subdir}/{dataset_name}_tweakreg.fits', 
+                            f'{output_subdir}/{output_name}_{i}_tweakreg/{dataset_name}_tweakreg.fits')
             # 
             if os.path.isfile(f'{dataset_name}_cal_cat.ecsv'):
-               if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
-                   os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
+                if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
+                    os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
                 shutil.move(f'{dataset_name}_cal_cat.ecsv', 
                             f'{output_subdir}/{output_name}_{i}_tweakreg/{dataset_name}_cal_cat.ecsv')
         
