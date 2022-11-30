@@ -49,6 +49,31 @@ This script includes two substeps:
 1. Running the script `util_merge_source_emission_masked_rate_data.py` to make a merged dark rate for each dataset as aforementioned. This outputs `./jw01345002001_04101_00001_mirimage/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits` and a `*.list.txt` at the same location listing which files are merged.
 2. Running the script `go-jwst-imaging-stage-2-step-3-redo-bkgsub.py` with the `--darkobs` option to apply the Image-for-Image background subtraction. This uses the jwst pipeline's `calwebb_image2.Image2Pipeline.bkg_subtract` component. The output is `./jw01345002001_04101_00001_mirimage/calibrated2_cals/jw01345002001_04101_00001_mirimage_bkgsub_masked_source_emission_cal.fits` and a `*_asn.json` file at the same location which is used by the jwst pipeline. 
 
+To be more specific, taking one data set as an example. When the script is processing data set say `'jw01345002001_04101_00001_mirimage'`, it will automatically merge the data sets marked with `'++'` below, excepting itself. 
+
+```
+# in "jw01345_obs001_MIRI_F1000W_asn.json":
+    jw01345001001_04101_00001_mirimage ++
+    jw01345001001_04101_00002_mirimage ++
+    jw01345001001_04101_00003_mirimage ++
+# in "jw01345_obs002_MIRI_F1000W_asn.json":
+    jw01345002001_04101_00001_mirimage ------ (now processing this)
+    jw01345002001_04101_00002_mirimage ++
+    jw01345002001_04101_00003_mirimage ++
+# in "jw01345_obs003_MIRI_F1000W_asn.json":
+    jw01345003001_04101_00001_mirimage ++
+    jw01345003001_04101_00002_mirimage ++
+    jw01345003001_04101_00003_mirimage ++
+# in "jw01345_obs004_MIRI_F1000W_asn.json":
+    jw01345004001_04101_00001_mirimage ++
+    jw01345004001_04101_00002_mirimage ++
+    jw01345004001_04101_00003_mirimage ++
+# in "jw01345_obs052_MIRI_F1000W_asn.json":
+    jw01345052001_04101_00001_mirimage ++
+    jw01345052001_04101_00002_mirimage ++
+    jw01345052001_04101_00003_mirimage ++
+```
+
 
 ### Stage 3: cal -> i2d (drizzling mosaic image)
 
