@@ -217,23 +217,30 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         
         file_in="calibrated2_cals/${dataset_name}_cal.fits"
         file_out="calibrated2_cals/${dataset_name}_cal_run_sextractor_classic_dir/SExtractor_OutputCatalogXY.csv"
-        proc_args=()
-        if [[ $overwrite -gt 0 ]]; then
-            proc_args+=(--overwrite)
+        file_out2="calibrated2_cals/${dataset_name}_cal_cat_for_tweakreg.csv"
+        if [[ -f "$file_out2" ]] && [[ $overwrite -eq 0 ]]; then
+            echo "Found \"$file_out2\" and overwrite is not set. SKipping."
+        else
+            proc_args=()
+            if [[ $overwrite -gt 0 ]]; then
+                proc_args+=(--overwrite)
+            fi
+            echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-4-do-sextractor.sh "$file_in" "${proc_args[@]}"
+            $script_dir/go-jwst-imaging-stage-2-step-4-do-sextractor.sh "$file_in" "${proc_args[@]}"
+            ret=$?
+            if [[ $ret -ne 0 ]]; then
+                echo "Error occurred?!"
+                exit 255
+            fi
+            if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+                echo "Error! Failed to produce the output file: $file_out"
+                exit 255
+            fi
+            echo "cp $file_out $file_out2"
+            cp $file_out $file_out2
         fi
-        echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-4-do-sextractor.sh "$file_in" "${proc_args[@]}"
-        $script_dir/go-jwst-imaging-stage-2-step-4-do-sextractor.sh "$file_in" "${proc_args[@]}"
-        ret=$?
-        if [[ $ret -ne 0 ]]; then
-            echo "Error occurred?!"
-            exit 255
-        fi
-        if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
-            echo "Error! Failed to produce the output file: $file_out"
-            exit 255
-        fi
-        
     fi
+    
     
     echo cd ../
     cd ../
