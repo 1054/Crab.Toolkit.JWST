@@ -20,6 +20,10 @@ script_dir=$(dirname "${BASH_SOURCE[0]}")
 if [[ -f "$HOME/Cloud/Github/Crab.Toolkit.SExtractorPlus/bin/sextractor_classic_go_find_sources.py" ]]; then
     export PATH="$PATH:$HOME/Cloud/Github/Crab.Toolkit.SExtractorPlus/bin"
 fi
+if [[ $(type sex 2>/dev/null | wc -l) -eq 0 ]]; then
+    echo "Error! \"sex\" is not found in PATH! Please install SExtractor and make sure the command \"sex\" can be found in PATH!"
+    exit 255
+fi
 if [[ $(type sextractor_classic_go_find_sources.py 2>/dev/null | wc -l) -eq 0 ]]; then
     echo "Error! \"sextractor_classic_go_find_sources.py\" is not found in PATH! Please download https://github.com/1054/Crab.Toolkit.SExtractorPlus and add the \"bin\" directory into PATH!"
     exit 255
