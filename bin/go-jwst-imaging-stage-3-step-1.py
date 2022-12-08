@@ -17,6 +17,7 @@ Outputs
 Last update:
     
     2022-09-10 DZLIU.
+    2022-12-03 DZLIU. tweakreg with "*_cat_for_tweakreg.csv".
 
 
 More notes from CEERS in "ceers_nircam_reduction.ipynb":
@@ -68,7 +69,6 @@ try:
 except:
     from distutils.version import LooseVersion
 
-
 # Numpy library:
 import numpy as np
 
@@ -96,6 +96,9 @@ from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
 
 # Import jwst package itself
 import jwst
+
+# Import AsdfFile
+from asdf import AsdfFile
 
 # Setup logging
 import logging
@@ -403,8 +406,8 @@ def main(
         
         # check if another script is processing this data
         if os.path.exists(output_subdir + '.touch'):
-            logger.warning(f"Found another script processing data dir {output_subdir!r}. " + 
-                            "We will skip processing it.")
+            logger.warning(f"WARNING WARNING WARNING! Found another script processing data dir {output_subdir!r}. " + 
+                            "We will skip processing it for now!")
             continue
         
         # create touch file
@@ -415,6 +418,10 @@ def main(
         if os.path.isfile(output_filepath):
             shutil.move(output_filepath, output_filepath+'.backup')
         
+        # clean up existing cal.fits under output_subdir
+        #for calfilename in os.listdir(output_subdir):
+        #    if calfilename.endswith('_cal.fits'):
+        #        if os.path.islink()
         
         # prepare the json-format "association" file
         asn_dict = OrderedDict()
@@ -432,15 +439,48 @@ def main(
         product_dict['name'] = output_name
         product_dict['members'] = []
         asn_dict['products'].append(product_dict)
+        catdict = OrderedDict() # see "jwst/tweakreg/tweakreg_step.py"
         for subgroup_file in subgroup_files:
+            # get 'expname'
+            # relative to asn file dir path, 
+            # see "jwst/datamodels/container.py"
+            # see also "jwst/tweakreg/tweakreg_step.py", 
+            # ```
+            # filename = member['expname']
+            # member['expname'] = path.join(asn_dir, filename)
+            # ```
+            #expname = os.path.relpath(subgroup_file, os.path.dirname(output_subdir))
+            # 
+            # 20221203: now using symlink and run the processing from the output_subdir!
+            expname = os.path.basename(subgroup_file)
+            explink = os.path.join(output_subdir, expname)
             product_dict['members'].append(
-                {'expname': os.path.relpath(subgroup_file, os.path.dirname(output_subdir)), 
-                            # relative to asn file dir path, see "jwst/datamodels/container.py"
+                {'expname': expname, 
                  'exptype': 'science'
                 }
             )
+            if not os.path.exists(explink):
+                if os.path.islink(explink):
+                    os.remove(explink)
+                os.symlink(os.path.relpath(subgroup_file, output_subdir), 
+                           explink)
+            # 
+            # if there is a '{dataset_cal}_cat_for_tweakreg.csv' file, 
+            # use it as catfile for tweakreg
+            calcat_file = os.path.splitext(subgroup_file)[0]+'_cat_for_tweakreg.csv'
+            if os.path.isfile(calcat_file):
+                calcat_name = os.path.basename(calcat_file)
+                calcat_link = os.path.join(output_subdir, calcat_name)
+                if not os.path.exists(calcat_link):
+                    if os.path.islink(calcat_link):
+                        os.remove(calcat_link)
+                    os.symlink(os.path.relpath(calcat_file, output_subdir), 
+                               calcat_link)
+                catkey = expname
+                catdict[catkey] = calcat_name
         
-        asn_file = output_subdir + '_asn.json'
+        asn_filename = 'asn.json'
+        asn_file = os.path.join(output_subdir, asn_filename)
         
         if os.path.isfile(asn_file):
             shutil.move(asn_file, asn_file+'.backup')
@@ -448,9 +488,30 @@ def main(
         with open(asn_file, 'w') as fp:
             json.dump(asn_dict, fp, indent=4)
         
+        catfile = None
+        if len(catdict) > 0:
+            catfilename = 'catfile.txt'
+            catfilepath = os.path.join(output_subdir, catfilename)
+            if os.path.isfile(catfilepath):
+                shutil.move(catfilepath, catfilepath+'.backup')
+            with open(catfilepath, 'w') as fp:
+                for catkey in catdict:
+                    fp.write('{} {}\n'.format(catkey, catdict[catkey]))
+            catfile = catfilename # we will run the process inside the output_subdir, so set only filename here
+        
+        
+        if abs_refcat is not None and abs_refcat != '':
+            abs_refcat = os.path.abspath(abs_refcat)
+        
         
         # Print progress
         logger.info("Processing {} -> {}".format(subgroup_files, output_filepath))
+        
+        
+        # chdir
+        current_dir = os.getcwd()
+        logger.info("chdir {}".format(output_subdir))
+        os.chdir(output_subdir)
         
         
         # prepare to run
@@ -459,7 +520,7 @@ def main(
 
         # Set some parameters that pertain to the entire pipeline
         #pipeline_object.input_dir = os.getcwd()
-        pipeline_object.output_dir = output_subdir
+        #[20221203]#pipeline_object.output_dir = output_subdir
         pipeline_object.output_file = output_name # os.path.splitext(output_file)[0]
         pipeline_object.output_ext = ".fits" # default
         pipeline_object.save_results = True
@@ -467,13 +528,28 @@ def main(
         # Set some parameters that pertain to some of the individual steps
         # Turn on TweakRegStep
         #pipeline_object.tweakreg.skip = False
-        pipeline_object.tweakreg.output_dir = output_subdir
+        #[20221203]#pipeline_object.tweakreg.output_dir = output_subdir
+        pipeline_object.tweakreg.minobj = 7 # default is 15
+        pipeline_object.tweakreg.searchrad = 0.6 # default is 2.0
+        pipeline_object.tweakreg.separation = 1.0 # default is 0.1 arcsec
+        pipeline_object.tweakreg.tolerance = 0.3 # default is 0.7 arcsec
         pipeline_object.tweakreg.save_catalogs = True # "./*_cal_cat.ecsv" # always current dir, see "tweakreg_step.py"
         pipeline_object.tweakreg.save_results = True # "{output_subdir}/*_cal_tweakreg.fits"
         pipeline_object.tweakreg.search_output_file = False # do not use output_file define in parent step
         pipeline_object.tweakreg.output_use_model = True # use DataModel.meta.filename as output_file
+        # set catfile if found
+        if catfile is not None:
+            pipeline_object.tweakreg.use_custom_catalogs = True
+            pipeline_object.tweakreg.catfile = catfile
+        # set abs_refcat if user has input that
         if abs_refcat is not None and abs_refcat != '':
             pipeline_object.tweakreg.abs_refcat = abs_refcat
+            #pipeline_object.abs_fitgeometry = 'rshift' # 'shift', 'rshift', 'rscale', 'general' (shift, rotation, and scale)
+            pipeline_object.tweakreg.abs_minobj = 7 # default is 15
+            pipeline_object.tweakreg.abs_searchrad = 0.6 # default is 6.0
+            pipeline_object.tweakreg.abs_separation = 1.0 # default is 0.1 arcsec
+            pipeline_object.tweakreg.abs_tolerance = 0.3 # default is 0.7 arcsec
+            pipeline_object.tweakreg.save_abs_catalog = True
             #pipeline_object.tweakreg.save_abs_catalog = True # only if abs_refcat `gaia_cat_name in SINGLE_GROUP_REFCAT`
         
         # Turn on SkyMatchStep
@@ -488,23 +564,78 @@ def main(
         
         # Set OutlierDetection
         #pipeline_object.outlier_detection.skip = False
-        pipeline_object.outlier_detection.output_dir = output_subdir
+        #[20221203]#pipeline_object.outlier_detection.output_dir = output_subdir
         pipeline_object.outlier_detection.pixfrac = pixfrac
         pipeline_object.outlier_detection.in_memory = False
+        #pipeline_object.outlier_detection.suffix = 'crf'
+        #pipeline_object.outlier_detection.save_results = pipeline_object.save_results
+
         
         # Set the ratio of input to output pixels to create an output mosaic 
         # on a 0.015"/pixel scale
         # see -- https://jwst-pipeline.readthedocs.io/en/latest/jwst/resample/arguments.html
         #pipeline_object.resample_data = True # True is the default
+        #pipeline_object.resample.suffix = 'i2d'
+        #pipeline_object.resample.save_results = pipeline_object.save_results
         pipeline_object.resample.kernel = kernel
         pipeline_object.resample.pixfrac = pixfrac
         #pipeline_object.resample.pixel_scale_ratio = 0.48
         pipeline_object.resample.pixel_scale_ratio = pixel_scale_ratio
         pipeline_object.resample.pixel_scale = pixel_scale
         
+        # Set source_catalog
+        #pipeline_object.source_catalog.save_results = pipeline_object.save_results
+        
         
         # run
-        pipeline_object.run(asn_file)
+        pipeline_object.run(asn_filename)
+        
+        
+        # we can also run individual steps following "jwst/pipeline/calwebb_image3.py" `process()`
+        if False: # TODO
+            pipeline_object.log.info(
+                f'Step {pipeline_object.name} running with args {args}.'
+            )
+            pipeline_object.log.info(
+                f'Step {pipeline_object.name} parameters are: {pipeline_object.get_pars()}'
+            )
+            asn_exptypes = ['science']
+            with datamodels.open(asn_filename, asn_exptypes=asn_exptypes) as input_models:
+                input_models = pipeline_object.tweakreg(input_models)
+                input_models = pipeline_object.skymatch(input_models)
+                # TODO: here we can split input_models into each obsnum group, 
+                # then parallelize the outlier_detection process,
+                # this also saves memory usage
+                input_models = pipeline_object.outlier_detection(input_models)
+                result = pipeline_object.resample(input_models)
+                if isinstance(result, datamodels.ImageModel) and result.meta.cal_step.resample == 'COMPLETE':
+                    pipeline_object.source_catalog(result)
+        
+        
+        # move some output files to subdirectories
+        # for example the "outlier_i2d.fits", so that we do not find them when doing an `ls *_i2d.fits`
+        for i in range(len(subgroup_files)):
+            subgroup_file = subgroup_files[i]
+            dataset_name = subgroup_file.replace('_cal.fits', '')
+            if os.path.isfile(f'{output_name}_{i}_outlier_i2d.fits'):
+                if not os.path.isdir(f'{output_name}_{i}_outlier'):
+                    os.makedirs(f'{output_name}_{i}_outlier')
+                shutil.move(f'{output_name}_{i}_outlier_i2d.fits', 
+                            f'{output_name}_{i}_outlier/{output_name}_{i}_outlier_i2d.fits')
+        
+        
+        # chdir back
+        logger.info("chdir {}".format(current_dir))
+        os.chdir(current_dir)
+        
+        
+        # save pars as asdf file
+        asdf_filepath = os.path.splitext(output_filepath)[0] + '_calwebb_image3.asdf'
+        if os.path.isfile(asdf_filepath):
+            shutil.move(asdf_filepath, asdf_filepath+'.backup')
+        asdf_object = AsdfFile(pipeline_object.get_pars())
+        asdf_object.write_to(asdf_filepath)
+        logger.info('Parameters are saved into {}'.format(asdf_filepath))
         
         
         # remove touch file
@@ -516,26 +647,26 @@ def main(
         
         
         # clean up
-        for i in range(len(subgroup_files)):
-            subgroup_file = subgroup_files[i]
-            dataset_name = subgroup_file.replace('_cal.fits', '')
-            if os.path.isfile(f'{output_name}_{i}_outlier_i2d.fits'):
-                if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_outlier'):
-                    os.makedirs(f'{output_subdir}/{output_name}_{i}_outlier')
-                shutil.move(f'{output_name}_{i}_outlier_i2d.fits', 
-                            f'{output_subdir}/{output_name}_{i}_outlier/{output_name}_{i}_outlier_i2d.fits')
-            # 
-            if os.path.isfile(f'{output_subdir}/{dataset_name}_tweakreg.fits'):
-                if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
-                    os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
-                shutil.move(f'{output_subdir}/{dataset_name}_tweakreg.fits', 
-                            f'{output_subdir}/{output_name}_{i}_tweakreg/{dataset_name}_tweakreg.fits')
-            # 
-            if os.path.isfile(f'{dataset_name}_cal_cat.ecsv'):
-                if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
-                    os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
-                shutil.move(f'{dataset_name}_cal_cat.ecsv', 
-                            f'{output_subdir}/{output_name}_{i}_tweakreg/{dataset_name}_cal_cat.ecsv')
+        # for i in range(len(subgroup_files)):
+        #     subgroup_file = subgroup_files[i]
+        #     dataset_name = subgroup_file.replace('_cal.fits', '')
+        #     if os.path.isfile(f'{output_name}_{i}_outlier_i2d.fits'):
+        #         if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_outlier'):
+        #             os.makedirs(f'{output_subdir}/{output_name}_{i}_outlier')
+        #         shutil.move(f'{output_name}_{i}_outlier_i2d.fits', 
+        #                     f'{output_subdir}/{output_name}_{i}_outlier/{output_name}_{i}_outlier_i2d.fits')
+        #     # 
+        #     if os.path.isfile(f'{output_subdir}/{dataset_name}_tweakreg.fits'):
+        #         if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
+        #             os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
+        #         shutil.move(f'{output_subdir}/{dataset_name}_tweakreg.fits', 
+        #                     f'{output_subdir}/{output_name}_{i}_tweakreg/{dataset_name}_tweakreg.fits')
+        #     # 
+        #     if os.path.isfile(f'{dataset_name}_cal_cat.ecsv'):
+        #         if not os.path.isdir(f'{output_subdir}/{output_name}_{i}_tweakreg'):
+        #             os.makedirs(f'{output_subdir}/{output_name}_{i}_tweakreg')
+        #         shutil.move(f'{dataset_name}_cal_cat.ecsv', 
+        #                     f'{output_subdir}/{output_name}_{i}_tweakreg/{dataset_name}_cal_cat.ecsv')
         
         # log
         logger.info("Processed {} -> {}".format(subgroup_files, output_filepath))
