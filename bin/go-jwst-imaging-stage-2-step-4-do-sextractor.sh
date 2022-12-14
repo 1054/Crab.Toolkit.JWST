@@ -1,6 +1,7 @@
 #/bin/bash
 #
-# Run SExtractor to make catfile for cal.fits.
+# Run SExtractor to make catfile for {dataset}_cal.fits. 
+# The output files are in a new "{dataset}_cal_run_sextractor_classic" directory in the same directory as the cal file.
 # 
 # This requires https://github.com/1054/Crab.Toolkit.SExtractorPlus.
 # 

@@ -44,6 +44,7 @@ def cut_catalog_to_image_field_of_view(
         output_catalog_file, 
         buffer = 1.0, # arcsec at each side
         save_region_file = True, 
+        meta_name = None, 
         overwrite = False, 
         verbose = True, 
     ):
@@ -142,6 +143,12 @@ def cut_catalog_to_image_field_of_view(
     if colname_DEC != 'DEC': 
         output_catalog.rename_column(colname_DEC, 'DEC')
     
+    # add meta
+    if meta_name is None:
+        meta_name = os.path.splitext(os.path.basename(input_catalog_file))[0]
+    if meta_name != '':
+        output_catalog.meta['name'] = meta_name
+    
     # save output catalog
     if os.path.isfile(output_catalog_file):
         shutil.move(output_catalog_file, output_catalog_file+'.backup')
@@ -178,6 +185,7 @@ def cut_catalog_to_image_field_of_view(
 @click.argument('fits_image_file', type=click.Path(exists=True))
 @click.argument('output_catalog_file', type=click.Path(exists=False))
 @click.option('--buffer', type=float, default=1.0, help='Buffer in arcsec.')
+@click.option('--meta-name', type=str, default=None, help='Meta name to be written into the output catalog fits header.')
 @click.option('--save-region-file/--no-save-region-file', is_flag=True, default=True)
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 @click.option('--verbose/--no-verbose', is_flag=True, default=True)
@@ -186,6 +194,7 @@ def main(
         fits_image_file, 
         output_catalog_file, 
         buffer, 
+        meta_name, 
         save_region_file, 
         overwrite, 
         verbose, 
@@ -196,6 +205,7 @@ def main(
         fits_image_file, 
         output_catalog_file, 
         buffer = buffer, 
+        meta_name = meta_name, 
         save_region_file = save_region_file, 
         overwrite = overwrite, 
         verbose = verbose, 

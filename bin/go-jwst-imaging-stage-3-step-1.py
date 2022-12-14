@@ -182,7 +182,8 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--combine-program/--no-combine-program', is_flag=True, default=False, help='Combine all programs into one.')
 @click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
-@click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
+@click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite?')
+@click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
 def main(
         input_cal_files, 
         output_dir, 
@@ -201,6 +202,7 @@ def main(
         combine_obsnum, 
         combine_filter, 
         overwrite, 
+        run_individual_steps,
     ):
     
     # Add script dir to sys path
@@ -502,6 +504,7 @@ def main(
         
         if abs_refcat is not None and abs_refcat != '':
             abs_refcat = os.path.abspath(abs_refcat)
+            run_individual_steps = True
         
         
         # Print progress
@@ -530,9 +533,9 @@ def main(
         #pipeline_object.tweakreg.skip = False
         #[20221203]#pipeline_object.tweakreg.output_dir = output_subdir
         pipeline_object.tweakreg.minobj = 7 # default is 15
-        pipeline_object.tweakreg.searchrad = 0.6 # default is 2.0
+        pipeline_object.tweakreg.searchrad = 1.0 # default is 2.0
         pipeline_object.tweakreg.separation = 1.0 # default is 0.1 arcsec
-        pipeline_object.tweakreg.tolerance = 0.3 # default is 0.7 arcsec
+        pipeline_object.tweakreg.tolerance = 1.0 # default is 0.7 arcsec
         pipeline_object.tweakreg.save_catalogs = True # "./*_cal_cat.ecsv" # always current dir, see "tweakreg_step.py"
         pipeline_object.tweakreg.save_results = True # "{output_subdir}/*_cal_tweakreg.fits"
         pipeline_object.tweakreg.search_output_file = False # do not use output_file define in parent step
@@ -545,12 +548,18 @@ def main(
         if abs_refcat is not None and abs_refcat != '':
             pipeline_object.tweakreg.abs_refcat = abs_refcat
             #pipeline_object.abs_fitgeometry = 'rshift' # 'shift', 'rshift', 'rscale', 'general' (shift, rotation, and scale)
-            pipeline_object.tweakreg.abs_minobj = 7 # default is 15
-            pipeline_object.tweakreg.abs_searchrad = 0.6 # default is 6.0
+            pipeline_object.tweakreg.abs_minobj = 1 # default is 15
+            pipeline_object.tweakreg.abs_searchrad = 1.0 # default is 6.0
             pipeline_object.tweakreg.abs_separation = 1.0 # default is 0.1 arcsec
-            pipeline_object.tweakreg.abs_tolerance = 0.3 # default is 0.7 arcsec
+            pipeline_object.tweakreg.abs_tolerance = 1.0 # default is 0.7 arcsec
+            pipeline_object.tweakreg.abs_use2dhist = False # default is True, but ...
+            #pipeline_object.tweakreg.abs_fitgeometry = 'shift' # 'rshift'
             pipeline_object.tweakreg.save_abs_catalog = True
             #pipeline_object.tweakreg.save_abs_catalog = True # only if abs_refcat `gaia_cat_name in SINGLE_GROUP_REFCAT`
+        # do manual 2dhist for a better tweakreg
+        if catfile is not None and abs_refcat is not None and abs_refcat != '':
+            from util_match_cat_file_to_abs_refcat_with_2dhist import match_cat_file_to_abs_refcat_with_2dhist
+            pipeline_object.tweakreg.catfile = match_cat_file_to_abs_refcat_with_2dhist(catfile, abs_refcat)
         
         # Turn on SkyMatchStep
         #pipeline_object.skymatch.skip = False
@@ -588,26 +597,63 @@ def main(
         
         
         # run
-        pipeline_object.run(asn_filename)
-        
+        if not run_individual_steps:
+            
+            pipeline_object.run(asn_filename)
         
         # we can also run individual steps following "jwst/pipeline/calwebb_image3.py" `process()`
-        if False: # TODO
+        else: # TODO
+            
             pipeline_object.log.info(
-                f'Step {pipeline_object.name} running with args {args}.'
+                f'Step {pipeline_object.name} running with asn file {asn_filename}.'
             )
             pipeline_object.log.info(
                 f'Step {pipeline_object.name} parameters are: {pipeline_object.get_pars()}'
             )
             asn_exptypes = ['science']
             with datamodels.open(asn_filename, asn_exptypes=asn_exptypes) as input_models:
-                input_models = pipeline_object.tweakreg(input_models)
-                input_models = pipeline_object.skymatch(input_models)
-                # TODO: here we can split input_models into each obsnum group, 
+                # 
+                # 1. tweakreg
+                pipeline_object.tweakreg.output_file = output_name
+                pipeline_object.tweakreg.save_results = True
+                pipeline_object.tweakreg.search_output_file = False
+                image_models = pipeline_object.tweakreg(input_models)
+                # TODO: sometimes tweakreg update_fits_wcsinfo fails because `max_pix_error` is too small, 
+                # we can run this manually with a larger `max_pix_error`, then save_model.
+                from jwst.assign_wcs.util import update_fits_wcsinfo
+                for image_model in image_models:
+                    update_fits_wcsinfo(image_model,
+                        max_pix_error=1.,
+                        npoints=16)
+                pipeline_object.tweakreg.save_model(image_models, idx=None, suffix='tweakreg',
+                                format=pipeline_object.tweakreg.name_format, force=True)
+                # 
+                # 2. skymatch bkgmatch
+                pipeline_object.skymatch.output_file = output_name
+                pipeline_object.skymatch.save_results = True
+                pipeline_object.skymatch.search_output_file = False
+                image_models = pipeline_object.skymatch(image_models)
+                # 
+                # 3. outlier detection
+                # TODO: here we can split image_models into each obsnum group, 
                 # then parallelize the outlier_detection process,
                 # this also saves memory usage
-                input_models = pipeline_object.outlier_detection(input_models)
-                result = pipeline_object.resample(input_models)
+                pipeline_object.outlier_detection.output_file = output_name
+                pipeline_object.outlier_detection.save_results = True
+                pipeline_object.outlier_detection.suffix = 'crf'
+                pipeline_object.outlier_detection.search_output_file = False
+                image_models = pipeline_object.outlier_detection(image_models)
+                # 
+                # 4. resample
+                pipeline_object.resample.output_file = output_name
+                pipeline_object.resample.save_results = True
+                pipeline_object.resample.suffix = 'i2d'
+                result = pipeline_object.resample(image_models)
+                # 
+                # 5. source_catalog
+                pipeline_object.source_catalog.output_file = output_name
+                pipeline_object.source_catalog.search_output_file = False
+                pipeline_object.source_catalog.save_results = True
                 if isinstance(result, datamodels.ImageModel) and result.meta.cal_step.resample == 'COMPLETE':
                     pipeline_object.source_catalog(result)
         
