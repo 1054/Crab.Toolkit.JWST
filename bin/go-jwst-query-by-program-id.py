@@ -140,7 +140,7 @@ def main(
         if re.match(r'^[0-9]+$', obs_num):
             obs_num = '{:03d}'.format(int(obs_num))
         elif re.match(r'^[0-9]+(,[0-9]+)+$', obs_num):
-            obs_num = '{:03d}'.format(int(obs_num))
+            obs_num = ['{:03d}'.format(int(t)) for t in obs_num.split(',')]
         else:
             logger.error('Error! Cannot understand the input obs_num. Example: 001')
             sys.exit(255)
