@@ -91,7 +91,7 @@ def setup_logger():
 
 @click.command()
 @click.argument('program', type=str)
-@click.option('--obs-num', '--obsnum', '--obs', type=str, default=None)
+@click.option('--obs-num', '--obsnum', '--obs', type=str, default=None, help='Observation number as listed in the program information webpage.')
 @click.option('--calib-level', type=str, default='1', help='Selecting calib level. "1" for uncal data, "2" for rate data, "3" for drizzled image data. Can be multiple like "1,2,3".')
 @click.option('--extension', type=str, default='fits', help='Selecting extension. Usually just "fits". Can be "fits,json,jpg" if you want to get those files too.')
 @click.option('--preview', is_flag=True, default=False, help='Selecting preview files, e.g., i2d quicklook image in jpg format.')
@@ -139,6 +139,8 @@ def main(
         
         if re.match(r'^[0-9]+$', obs_num):
             obs_num = '{:03d}'.format(int(obs_num))
+        elif re.match(r'^[0-9]+(,[0-9]+)+$', obs_num):
+            obs_num = '{:03d}'.format(int(obs_num))
         else:
             logger.error('Error! Cannot understand the input obs_num. Example: 001')
             sys.exit(255)
@@ -179,11 +181,21 @@ def main(
     # loop obs list
     for iobs, obs in enumerate(obs_list):
         #logger.info('obs_id: {}'.format(obs['obs_id']))
+        is_obs_num_matched = True
         if obs_num is not None:
-            check_obs_id = 'jw{}-o{}_t[0-9]+_.*_.*'.format(
-                proposal_id, obs_num)
-            if re.match(check_obs_id, obs['obs_id']) is None:
-                continue
+            is_obs_num_matched = False
+            if isinstance(obs_num, str):
+                obs_num_list = [obs_num]
+            else:
+                obs_num_list = obs_num
+            for obs_num_str in obs_num_list:
+                check_obs_id = 'jw{}-o{}_t[0-9]+_.*_.*'.format(
+                    proposal_id, obs_num_str)
+                if re.match(check_obs_id, obs['obs_id']) is not None:
+                    is_obs_num_matched = True
+                    break
+        if not is_obs_num_matched:
+            continue
         logger.info('*** --- ({}/{}) "{}" --- ***'.format(iobs+1, len(obs_list), obs['obs_id']))
         product_list = Observations.get_product_list(obs)
         if len(product_list) > 0:
