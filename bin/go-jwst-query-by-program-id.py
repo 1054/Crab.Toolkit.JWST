@@ -189,7 +189,9 @@ def main(
             else:
                 obs_num_list = obs_num
             for obs_num_str in obs_num_list:
-                check_obs_id = 'jw{}-o{}_t[0-9]+_.*_.*'.format(
+                # example: jw01345-o052_t022_nircam_clear-f200w
+                #          jw01345-o061_s00410_nirspec_f170lp-g235m
+                check_obs_id = 'jw{}-o{}_(t|s)[0-9]+_.*_.*'.format(
                     proposal_id, obs_num_str)
                 if re.match(check_obs_id, obs['obs_id']) is not None:
                     is_obs_num_matched = True
