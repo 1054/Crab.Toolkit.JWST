@@ -93,7 +93,7 @@ def setup_logger():
 @click.argument('program', type=str)
 @click.option('--obs-num', '--obsnum', '--obs', type=str, default=None, help='Observation number as listed in the program information webpage.')
 @click.option('--calib-level', type=str, default='1', help='Selecting calib level. "1" for uncal data, "2" for rate data, "3" for drizzled image data. Can be multiple like "1,2,3".')
-@click.option('--extension', type=str, default='fits', help='Selecting extension. Usually just "fits". Can be "fits,json,jpg" if you want to get those files too.')
+@click.option('--extension', type=str, default='fits', help='Selecting extension. Usually just "fits". Can be "fits,json,jpg,ecsv" if you want to get those files too.')
 @click.option('--preview', is_flag=True, default=False, help='Selecting preview files, e.g., i2d quicklook image in jpg format.')
 @click.option('--auxiliary', is_flag=True, default=False, help='Selecting auxiliary files, e.g., guide star data.')
 @click.option('--download/--no-download', is_flag=True, default=False)
