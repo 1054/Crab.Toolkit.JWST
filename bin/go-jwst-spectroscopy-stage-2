@@ -1,0 +1,184 @@
+#!/bin/bash
+# 
+# Inputs:
+# 
+#    jwst dataset names ("jwpppppooovvv_ggsaa_eeeee_detector_prodType")
+#    
+#    For each input jwst dataset name, the following file must exist:
+#        {dataset_name}/calibrated1_rates/{dataset_name}_rate.fits
+# 
+# Outputs:
+# 
+#    For each input jwst dataset name, the main output file is: 
+#        {dataset_name}/calibrated2_cals/{dataset_name}_cal.fits
+# 
+# 
+set -e
+
+# Set necessary system variables
+if [[ -z "$CRDS_PATH" ]]; then
+    export CRDS_PATH=$HOME/jwst_crds_cache
+fi
+if [[ -z "$CRDS_SERVER_URL" ]]; then
+    export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
+fi
+
+# Get script_dir
+script_dir=$(dirname "${BASH_SOURCE[0]}")
+
+# Define function to get abspath
+abspath () {
+    perl -MCwd -e 'print Cwd::abs_path shift' "$1"
+}
+
+
+# Read user input
+iarg=1
+argstr=""
+work_dir="."
+current_dir=$(pwd)
+overwrite=0
+dataset_names=()
+user_flat_dir=""
+no_bkgsub=0
+no_sextractor=0
+while [[ $iarg -le $# ]]; do
+    argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
+    if [[ "$argstr" == "--"* ]]; then
+        if [[ "$argstr" == "--work-dir" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                work_dir="${!iarg}"
+                echo "work_dir = \"$work_dir\""
+            fi
+        elif [[ "$argstr" == "--user-flat-dir" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                user_flat_dir=$(abspath "${!iarg}")
+                echo "user_flat_dir = \"$user_flat_dir\""
+            fi
+        elif [[ "$argstr" == "--no-bkgsub" ]]; then
+            no_bkgsub=1
+            echo "no_bkgsub = \"$no_bkgsub\""
+        elif [[ "$argstr" == "--no-sextractor" ]]; then
+            no_sextractor=1
+            echo "no_sextractor = \"$no_sextractor\""
+        else
+            echo "Unkonwn argument: ${!iarg}"
+        fi
+    else
+        dataset_names+=("${!iarg}")
+    fi
+    # 
+    iarg=$((iarg+1))
+done
+
+
+# Check user input
+# If dataset_names is not given, then we will search under current or specified working directory.
+if [[ ${#dataset_names[@]} -eq 0 ]]; then
+    if [[ "$work_dir" != "." ]]; then
+        echo "Searching for JWST dataset under working directory: $work_dir"
+        found_dirs=($(find $work_dir -maxdepth 1 -mindepth 1 -type d -name "jw*_*" | sort -V))
+    else
+        echo "Searching for JWST dataset under current directory: $current_dir"
+        found_dirs=($(find . -maxdepth 1 -mindepth 1 -type d -name "jw*_*" | sort -V))
+    fi
+    for (( i = 0; i < ${#found_dirs[@]}; i++ )); do
+        found_dirname=$(basename "${found_dirs[i]}")
+        if [[ $($script_dir/go-jwst-parse-dataset-name.py "$found_dirname" 2>/dev/null | tail -n 1) == "JWST_Dataset_Name"* ]]; then
+            dataset_names+=("$found_dirname")
+        fi
+    done
+else
+    for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
+        dataset_name="${dataset_names[i]}"
+        if [[ "$dataset_name" == *"/" ]]; then
+            dataset_name=$(echo "$dataset_name" | perl -p -e 's%/+$%%g')
+        fi
+        if [[ $($script_dir/go-jwst-parse-dataset-name.py "$dataset_name" 2>/dev/null | tail -n 1) != "JWST_Dataset_Name"* ]]; then
+            echo "Error! The input dataset name \"$dataset_name\" seems incorrect?"
+            echo "Or Python issue? Please try to run $script_dir/go-jwst-parse-dataset-name.py \"$dataset_name\""
+            exit 255
+        fi
+    done
+fi
+
+if [[ ${#dataset_names[@]} -eq 0 ]]; then
+    echo "No JWST dataset found!"
+    exit 2
+fi
+
+
+# cd work_dir
+if [[ "$work_dir" != "." ]]; then
+    echo "cd \"$work_dir\""
+    cd "$work_dir"
+fi
+
+
+# process datasets
+for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
+    
+    dataset_name="${dataset_names[i]}"
+    echo "*** Processing $dataset_name ***"
+    
+    if [[ ! -d $dataset_name ]]; then
+        echo "Error! Dataset directory does not exist: \"$dataset_name\"! Current directory: \"$(pwd)\"."
+        exit 255
+    fi
+    
+    echo cd $dataset_name
+    cd $dataset_name
+    
+    # check input directory: calibrated1_rates
+    if [[ ! -d calibrated1_rates ]]; then
+        echo "Error! Dataset directory does not exist: \"$calibrated1_rates\"! Current directory: \"$(pwd)\"."
+        exit 255
+    fi
+
+    # check output directory: calibrated2_cals
+    if [[ ! -d calibrated2_cals ]]; then
+        echo "mkdir calibrated2_cals"
+        mkdir calibrated2_cals
+    fi
+    
+    # Run step 1
+    file_in="calibrated1_rates/${dataset_name}_rate.fits"
+    file_out="calibrated2_cals/${dataset_name}_cal.fits"
+    proc_args=()
+    if [[ ! -z "$user_flat_dir" ]]; then
+        proc_args+=(--user-flat-dir "$user_flat_dir")
+    fi
+    if [[ $overwrite -gt 0 ]]; then
+        proc_args+=(--overwrite)
+    fi
+    echo "*** Running ***" python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    ret=$?
+    if [[ $ret -ne 0 ]]; then
+        echo "Error occurred?!"
+        exit 255
+    fi
+    if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+        echo "Error! Failed to produce the output file: $file_out"
+        exit 255
+    fi
+    
+    # TODO: no further steps
+    
+    
+    echo cd ../
+    cd ../
+    
+done
+
+
+
+
+echo "All done!"
+
+
+
+
+

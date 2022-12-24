@@ -1,0 +1,216 @@
+#!/bin/bash
+# 
+# Inputs:
+# 
+#    jwst dataset names ("jwpppppooovvv_ggsaa_eeeee_detector_prodType")
+# 
+#    For each input jwst dataset name, the following file will be processed:
+#        {dataset_name}/uncals/{dataset_name}_uncal.fits
+#    If it is does not exist, the code will search 'MAST_DOWNLOAD_DIR' for it.
+#    If it is not found in 'MAST_DOWNLOAD_DIR', then we will download it into 'MAST_DOWNLOAD_DIR', 
+#    then link it from the 'MAST_DOWNLOAD_DIR' to the 'uncals' directory.
+# 
+# Outputs:
+# 
+#    For each input jwst dataset name, the main output file is: 
+#        {dataset_name}/calibrated1_rates/{dataset_name}_rate.fits
+# 
+# Notes:
+# 
+#    Need python packages: crds jwst stcal stpipe lmfit click
+# 
+# 
+# 
+set -e
+
+# Set necessary system variables
+if [[ -z "$CRDS_PATH" ]]; then
+    export CRDS_PATH=$HOME/jwst_crds_cache
+fi
+if [[ -z "$CRDS_SERVER_URL" ]]; then
+    export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
+fi
+if [[ -z "$MAST_DOWNLOAD_DIR" ]]; then
+    if [[ -d mastDownload/JWST ]]; then
+        export MAST_DOWNLOAD_DIR=$(pwd)/mastDownload/JWST
+    elif [[ -d ../downloading/mastDownload/JWST ]]; then
+        export MAST_DOWNLOAD_DIR=$(dirname $(pwd))/downloading/mastDownload/JWST
+    else
+        export MAST_DOWNLOAD_DIR=$HOME/mastDownload/JWST
+    fi
+else
+    if [[ "$MAST_DOWNLOAD_DIR" == "."* ]]; then
+        export MAST_DOWNLOAD_DIR=$(perl -MCwd -e 'print Cwd::abs_path shift' "$MAST_DOWNLOAD_DIR") # relative path to absolute path
+    fi
+fi
+if [[ -z "$NIRCAM_WISP_TEMPLATES" ]]; then
+    if [[ -d $HOME/Data/JWST-NIRCAM/wisp_templates ]]; then
+        export NIRCAM_WISP_TEMPLATES=$HOME/Data/JWST-NIRCAM/wisp_templates
+    elif [[ -d $HOME/jwst_nircam_wisp_templates ]]; then
+        export NIRCAM_WISP_TEMPLATES=$HOME/jwst_nircam_wisp_templates
+    fi
+fi
+
+
+# Get script_dir
+script_dir=$(perl -MCwd -e 'print Cwd::abs_path shift' $(dirname "${BASH_SOURCE[0]}"))
+
+
+# Read user input
+iarg=1
+argstr=""
+work_dir="."
+current_dir=$(pwd)
+maxcores="all" # "none", "quarter", "half", "all"
+overwrite=0
+dataset_names=()
+unused_args=()
+while [[ $iarg -le $# ]]; do
+    argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^[-]+/--/g')
+    if [[ "$argstr" == "--"* ]]; then
+        if [[ "$argstr" == "--work-dir" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                work_dir=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
+                echo "work_dir = \"$work_dir\""
+            fi
+        elif [[ "$argstr" == "--maximum-cores" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                maxcores=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
+                echo "maxcores = \"$maxcores\""
+            fi
+        else
+            unused_args+=("${!iarg}")
+        fi
+    else
+        dataset_names+=($(echo "${!iarg}" | perl -p -e 's%/$%%g'))
+    fi
+    # 
+    iarg=$((iarg+1))
+done
+
+
+# Check user input
+# If dataset_names is not given, then we will search under current or specified working directory.
+if [[ ${#dataset_names[@]} -eq 0 ]]; then
+    if [[ "$work_dir" != "." ]]; then
+        echo "Searching for JWST dataset under working directory: $work_dir"
+        found_dirs=($(find $work_dir -maxdepth 1 -mindepth 1 -type d -name "jw*_*" | sort -V))
+    else
+        echo "Searching for JWST dataset under current directory: $current_dir"
+        found_dirs=($(find . -maxdepth 1 -mindepth 1 -type d -name "jw*_*" | sort -V))
+    fi
+    for (( i = 0; i < ${#found_dirs[@]}; i++ )); do
+        found_dirname=$(basename "${found_dirs[i]}")
+        if [[ $($script_dir/go-jwst-parse-dataset-name.py "$found_dirname" 2>/dev/null | tail -n 1) == "JWST_Dataset_Name"* ]]; then
+            dataset_names+=("$found_dirname")
+        fi
+    done
+else
+    for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
+        dataset_name="${dataset_names[i]}"
+        if [[ "$dataset_name" == *"/" ]]; then
+            dataset_name=$(echo "$dataset_name" | perl -p -e 's%/+$%%g')
+        fi
+        if [[ $($script_dir/go-jwst-parse-dataset-name.py "$dataset_name" 2>/dev/null | tail -n 1) != "JWST_Dataset_Name"* ]]; then
+            echo "Error! The input dataset name \"$dataset_name\" seems incorrect?"
+            exit 255
+        fi
+    done
+fi
+
+if [[ ${#dataset_names[@]} -eq 0 ]]; then
+    echo "No JWST dataset found!"
+    exit 2
+fi
+
+
+# cd work_dir
+if [[ "$work_dir" != "." ]]; then
+    echo "cd \"$work_dir\""
+    cd "$work_dir"
+fi
+
+
+# process datasets
+for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
+    
+    dataset_name="${dataset_names[i]}"
+    echo "*** Processing $dataset_name ***"
+    
+    if [[ ! -d $dataset_name ]]; then
+        echo mkdir $dataset_name
+        mkdir $dataset_name
+    fi
+    
+    echo cd $dataset_name
+    cd $dataset_name
+    
+    # check input directory: uncals
+    if [[ ! -d uncals ]]; then
+        echo "mkdir uncals"
+        mkdir uncals
+    fi
+    
+    # copy/link uncal data file from the MAST_DOWNLOAD_DIR
+    if [[ ! -f uncals/${dataset_name}_uncal.fits ]] && [[ ! -L uncals/${dataset_name}_uncal.fits ]]; then
+        # if the uncal data file is not found in the MAST_DOWNLOAD_DIR, 
+        # download it using the script "go-jwst-query-by-dataset-name.py"
+        if [[ ! -f "$MAST_DOWNLOAD_DIR/${dataset_name}/${dataset_name}_uncal.fits" ]]; then
+            echo $script_dir/go-jwst-query-by-dataset-name.py ${dataset_name} \
+                --download --download-dir=$(dirname $(dirname "$MAST_DOWNLOAD_DIR"))
+            $script_dir/go-jwst-query-by-dataset-name.py ${dataset_name} \
+                --download --download-dir=$(dirname $(dirname "$MAST_DOWNLOAD_DIR"))
+            if [[ ! -f "$MAST_DOWNLOAD_DIR/${dataset_name}/${dataset_name}_uncal.fits" ]]; then
+                echo "Error! Cannot find or download data file: \"$MAST_DOWNLOAD_DIR/${dataset_name}/${dataset_name}_uncal.fits\""
+                exit 3
+            fi
+        fi
+        # make symlink
+        echo ln -fs "$MAST_DOWNLOAD_DIR/${dataset_name}/${dataset_name}_uncal.fits" \
+                    uncals/${dataset_name}_uncal.fits
+        ln -fs "$MAST_DOWNLOAD_DIR/${dataset_name}/${dataset_name}_uncal.fits" \
+                uncals/${dataset_name}_uncal.fits
+    fi
+    
+    # check output directory: calibrated1_rates
+    if [[ ! -d calibrated1_rates ]]; then
+        echo "mkdir calibrated1_rates"
+        mkdir calibrated1_rates
+    fi
+    
+    # Run step 1 (using calwebb_detector1)
+    file_in="uncals/${dataset_name}_uncal.fits"
+    file_out="calibrated1_rates/${dataset_name}_rate.fits"
+    kwargs=()
+    if [[ ! -z "$maxcores" ]]; then
+        kwargs+=(--maximum-cores "$maxcores")
+    fi
+    echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}
+    python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}
+    if [[ $? -ne 0 ]]; then
+        echo "Error?! Please check previous messages."
+        exit 255
+    fi
+    if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+        echo "Error! Failed to produce the output file: $file_out"
+        exit 255
+    fi
+    
+    # TODO: No further steps
+    
+    echo cd ../
+    cd ../
+    
+done
+
+
+
+
+echo "All done!"
+
+
+
+
+

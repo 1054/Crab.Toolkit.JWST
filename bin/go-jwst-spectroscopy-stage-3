@@ -1,0 +1,239 @@
+#!/bin/bash
+# 
+# Inputs:
+# 
+#    jwst dataset names ("jwpppppooovvv_ggsaa_eeeee_detector_prodType")
+#    
+#    For each input jwst dataset name, the following file must exist:
+#        {dataset_name}/calibrated1_rates/{dataset_name}_rate.fits
+# 
+# Outputs:
+# 
+#    For each input jwst dataset name, the main output file is: 
+#        {dataset_name}/calibrated2_cals/{dataset_name}_cal.fits
+# 
+# 
+set -e
+
+# Set necessary system variables
+if [[ -z "$CRDS_PATH" ]]; then
+    export CRDS_PATH=$HOME/jwst_crds_cache
+fi
+if [[ -z "$CRDS_SERVER_URL" ]]; then
+    export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
+fi
+
+# Get script_dir
+script_dir=$(dirname "${BASH_SOURCE[0]}")
+
+
+# Read user input
+iarg=1
+argstr=""
+work_dir="."
+output_dir="calibrated3_combined_exposures"
+current_dir=$(pwd)
+overwrite=0
+dataset_names=()
+info_table_argnames=("--save-info-table-dir" "--save-info-table-name")
+info_table_kwargs=()
+info_table_dir=""
+info_table_name="mosaic_info_table" # must match the default in "go-jwst-spectroscopy-stage-3-step-1.py"
+tweakreg_argnames=("--abs-refcat")
+tweakreg_kwargs=()
+resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
+resample_kwargs=()
+reprocess_NIRCam=0
+reprocess_MIRI=1 # we will reprocess MIRI using masked source image as the background then redo stage 2 with image-for-image background subtraction
+while [[ $iarg -le $# ]]; do
+    argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
+    if [[ "$argstr" == "--"* ]]; then
+        if [[ "$argstr" == "--work-dir" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                work_dir="${!iarg}"
+                echo "work_dir = \"$work_dir\""
+            fi
+        elif [[ "$argstr" == "--output-dir" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                output_dir="${!iarg}"
+                echo "output_dir = \"$output_dir\""
+            fi
+        elif [[ "$argstr" == "--reprocess-nircam" ]]; then
+            reprocess_NIRCam=1
+            echo "reprocess_NIRCam = $reprocess_NIRCam"
+        elif [[ "$argstr" == "--reprocess-miri" ]]; then
+            reprocess_MIRI=1
+            echo "reprocess_MIRI = $reprocess_MIRI"
+        elif [[ " ${info_table_argnames[@]} " == *" $argstr "* ]]; then
+            info_table_kwargs+=("${!iarg}")
+            echo -n "${!iarg} = "
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                info_table_kwargs+=("${!iarg}")
+                echo "\"${!iarg}\""
+                if [[ " $argstr " == " --save-info-table-dir " ]]; then
+                    info_table_dir="${!iarg}"
+                elif [[ " $argstr " == " --save-info-table-name " ]]; then
+                    info_table_name="${!iarg}"
+                fi
+            fi
+        elif [[ " ${tweakreg_argnames[@]} " == *" $argstr "* ]]; then
+            tweakreg_kwargs+=("${!iarg}")
+            echo -n "${!iarg} = "
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                tweakreg_kwargs+=("${!iarg}")
+                echo "\"${!iarg}\""
+            fi
+        elif [[ " ${resample_argnames[@]} " == *" $argstr "* ]]; then
+            resample_kwargs+=("${!iarg}")
+            echo -n "${!iarg} = "
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                resample_kwargs+=("${!iarg}")
+                echo "\"${!iarg}\""
+            fi
+        else
+            echo "Unkonwn argument: ${!iarg}"
+        fi
+    else
+        dataset_names+=("${!iarg}")
+    fi
+    # 
+    iarg=$((iarg+1))
+done
+
+
+# Check user input
+# If dataset_names is not given, then we will search under current or specified working directory.
+if [[ ${#dataset_names[@]} -eq 0 ]]; then
+    if [[ "$work_dir" != "." ]]; then
+        echo "Searching for JWST dataset under working directory: $work_dir"
+        found_dirs=($(find $work_dir -maxdepth 1 -mindepth 1 -type d -name "jw*_*" | sort -V))
+    else
+        echo "Searching for JWST dataset under current directory: $current_dir"
+        found_dirs=($(find . -maxdepth 1 -mindepth 1 -type d -name "jw*_*" | sort -V))
+    fi
+    for (( i = 0; i < ${#found_dirs[@]}; i++ )); do
+        found_dirname=$(basename "${found_dirs[i]}")
+        if [[ $($script_dir/go-jwst-parse-dataset-name.py "$found_dirname" 2>/dev/null | tail -n 1) == "JWST_Dataset_Name"* ]]; then
+            dataset_names+=("$found_dirname")
+        fi
+    done
+else
+    for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
+        dataset_name="${dataset_names[i]}"
+        if [[ "$dataset_name" == *"/" ]]; then
+            dataset_name=$(echo "$dataset_name" | perl -p -e 's%/+$%%g')
+        fi
+        if [[ $($script_dir/go-jwst-parse-dataset-name.py "$dataset_name" 2>/dev/null | tail -n 1) != "JWST_Dataset_Name"* ]]; then
+            echo "Error! The input dataset name \"$dataset_name\" seems incorrect?"
+            exit 255
+        fi
+    done
+fi
+
+if [[ ${#dataset_names[@]} -eq 0 ]]; then
+    echo "No JWST dataset found!"
+    exit 2
+fi
+
+
+# cd work_dir
+if [[ "$work_dir" != "." ]]; then
+    echo "cd \"$work_dir\""
+    cd "$work_dir"
+fi
+
+
+# process datasets
+files_in=()
+for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
+    
+    dataset_name="${dataset_names[i]}"
+    echo "*** Processing $dataset_name ***"
+    
+    if [[ ! -d $dataset_name ]]; then
+        echo "Error! Dataset directory does not exist: \"$(pwd)/$dataset_name\"!"
+        exit 255
+    fi
+    
+    echo cd $dataset_name
+    cd $dataset_name
+    
+    # check input file: ${dataset_name}_cal.fits
+    echo "Checking calibrated2_cals/${dataset_name}_cal.fits"
+    if [[ ! -f calibrated2_cals/${dataset_name}_cal.fits ]] && [[ ! -L ${dataset_name}_cal.fits ]]; then
+        echo "Error! Data file does not exist: \"$(pwd)/calibrated2_cals/${dataset_name}_cal.fits\"!"
+        exit 255
+    fi
+    
+    echo cd ../
+    cd ../
+
+    files_in+=("$dataset_name/calibrated2_cals/${dataset_name}_cal.fits")
+    
+done
+
+
+# Run step 1
+dir_out="${output_dir}"
+proc_args=()
+for (( i = 0; i < ${#info_table_kwargs[@]}; i++ )); do
+    proc_args+=(${info_table_kwargs[i]})
+done
+for (( i = 0; i < ${#tweakreg_kwargs[@]}; i++ )); do
+    proc_args+=(${tweakreg_kwargs[i]})
+done
+for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
+    proc_args+=(${resample_kwargs[i]})
+done
+if [[ $overwrite -gt 0 ]]; then
+    proc_args+=(--overwrite)
+fi
+echo "*** Running ***" $script_dir/go-jwst-spectroscopy-stage-3-step-1.py ${files_in[@]} $dir_out "${proc_args[@]}"
+$script_dir/go-jwst-spectroscopy-stage-3-step-1.py ${files_in[@]} $dir_out "${proc_args[@]}"
+ret=$?
+if [[ $ret -ne 0 ]]; then
+    echo "Error occurred?!"
+    exit 255
+fi
+# find out what mosaic files are the output
+if [[ "$info_table_dir"x == ""x ]]; then
+    info_table_dir="$dir_out"
+fi
+#files_out=($(find $dir_out -maxdepth 2 -mindepth 2 -type f -name "jw*_obs*_*_i2d.fits" | sort -V | grep -v '+' | grep -v 'outlier'))
+files_out=($(cat "$info_table_dir/$info_table_name.out"))
+if [[ ${#files_out[@]} -eq 0 ]]; then
+    echo "Error! Failed to produce the output files: \"$dir_out/jw*_obs*_*/jw*_obs*_*_i2d.fits\""
+    exit 255
+fi
+
+
+# Create a file in the output directory marking the CRDS_CONTEXT
+if [[ ! -z "$CRDS_CONTEXT" ]]; then
+    crds_context_str=$(echo "$CRDS_CONTEXT" | perl -p -e 's/\.pmap$//g')
+    timestamp_str=$(date +"%Y%m%d")
+    echo touch "${output_dir}/${timestamp_str}_pmap_${crds_context_str}"
+    touch "${output_dir}/${timestamp_str}_pmap_${crds_context_str}"
+fi
+
+
+
+
+
+
+
+echo "All done!"
+
+
+
+
+
+
+
+
+
+
