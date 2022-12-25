@@ -80,7 +80,7 @@ for (( i=0; i<\${#dataset_names[@]}; i++ )); do
     fi
 done
 
-go-jwst-imaging-stage-3 \${dataset_names[@]}
+go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --pixel-scale 0.060
 
 EOF
 # 

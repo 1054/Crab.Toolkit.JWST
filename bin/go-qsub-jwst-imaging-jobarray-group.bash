@@ -89,8 +89,8 @@ check_cal_files () {
     return 0
 }
 
-for (( igroup=0; igroup<${groupsize}; igroup++ )); do
-    idataset=\$(awk "BEGIN {print ((\${PBS_ARRAYID}-1)*${groupsize}+\${igroup});}")
+for (( igroup=0; igroup<\${groupsize}; igroup++ )); do
+    idataset=\$(awk "BEGIN {print ((\${PBS_ARRAYID}-1)*\${groupsize}+\${igroup});}")
     if [[ \${idataset} -lt \${#dataset_names[@]} ]]; then
     
         echo "************************"
@@ -117,8 +117,8 @@ for (( igroup=0; igroup<${groupsize}; igroup++ )); do
     fi
 done
 
-for (( igroup=0; igroup<${groupsize}; igroup++ )); do
-    idataset=\$(awk "BEGIN {print ((\${PBS_ARRAYID}-1)*${groupsize}+\${igroup});}")
+for (( igroup=0; igroup<\${groupsize}; igroup++ )); do
+    idataset=\$(awk "BEGIN {print ((\${PBS_ARRAYID}-1)*\${groupsize}+\${igroup});}")
     if [[ \${idataset} -lt \${#dataset_names[@]} ]]; then
         
         dataset_name=\${dataset_names[idataset]}
