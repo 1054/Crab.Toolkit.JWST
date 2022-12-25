@@ -1,0 +1,12 @@
+#!/bin/bash
+conda create -n jwstpmap1009 python=3.9
+conda_env="jwstpmap1009" # 2022-10-26
+crds_context="jwst_1009.pmap"
+source $(dirname $CONDA_EXE)/activate $conda_env
+pip install jwst==1.8.2 # 2022-10-20
+pip install click tqdm astroquery lmfit reproject
+[ ! -d $CONDA_PREFIX/etc/conda/activate.d ] && mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+echo "export CRDS_CONTEXT=\"$crds_context\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+echo "export CRDS_PATH=\"\$HOME/jwst_crds_cache\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+echo "export CRDS_SERVER_URL=\"https://jwst-crds.stsci.edu\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+

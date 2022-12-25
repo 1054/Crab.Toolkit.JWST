@@ -256,7 +256,8 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     
     reprocess_with_source_emission_mask=1
     
-    mosaic_asn=$(dirname "$mosaic_image")"_asn.json"
+    #mosaic_asn=$(dirname "$mosaic_image")"_asn.json"
+    mosaic_asn=$(dirname "$mosaic_image")"/asn.json"
     
     proc_args=()
     if [[ $overwrite -gt 0 ]]; then
@@ -290,13 +291,15 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     
     echo "*** Processing $mosaic_image ***"
     
-    mosaic_asn=$(dirname "$mosaic_image")"_asn.json"
+    #mosaic_asn=$(dirname "$mosaic_image")"_asn.json"
+    mosaic_asn=$(dirname "$mosaic_image")"/asn.json"
     echo "mosaic_asn = $mosaic_asn"
     
     instrument_filter=($(basename $(dirname "$mosaic_image") | cut -d '_' -f 3,4))
     echo "instrument_filter = $instrument_filter"
     
-    multiobs_mosaic_asn=($(ls $(dirname "$mosaic_asn")/jw*_obs*_${instrument_filter}"_asn.json"))
+    #multiobs_mosaic_asn=($(ls $(dirname "$mosaic_asn")/jw*_obs*_${instrument_filter}"_asn.json"))
+    multiobs_mosaic_asn=($(ls $(dirname "$mosaic_asn")/jw*_obs*_${instrument_filter}"/asn.json"))
     
     echo "multiobs_mosaic_asn = ${multiobs_mosaic_asn[@]} (${#multiobs_mosaic_asn[@]})"
     
