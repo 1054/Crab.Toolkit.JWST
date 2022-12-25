@@ -139,10 +139,13 @@ def main(jwst_uncal_files):
         #pipeline_object._precache_references(jwst_uncal_file) # this will fail
         shutil.copy2(jwst_uncal_file, jwst_uncal_file+'.tmp')
         with datamodels.open(jwst_uncal_file+'.tmp') as model:
-            if model.meta.exposure.type == 'NRS_MSATA':
+            if model.meta.exposure.type in ['NRS_MSATA', 'NRS_TACONFIRM']:
                 model.meta.exposure.type = 'NRS_MSASPEC'
             #pipeline_object._precache_references(model) # this will also fail
-            fetch_types = pipeline_object.reference_file_types
+            ovr_refs = {reftype: pipeline_object.get_ref_override(reftype) 
+                            for reftype in pipeline_object.reference_file_types 
+                            if pipeline_object.get_ref_override(reftype) is not None}
+            fetch_types = sorted(set(pipeline_object.reference_file_types) - set(ovr_refs.keys()))
             for key in ['sflat', 'area']:
                 if key in fetch_types:
                     fetch_types.remove(key)
@@ -161,10 +164,9 @@ def main(jwst_uncal_files):
         #pipeline_object._precache_references(jwst_uncal_file) # this will fail
         shutil.copy2(jwst_uncal_file, jwst_uncal_file+'.tmp')
         with datamodels.open(jwst_uncal_file+'.tmp') as model:
-            if model.meta.exposure.type == 'NRS_MSATA':
+            if model.meta.exposure.type in ['NRS_MSATA', 'NRS_TACONFIRM']:
                 model.meta.exposure.type = 'NRS_MSASPEC'
             #pipeline_object._precache_references(model) # this will also fail
-            fetch_types = pipeline_object.reference_file_types
             ovr_refs = {reftype: pipeline_object.get_ref_override(reftype) 
                             for reftype in pipeline_object.reference_file_types 
                             if pipeline_object.get_ref_override(reftype) is not None}
