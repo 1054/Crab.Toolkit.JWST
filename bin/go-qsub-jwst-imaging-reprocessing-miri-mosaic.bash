@@ -22,12 +22,12 @@ mem="20gb" #
 maxcores="none" # "quarter"
 timestamp=$(date +"%Y%m%d_%Hh%Mm%Ss")
 currentdir=$(pwd -P)
-goscript="go_qsub_processing_jwst_imaging_${timestamp}_miri_stage3.bash"
+goscript="go_qsub_processing_jwst_imaging_${timestamp}_repreocessing_miri_mosaic.bash"
 echo "#!/bin/bash" > $goscript
 echo "#PBS -N JW${timestamp}" >> $goscript
 echo "#PBS -l nodes=1:ppn=${ncpu},mem=${mem},walltime=24:00:00" >> $goscript
 echo "#PBS -d ${currentdir}/" >> $goscript
-echo "#PBS -o log_processing_jwst_imaging_${timestamp}_miri_stage3" >> $goscript
+echo "#PBS -o log_processing_jwst_imaging_${timestamp}_repreocessing_miri_mosaic" >> $goscript
 #echo "#PBS -e log_processing_jwst_imaging_${timestamp}_\${PBS_ARRAYID}.err" >> $goscript
 echo "#PBS -j oe" >> $goscript # join stdout and stderr
 #echo "#PBS -k oe" >> $goscript # keep stdout and stderr on running hostname
