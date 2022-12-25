@@ -47,13 +47,22 @@ multiobs_masked_rate_images=()
 multiobs_dataset_names=()
 for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
     temp_mosaic_asn="${mosaic_asn_files[i]}"
+    temp_mosaic_dir=$(dirname "$temp_mosaic_asn")
     temp_cal_images=($(cat "$temp_mosaic_asn" | grep "expname" | perl -p -e 's/^.*: ["](.*)["].*/\1/g'))
     for (( m = 0; m < ${#temp_cal_images[@]}; m++ )); do
         cal_image="${temp_cal_images[m]}"
+        dataset_name=$(basename "$cal_image" | perl -p -e 's/_cal.fits$//g')
+        # get cal_image full absolute path if it is only a filename, i.e., does not contain a path separator
+        if [[ "$cal_image" != *"/"* ]]; then
+            cal_image="$temp_mosaic_dir/$cal_image"
+        fi
+        # fix linked path
+        if [[ -L "$cal_image" ]]; then
+            cal_image=$(realpath "$cal_image")
+        fi
         # fix relative path
         if [[ "$cal_image" == "../"* ]]; then
-            #cal_image=$(dirname "$temp_mosaic_asn")/"${temp_cal_images[m]}" # paths in asn are relative to asn dir.
-            cal_image=$(dirname $(dirname "$temp_mosaic_asn"))/$(echo "${temp_cal_images[m]}" | perl -p -e 's%^../%%g') # paths in asn are relative to asn dir.
+            cal_image=$(dirname "$temp_mosaic_dir")/$(echo "${cal_image}" | perl -p -e 's%^../%%g') # paths in asn are relative to asn dir.
         fi
         rate_image=$(echo "$cal_image" | perl -p -e 's%/calibrated2_cals/%/calibrated1_rates/%g' | perl -p -e 's%_cal.fits$%_rate.fits%g')
         echo "rate_image = \"$rate_image\""

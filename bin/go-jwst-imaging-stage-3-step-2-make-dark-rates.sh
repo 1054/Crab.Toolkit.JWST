@@ -103,7 +103,7 @@ masked_rate_images=()
 for (( k = 0; k < ${#cal_images[@]}; k++ )); do
     cal_image="${cal_images[k]}"
     dataset_name=$(basename "$cal_image" | perl -p -e 's/_cal.fits$//g')
-    # get cal_image full absolute path
+    # get cal_image full absolute path if it is only a filename, i.e., does not contain a path separator
     if [[ "$cal_image" != *"/"* ]]; then
         cal_image="$mosaic_dir/$cal_image"
     fi
@@ -113,9 +113,10 @@ for (( k = 0; k < ${#cal_images[@]}; k++ )); do
     fi
     # fix relative path
     if [[ "$cal_image" == "../"* ]]; then
-        cal_image=$(dirname "mosaic_dir")/$(echo "${cal_image}" | perl -p -e 's%^../%%g') # paths in asn are relative to asn dir.
+        cal_image=$(dirname "$mosaic_dir")/$(echo "${cal_image}" | perl -p -e 's%^../%%g') # paths in asn are relative to asn dir.
     fi
     rate_image=$(echo "$cal_image" | perl -p -e 's%/calibrated2_cals/%/calibrated1_rates/%g' | perl -p -e 's%_cal.fits$%_rate.fits%g')
+    echo "rate_image = \"$rate_image\""
     masked_rate=$(echo "$rate_image" | perl -p -e 's%_rate\.fits$%%g')"_masked_source_emission_rate.fits"
     masked_rate_script=$(echo "$rate_image" | perl -p -e 's%_rate.fits$%%g')"_masked_source_emission_rate_script.sh"
     # make source-emission-masked rate image
@@ -133,6 +134,8 @@ for (( k = 0; k < ${#cal_images[@]}; k++ )); do
         cat "$masked_rate_script"
         chmod +x "$masked_rate_script"
         bash "$masked_rate_script"
+    else
+        echo "Found \"$masked_rate\" and overwrite=0. Will not reprocess this."
     fi
     if [[ ! -f "$masked_rate" ]]; then
         echo "Error! Failed to produce the output files: \"$masked_rate\""
