@@ -299,7 +299,7 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     echo "instrument_filter = $instrument_filter"
     
     #multiobs_mosaic_asn=($(ls $(dirname "$mosaic_asn")/jw*_obs*_${instrument_filter}"_asn.json"))
-    multiobs_mosaic_asn=($(ls $(dirname "$mosaic_asn")/jw*_obs*_${instrument_filter}"/asn.json"))
+    multiobs_mosaic_asn=($(ls $(dirname $(dirname "$mosaic_asn"))/jw*_obs*_${instrument_filter}"/asn.json"))
     
     echo "multiobs_mosaic_asn = ${multiobs_mosaic_asn[@]} (${#multiobs_mosaic_asn[@]})"
     
