@@ -253,7 +253,7 @@ def main(
     
     
     # sort input files
-    input_files.sort(key=LooseVersion)
+    input_files.sort() # key=LooseVersion does not work
     
     
     # get info_list filtered by program, instrument, filter
