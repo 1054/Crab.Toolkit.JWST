@@ -96,15 +96,24 @@ fi
 seed_image="$this_file_out"
 
 # find all associated cal.fits and rate.fits, mask them with source emission mask
+mosaic_dir=$(dirname "$mosaic_asn")
 cal_images=($(cat "$mosaic_asn" | grep "expname" | perl -p -e 's/^.*: ["](.*)["].*/\1/g'))
 rate_images=()
 masked_rate_images=()
 for (( k = 0; k < ${#cal_images[@]}; k++ )); do
     cal_image="${cal_images[k]}"
+    dataset_name=$(basename "$cal_image" | perl -p -e 's/_cal.fits$//g')
+    # get cal_image full absolute path
+    if [[ "$cal_image" != *"/"* ]]; then
+        cal_image="$mosaic_dir/$cal_image"
+    fi
+    # fix linked path
+    if [[ -L "$cal_image" ]]; then
+        cal_image=$(realpath "$cal_image")
+    fi
     # fix relative path
     if [[ "$cal_image" == "../"* ]]; then
-        #cal_image=$(dirname "$mosaic_asn")/"${cal_images[k]}" # paths in asn are relative to asn dir.
-        cal_image=$(dirname $(dirname "$mosaic_asn"))/$(echo "${cal_images[k]}" | perl -p -e 's%^../%%g') # paths in asn are relative to asn dir.
+        cal_image=$(dirname "mosaic_dir")/$(echo "${cal_image}" | perl -p -e 's%^../%%g') # paths in asn are relative to asn dir.
     fi
     rate_image=$(echo "$cal_image" | perl -p -e 's%/calibrated2_cals/%/calibrated1_rates/%g' | perl -p -e 's%_cal.fits$%_rate.fits%g')
     masked_rate=$(echo "$rate_image" | perl -p -e 's%_rate\.fits$%%g')"_masked_source_emission_rate.fits"
