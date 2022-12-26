@@ -377,8 +377,8 @@ def main(
         unique_filters = np.unique(subgroup_table['filter'])
         groupped_filter_str = '+'.join(unique_filters)
         
-        unique_obsnums = np.unique(subgroup_table['obs_num'])
-        groupped_obsnum_str = '+'.join(unique_obsnums)
+        #unique_obsnums = np.unique(subgroup_table['obs_num'])
+        #groupped_obsnum_str = '+'.join(unique_obsnums)
         
         subgroup_files = subgroup_table['file_path'].data.tolist()
         
@@ -642,7 +642,19 @@ def main(
                 pipeline_object.outlier_detection.save_results = True
                 pipeline_object.outlier_detection.suffix = 'crf'
                 pipeline_object.outlier_detection.search_output_file = False
-                image_models = pipeline_object.outlier_detection(image_models)
+                if len(unique_obsnums) == 1:
+                    image_models = pipeline_object.outlier_detection(image_models)
+                else:
+                    for subsubgrup_obsnum in unique_obsnums:
+                        subsubgroup_indices = np.argwhere(subgroup_table['obs_num'] == subsubgrup_obsnum).ravel()
+                        subsubgroup_image_models = np.take(image_models, subsubgroup_indices)
+                        pipeline_object.log.info(
+                            'Running outlier_detection for models: {} (obsnum: {}, indices: {})'.format(
+                                subsubgroup_image_models, subsubgrup_obsnum, subsubgroup_indices)
+                        )
+                        subsubgroup_image_models = pipeline_object.outlier_detection(subsubgroup_image_models)
+                        for kk in range(len(subsubgroup_indices)):
+                            image_models[subsubgroup_indices[kk]] = subsubgroup_image_models[kk]
                 # 
                 # 4. resample
                 pipeline_object.resample.output_file = output_name
