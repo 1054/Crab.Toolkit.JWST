@@ -93,7 +93,7 @@ def merge_source_emission_masked_rate_data(
     
     # read check-date image header
     if check_date is not None:
-        with fits.open(rate_image_file) as hdul:
+        with fits.open(check_date) as hdul:
             check_date_obsdate = hdul[0].header['DATE-OBS']
             check_date_obstime = hdul[0].header['TIME-OBS']
         check_date_datetime = Time('{} {}'.format(check_date_obsdate, check_date_obstime))
