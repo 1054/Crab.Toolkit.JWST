@@ -59,7 +59,7 @@ from jwst.datamodels import ImageModel, FlatModel
 
 # logging
 import logging
-logging.basicConfig(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
