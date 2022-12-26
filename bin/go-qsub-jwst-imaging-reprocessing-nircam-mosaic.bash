@@ -72,19 +72,13 @@ echo ")" >> $goscript
 # 
 cat << EOF >> $goscript
 
+dataset_files=()
 for (( i=0; i<\${#dataset_names[@]}; i++ )); do
     dataset_name="\${dataset_names[i]}"
-    if [[ -f "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits" ]]; then
-        mv "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits" \\
-           "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits.backup"
-    fi
-    if [[ -f "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt" ]]; then
-        mv "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt" \\
-           "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt.backup"
-    fi
+    dataset_files+=("\${dataset_name}/calibrated2_cals/\${dataset_name}_cal.fits")
 done
 
-go-jwst-imaging-stage-3-step-1.py \${dataset_names[@]} calibrated3_mosaic_multiobs_with_abs_refcat --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.030
+go-jwst-imaging-stage-3-step-1.py \${dataset_files[@]} calibrated3_mosaic_multiobs_with_abs_refcat --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.030
 
 EOF
 # 
