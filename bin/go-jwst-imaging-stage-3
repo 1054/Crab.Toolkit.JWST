@@ -39,7 +39,7 @@ info_table_argnames=("--save-info-table-dir" "--save-info-table-name")
 info_table_kwargs=()
 info_table_dir=""
 info_table_name="mosaic_info_table" # must match the default in "go-jwst-imaging-stage-3-step-1.py"
-tweakreg_argnames=("--abs-refcat")
+tweakreg_argnames=("--abs-refcat" "--use-catfile" "--no-use-catfile")
 tweakreg_kwargs=()
 resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
 resample_kwargs=()
@@ -321,15 +321,44 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
     redo_files_in=()
     for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         dataset_name="${dataset_names[i]}"
-        echo "Checking file $dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits"
-        if [[ -f "$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits" ]]; then
-            echo "Found file $dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits"
-            redo_files_in+=("$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits")
+        file_in="$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits"
+        echo "Checking file $file_in"
+        if [[ -f "$file_in" ]]; then
+            echo "Found file $file_in"
+            redo_files_in+=("$file_in")
+
+            # Redo stage 2 step 4 sextractor
+            file_out="$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal_run_sextractor_classic_dir/SExtractor_OutputCatalogXY.csv"
+            file_out2="$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal_cat_for_tweakreg.csv"
+            if [[ -f "$file_out2" ]] && [[ $overwrite -eq 0 ]]; then
+                echo "Found \"$file_out2\" and overwrite is not set. Skipping."
+            else
+                proc_args=()
+                if [[ $overwrite -gt 0 ]]; then
+                    proc_args+=(--overwrite)
+                fi
+                echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-4-do-sextractor.sh "$file_in" "${proc_args[@]}"
+                $script_dir/go-jwst-imaging-stage-2-step-4-do-sextractor.sh "$file_in" "${proc_args[@]}"
+                ret=$?
+                if [[ $ret -ne 0 ]]; then
+                    echo "Error occurred?!"
+                    exit 255
+                fi
+                if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+                    echo "Error! Failed to produce the output file: $file_out"
+                    exit 255
+                fi
+                echo "cp \"$file_out\" \"$file_out2\""
+                cp "$file_out" "$file_out2"
+            fi
+            
         fi
+        
     done
-
-
-    # Redo step 1 mosaic
+    
+    
+    
+    # Redo stage 3 step 1 mosaic
     redo_dir_out="${output_dir}_redone_with_source_emission_mask"
     proc_args=()
     for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do

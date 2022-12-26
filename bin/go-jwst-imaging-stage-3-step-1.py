@@ -184,6 +184,7 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite?')
 @click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
+@click.option('--use-catfile/--no-use-catfile', is_flag=True, default=True, help='Use catfile if each cal file has a "*_cat_for_tweakreg.csv" catalog in the same directory.')
 def main(
         input_cal_files, 
         output_dir, 
@@ -203,6 +204,7 @@ def main(
         combine_filter, 
         overwrite, 
         run_individual_steps,
+        use_catfile, 
     ):
     
     # Add script dir to sys path
@@ -491,7 +493,7 @@ def main(
             json.dump(asn_dict, fp, indent=4)
         
         catfile = None
-        if len(catdict) > 0:
+        if use_catfile and len(catdict) > 0:
             catfilename = 'catfile.txt'
             catfilepath = os.path.join(output_subdir, catfilename)
             if os.path.isfile(catfilepath):
