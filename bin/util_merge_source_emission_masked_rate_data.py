@@ -123,6 +123,8 @@ def merge_source_emission_masked_rate_data(
                 logger.info('Excluding {!r} due to too large date different ({} - {} = {:g} > {:g} days)'.format(
                     rate_image_file, rate_image_datetime, check_date_datetime, check_date_diff.jd, date_diff))
                 continue
+        logger.info('Merging {!r} (obs date time {})'.format(
+            rate_image_file, rate_image_datetime))
         if rate_images_sci is None:
             rate_images_sci = np.full(rate_image_sci.shape, fill_value=0.0)
             rate_images_err = np.full(rate_image_sci.shape, fill_value=0.0)
