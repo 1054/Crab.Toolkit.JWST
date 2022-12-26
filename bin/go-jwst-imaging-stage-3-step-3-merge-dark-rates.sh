@@ -85,6 +85,7 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     masked_rate_image="${multiobs_masked_rate_images[i]}"
     merged_masked_rate=$(dirname "$masked_rate_image")"/merged_other_visits_masked_source_emission_rate.fits"
     merged_masked_rate_list_file=$(dirname "$masked_rate_image")"/merged_other_visits_masked_source_emission_rate.list.txt"
+    merged_masked_rate_script_file=$(dirname "$masked_rate_image")"/merged_other_visits_masked_source_emission_rate.script.sh"
     merged_masked_rate_updated=0
     output_cal_image=$(echo "$cal_image" | perl -p -e 's/_cal.fits$/_bkgsub_masked_source_emission_cal.fits/g')
     
@@ -101,15 +102,25 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
         fi
         
         echo $script_dir/util_merge_source_emission_masked_rate_data.py \
+            --check-date "$rate_image" \
+            --date-diff 5 \
             ${applicable_masked_rate_images[@]} \
             "$merged_masked_rate"
         $script_dir/util_merge_source_emission_masked_rate_data.py \
+            --check-date "$rate_image" \
+            --date-diff 5 \
             ${applicable_masked_rate_images[@]} \
-            "$merged_masked_rate"
+            "$merged_masked_rate" \
         echo "# $script_dir/util_merge_source_emission_masked_rate_data.py" > "$merged_masked_rate_list_file"
+        echo "#!/bin/bash" > "$merged_masked_rate_script_file"
+        echo "cd \$(dirname \${BASH_SOURCE[0]})" >> "$merged_masked_rate_script_file"
+        echo "$script_dir/util_merge_source_emission_masked_rate_data.py \\" >> "$merged_masked_rate_script_file"
         for (( m = 0; m < ${#applicable_masked_rate_images[@]}; m++ )); do
             echo "${applicable_masked_rate_images[m]}" >> "$merged_masked_rate_list_file"
+            echo "  \"${applicable_masked_rate_images[m]}\" \\" >> "$merged_masked_rate_script_file"
         done
+        echo "  \"$merged_masked_rate\"" >> "$merged_masked_rate_script_file"
+        chmod +x "$merged_masked_rate_script_file"
         
         merged_masked_rate_updated=1
         

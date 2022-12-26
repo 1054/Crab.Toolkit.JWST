@@ -16,7 +16,9 @@ Last update: 2022-09-10.
 import os, sys, re, copy, shutil
 import click
 import numpy as np
+import astropy.units as u
 from astropy.io import fits
+from astropy.time import Time, TimeDelta
 from astropy.modeling import models as apy_models
 from astropy.modeling import fitting as apy_fitting
 from astropy.convolution import convolve as apy_convolve
@@ -64,6 +66,8 @@ logger.setLevel(logging.DEBUG)
 def merge_source_emission_masked_rate_data(
         rate_image_files, 
         out_image_file, 
+        check_date = None, 
+        date_diff = 5.0, 
         do_sigma_clip = False, 
         sigma = 3.0, 
         use_median = False,
@@ -87,6 +91,13 @@ def merge_source_emission_masked_rate_data(
                                     flag_name_map=dqflags_pixel
                                 )
     
+    # read check-date image header
+    if check_date is not None:
+        with fits.open(rate_image_file) as hdul:
+            check_date_obsdate = hdul[0].header['DATE-OBS']
+            check_date_obstime = hdul[0].header['TIME-OBS']
+        check_date_datetime = Time('{} {}'.format(check_date_obsdate, check_date_obstime))
+    
     # read input rate image header
     rate_images_sci_3D = None # for median calculation, 3D
     rate_images_err_3D = None # for median calculation, 3D
@@ -94,10 +105,24 @@ def merge_source_emission_masked_rate_data(
     rate_images_err = None
     rate_images_count = None
     rate_images_dq = None
+    rate_images_obsdate = []
     for i, rate_image_file in enumerate(rate_image_files):
-        rate_image_sci, rate_image_header = fits.getdata(rate_image_file, extname='SCI', header=True)
-        rate_image_err = fits.getdata(rate_image_file, extname='ERR', header=False)
-        rate_image_dq = fits.getdata(rate_image_file, extname='DQ', header=False)
+        #rate_image_sci, rate_image_header = fits.getdata(rate_image_file, extname='SCI', header=True)
+        #rate_image_err = fits.getdata(rate_image_file, extname='ERR', header=False)
+        #rate_image_dq = fits.getdata(rate_image_file, extname='DQ', header=False)
+        with fits.open(rate_image_file) as hdul:
+            rate_image_obsdate = hdul[0].header['DATE-OBS']
+            rate_image_obstime = hdul[0].header['TIME-OBS']
+            rate_image_datetime = Time('{} {}'.format(rate_image_obsdate, rate_image_obstime))
+            rate_image_sci, rate_image_header = hdul['SCI'].data, hdul['SCI'].header
+            rate_image_err = hdul['ERR'].data
+            rate_image_dq = hdul['DQ'].data
+        if check_date is not None and date_diff > 0:
+            check_date_diff = (rate_image_datetime - check_date_datetime)
+            if not check_date_diff.isclose(date_diff * u.day):
+                logger.info('Excluding {!r} due to too large date different ({} - {} = {:g} > {:g} days)'.format(
+                    rate_image_file, rate_image_datetime, check_date_datetime, check_date_diff.jd, date_diff))
+                continue
         if rate_images_sci is None:
             rate_images_sci = np.full(rate_image_sci.shape, fill_value=0.0)
             rate_images_err = np.full(rate_image_sci.shape, fill_value=0.0)
@@ -187,12 +212,16 @@ def merge_source_emission_masked_rate_data(
 @click.command()
 @click.argument('rate_image_files', nargs=-1, type=click.Path(exists=True))
 @click.argument('out_image_file', nargs=1, type=click.Path(exists=False))
+@click.option('--check-date', type=click.Path(exists=True), default=None, help='Option to input a rate image so that we will only use rate images which has a date close to that of the input. The `--date-diff` sets how close the dates are.')
+@click.option('--date-diff', type=float, default=5.0, help='Defines how many days two dates are different so as to be considered as close.')
 @click.option('--do-sigma-clip/--no-sigma-clip', is_flag=True, default=False)
 @click.option('--sigma', type=float, default=3.0, help='Clipping sigma. Only clipping rate image pixels brighter than this sigma.')
 @click.option('--use-median/--no-use-median', is_flag=True, default=True)
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=True)
 def main(rate_image_files, 
          out_image_file, 
+         check_date, 
+         date_diff, 
          do_sigma_clip, 
          sigma, 
          use_median, 
@@ -201,6 +230,8 @@ def main(rate_image_files,
     merge_source_emission_masked_rate_data(
         rate_image_files, 
         out_image_file, 
+        check_date = check_date, 
+        date_diff = date_diff, 
         do_sigma_clip = do_sigma_clip, 
         sigma = sigma, 
         use_median = use_median, 
