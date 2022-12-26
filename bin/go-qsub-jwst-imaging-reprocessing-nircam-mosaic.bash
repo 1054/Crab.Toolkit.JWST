@@ -1,8 +1,8 @@
 #!/bin/bash
 # 
-dataset_names=($(ls -1d jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_mirimage))
+dataset_names=($(ls -1d jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_nrc*))
 if [[ ${#dataset_names[@]} -eq 0 ]]; then
-    echo "No dataset dir is found: jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_mirimage"
+    echo "No dataset dir is found: jw*_[0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9]_nrc*"
     echo "under current directory: $(pwd -P)"
     exit 255
 fi
@@ -84,7 +84,7 @@ for (( i=0; i<\${#dataset_names[@]}; i++ )); do
     fi
 done
 
-go-jwst-imaging-stage-3-step-1.py \${dataset_names[@]} --run-individual-steps --abs-refcat abs_refcat.fits --pixel-scale 0.030
+go-jwst-imaging-stage-3-step-1.py \${dataset_names[@]} --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.030
 
 EOF
 # 
