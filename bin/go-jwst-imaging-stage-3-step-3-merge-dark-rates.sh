@@ -110,7 +110,7 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
             --check-date "$rate_image" \
             --date-diff 5 \
             ${applicable_masked_rate_images[@]} \
-            "$merged_masked_rate" \
+            "$merged_masked_rate"
         echo "# $script_dir/util_merge_source_emission_masked_rate_data.py" > "$merged_masked_rate_list_file"
         echo "#!/bin/bash" > "$merged_masked_rate_script_file"
         echo "cd \$(dirname \${BASH_SOURCE[0]})" >> "$merged_masked_rate_script_file"
