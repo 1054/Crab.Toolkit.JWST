@@ -120,7 +120,7 @@ def merge_source_emission_masked_rate_data(
             rate_image_dq = hdul['DQ'].data
         if check_date is not None and date_diff > 0:
             check_date_diff = (rate_image_datetime - check_date_datetime)
-            if not check_date_diff.isclose(date_diff * u.day):
+            if check_date_diff > (date_diff * u.day):
                 logger.info('Excluding {!r} due to too large date different ({} - {} = {:g} > {:g} days)'.format(
                     rate_image_file, rate_image_datetime, check_date_datetime, check_date_diff.jd, date_diff))
                 continue
