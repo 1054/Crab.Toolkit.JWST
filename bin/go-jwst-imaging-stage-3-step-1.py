@@ -645,12 +645,12 @@ def main(
                 if len(unique_obsnums) == 1:
                     image_models = pipeline_object.outlier_detection(image_models)
                 else:
-                    for subsubgrup_obsnum in unique_obsnums:
-                        subsubgroup_indices = np.argwhere(subgroup_table['obs_num'] == subsubgrup_obsnum).ravel()
+                    for k, subsubgroup_obsnum in enumerate(unique_obsnums):
+                        subsubgroup_indices = np.argwhere(subgroup_table['obs_num'] == subsubgroup_obsnum).ravel()
                         subsubgroup_image_models = np.take(image_models, subsubgroup_indices)
                         pipeline_object.log.info(
-                            'Running outlier_detection for models: {} (obsnum: {}, indices: {})'.format(
-                                subsubgroup_image_models, subsubgrup_obsnum, subsubgroup_indices)
+                            'Running outlier_detection in obsnum group {}/{} for image models: {} (obsnum: {}, indices: {})'.format(
+                                k+1, len(unique_obsnums), subsubgroup_image_models, subsubgroup_obsnum, subsubgroup_indices)
                         )
                         subsubgroup_image_models = pipeline_object.outlier_detection(subsubgroup_image_models)
                         for kk in range(len(subsubgroup_indices)):
