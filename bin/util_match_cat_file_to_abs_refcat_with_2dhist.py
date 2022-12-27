@@ -97,7 +97,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         catcoords = SkyCoord(ra*u.deg, dec*u.deg, frame=FK5)
         colra = [colname for colname in ['RA', 'ra', 'ALPHA_J2000'] if colname in refcat.colnames][0]
         coldec = [colname for colname in ['DEC', 'Dec', 'dec', 'DELTA_J2000'] if colname in refcat.colnames][0]
-        colid = [colname for colname in ['ID', 'phot_id'] if colname in refcat.colnames][0]
+        colid = [colname for colname in ['ID', 'id', 'phot_id'] if colname in refcat.colnames][0]
         refra = refcat[colra].data
         refdec = refcat[coldec].data
         refid = refcat[colid].data
