@@ -327,7 +327,7 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
             echo "Found file $file_in"
             redo_files_in+=("$file_in")
 
-            # Redo stage 2 step 4 sextractor
+            # Redo stage 2 step 4 sextractor (20221226)
             file_out="$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal_run_sextractor_classic_dir/SExtractor_OutputCatalogXY.csv"
             file_out2="$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal_cat_for_tweakreg.csv"
             if [[ -f "$file_out2" ]] && [[ $overwrite -eq 0 ]]; then

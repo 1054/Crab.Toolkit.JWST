@@ -20,6 +20,7 @@ import warnings
 warnings.simplefilter('ignore', FITSFixedWarning)
 import logging
 logging.basicConfig(level='INFO')
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 logger = logging.getLogger()
 
 
@@ -94,9 +95,12 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             y += 1
         ra, dec = wcs.all_pix2world(x, y, 1) # wcs.wcs_pix2world(x, y) is not enough # internally I use DS9 1-based pixcoord
         catcoords = SkyCoord(ra*u.deg, dec*u.deg, frame=FK5)
-        refra = refcat['RA'].data
-        refdec = refcat['DEC'].data
-        refid = refcat['phot_id'].data
+        colra = [colname for colname in ['RA', 'ra', 'ALPHA_J2000'] if colname in refcat.colnames][0]
+        coldec = [colname for colname in ['DEC', 'Dec', 'dec', 'DELTA_J2000'] if colname in refcat.colnames][0]
+        colid = [colname for colname in ['ID', 'phot_id'] if colname in refcat.colnames][0]
+        refra = refcat[colra].data
+        refdec = refcat[coldec].data
+        refid = refcat[colid].data
         refcatcoords = SkyCoord(refra*u.deg, refdec*u.deg, frame=FK5)
         refx, refy = wcs.all_world2pix(refra, refdec, 1) # internally I use DS9 1-based pixcoord
         idx, d2d, d3d = match_coordinates_sky(catcoords, refcatcoords)
