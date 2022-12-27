@@ -152,7 +152,7 @@ def main(
     obs_list = Observations.query_criteria(
         obs_collection = "JWST",
         proposal_id = proposal_id,
-        calib_level = [3], # cannot directly find level 1 products, must search level3 first then call get_product_list
+        #calib_level = [3], # cannot directly find level 1 products, must search level3 first then call get_product_list
     )
     logger.info('Returned {} rows'.format(len(obs_list)))
     
@@ -196,6 +196,13 @@ def main(
                 if re.match(check_obs_id, obs['obs_id']) is not None:
                     is_obs_num_matched = True
                     break
+                else:
+                    # example: jw01837004001_02101_00002_mirimage
+                    check_obs_id = 'jw{}{}[0-9]+_[0-9]+_[0-9]+_.*'.format(
+                        proposal_id, obs_num_str)
+                    if re.match(check_obs_id, obs['obs_id']) is not None:
+                        is_obs_num_matched = True
+                        break
         if not is_obs_num_matched:
             continue
         logger.info('*** --- ({}/{}) "{}" --- ***'.format(iobs+1, len(obs_list), obs['obs_id']))
