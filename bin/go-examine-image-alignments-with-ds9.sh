@@ -61,7 +61,7 @@ if [[ -f "$script_file" ]]; then
 fi
 echo "#!/bin/bash" > "$script_file"
 echo "set -e" >> "$script_file"
-echo "cd \${BASH_SOURCE[0]}" >> "$script_file"
+echo "cd \$(dirname \${BASH_SOURCE[0]})" >> "$script_file"
 echo "ds9 -scale zscale \\" >> "$script_file"
 echo "    \"${dataset_name}_i2d.fits\" \\" >> "$script_file"
 echo "        -zoom to fit \\" >> "$script_file"
