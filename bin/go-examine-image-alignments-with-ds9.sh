@@ -39,18 +39,19 @@ reg_files=()
 for (( i = 0; i < ${#csv_files[@]}; i++ )); do
     csv_file="${csv_files[i]}"
     reg_file=$(echo "${csv_file}" | perl -p -e 's/\.csv$/.ds9.reg/g')
-    if [[ ! -f "$reg_file" ]]; then
+    if [[ ! -f "$input_dir/$reg_file" ]]; then
         echo util_convert_catalog_x_y_to_ds9_region.py \
-            "$csv_file" \
-            "$reg_file"
+            "$input_dir/$csv_file" \
+            "$input_dir/$reg_file"
         util_convert_catalog_x_y_to_ds9_region.py \
-            "$csv_file" \
-            "$reg_file"
+            "$input_dir/$csv_file" \
+            "$input_dir/$reg_file"
     fi
-    if [[ ! -f "$reg_file" ]]; then
-        echo "Error! Failed to produce \"reg_file\"!"
+    if [[ ! -f "$input_dir/$reg_file" ]]; then
+        echo "Error! Failed to produce \"$input_dir/$reg_file\"!"
         exit 255
     fi
+    reg_files+=("$reg_file")
 done
 
 # script
