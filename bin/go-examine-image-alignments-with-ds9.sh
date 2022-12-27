@@ -12,7 +12,7 @@ fi
 
 echo "script_dir: $script_dir"
 
-input_dir="$1"
+input_dir=$(echo "$1" | perl -p -e 's%/$%%g')
 echo "input_dir: $input_dir"
 
 dataset_name=$(basename "$input_dir")
