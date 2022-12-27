@@ -93,7 +93,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         if input_index_base == 0:
             x += 1
             y += 1
-        ra, dec = wcs.all_pix2world(x, y, 1) # wcs.wcs_pix2world(x, y) is not enough # internally I use DS9 1-based pixcoord
+        ra, dec = wcs.all_pix2world(x, y, 1, quiet=True) # wcs.wcs_pix2world(x, y) is not enough # internally I use DS9 1-based pixcoord
         catcoords = SkyCoord(ra*u.deg, dec*u.deg, frame=FK5)
         colra = [colname for colname in ['RA', 'ra', 'ALPHA_J2000'] if colname in refcat.colnames][0]
         coldec = [colname for colname in ['DEC', 'Dec', 'dec', 'DELTA_J2000'] if colname in refcat.colnames][0]
@@ -102,7 +102,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         refdec = refcat[coldec].data
         refid = refcat[colid].data
         refcatcoords = SkyCoord(refra*u.deg, refdec*u.deg, frame=FK5)
-        refx, refy = wcs.all_world2pix(refra, refdec, 1) # internally I use DS9 1-based pixcoord
+        refx, refy = wcs.all_world2pix(refra, refdec, 1, quiet=True) # internally I use DS9 1-based pixcoord
         idx, d2d, d3d = match_coordinates_sky(catcoords, refcatcoords)
         matches = np.argwhere(np.logical_and(idx>=0, d2d<=maxsep)).ravel()
         d_ra = (ra[matches]-refra[idx[matches]]) * np.cos(np.deg2rad(refdec[idx[matches]])) * 3600.
