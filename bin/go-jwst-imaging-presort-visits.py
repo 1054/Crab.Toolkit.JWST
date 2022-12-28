@@ -199,7 +199,8 @@ def main(
     # 
     # save "list_of_datasets_in_the_same_group.txt"
     output_list_name = 'list_of_jwst_datasets_in_the_same_group.txt'
-    grouped = all_jwst_dataset_table.group_by(['proposal_id', 'obs_num', 'visit_num', 'instrument', 'filter'])
+    #grouped = all_jwst_dataset_table.group_by(['proposal_id', 'obs_num', 'visit_num', 'instrument', 'filter']) # 20221228 fixed bug
+    grouped = all_jwst_dataset_table.group_by(['proposal_id', 'obs_num', 'instrument', 'filter']) # 20221228 fixed bug
     all_jwst_group_id = []
     all_jwst_group_sizes = []
     group_id = 0
