@@ -202,8 +202,8 @@ done
 for (( i = 0; i < ${#combine_kwargs[@]}; i++ )); do
     proc_args+=(${combine_kwargs[i]})
     if [[ "${combine_kwargs[i]}" == "--combine-obsnum" ]] || [[ "${combine_kwargs[i]}" == "--combine-obs" ]]; then
-        if [[ "$dir_out" != *"combined_multiobs"* ]]; then
-            dir_out="${dir_out}_combined_multiobs"
+        if [[ "$dir_out" != *"_multiobs"* ]]; then
+            dir_out="${dir_out}_multiobs"
         fi
     fi
 done

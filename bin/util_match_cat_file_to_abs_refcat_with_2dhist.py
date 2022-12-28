@@ -250,9 +250,21 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     out_json = cat_filebase + output_suffix + '.json'
     out_png = cat_filebase + output_suffix + '.png'
     out_pdf = cat_filebase + output_suffix + '.png'
-    fig.savefig(out_png, dpi=300)
+    try:
+        fig.savefig(out_png, dpi=300)
+    except:
+        try:
+            fig.savefig(out_png, dpi=150)
+        except:
+            fig.savefig(out_png, dpi=75)
     logger.info('Output to {!r}'.format(out_png))
-    fig.savefig(out_pdf, dpi=300)
+    try:
+        fig.savefig(out_pdf, dpi=300)
+    except:
+        try:
+            fig.savefig(out_pdf, dpi=150)
+        except:
+            fig.savefig(out_pdf, dpi=75)
     logger.info('Output to {!r}'.format(out_pdf))
     if os.path.isfile(out_json):
         shutil.move(out_json, out_json+'.backup')
