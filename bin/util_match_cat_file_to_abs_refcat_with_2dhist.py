@@ -98,9 +98,15 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         colra = [colname for colname in ['RA', 'ra', 'ALPHA_J2000'] if colname in refcat.colnames][0]
         coldec = [colname for colname in ['DEC', 'Dec', 'dec', 'DELTA_J2000'] if colname in refcat.colnames][0]
         colid = [colname for colname in ['ID', 'id', 'phot_id'] if colname in refcat.colnames][0]
-        refra = refcat[colra].data
-        refdec = refcat[coldec].data
-        refid = refcat[colid].data
+        if colra != 'RA':
+            refcat.rename_column(colra, 'RA')
+        if coldec != 'DEC':
+            refcat.rename_column(coldec, 'DEC')
+        if colid != 'ID':
+            refcat.rename_column(colid, 'ID')
+        refra = refcat['RA'].data
+        refdec = refcat['DEC'].data
+        refid = refcat['ID'].data
         refcatcoords = SkyCoord(refra*u.deg, refdec*u.deg, frame=FK5)
         refx, refy = wcs.all_world2pix(refra, refdec, 1, quiet=True) # internally I use DS9 1-based pixcoord
         idx, d2d, d3d = match_coordinates_sky(catcoords, refcatcoords)
@@ -274,7 +280,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         logger.info('Output to {!r}'.format(output_abs_refcat))
     
     # return
-    return out_file
+    return out_file, output_abs_refcat
 
 
 

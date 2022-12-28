@@ -561,7 +561,8 @@ def main(
         # do manual 2dhist for a better tweakreg
         if catfile is not None and abs_refcat is not None and abs_refcat != '':
             from util_match_cat_file_to_abs_refcat_with_2dhist import match_cat_file_to_abs_refcat_with_2dhist
-            pipeline_object.tweakreg.catfile = match_cat_file_to_abs_refcat_with_2dhist(catfile, abs_refcat)
+            pipeline_object.tweakreg.catfile, pipeline_object.tweakreg.abs_refcat = \
+                match_cat_file_to_abs_refcat_with_2dhist(catfile, abs_refcat)
         
         # Turn on SkyMatchStep
         #pipeline_object.skymatch.skip = False
