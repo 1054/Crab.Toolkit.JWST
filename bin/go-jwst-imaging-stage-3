@@ -338,6 +338,7 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
     redo_files_in=()
     for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         dataset_name="${dataset_names[i]}"
+        echo "*** Processing $dataset_name ***"
         file_in="$dataset_name/calibrated2_cals/${dataset_name}_bkgsub_masked_source_emission_cal.fits"
         echo "Checking file $file_in"
         if [[ -f "$file_in" ]]; then
