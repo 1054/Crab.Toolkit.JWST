@@ -179,12 +179,14 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--save-info-table-name', type=str, 
                                         default='mosaic_info_table', 
                                         help='Save the dataset-grouped info table to disk. Default file name is "info_table" and two formats are saved, "csv" and "txt".')
+@click.option('--use-custom-catalogs', type=bool, 
+                                       default=True, 
+                                       help='Set use_custom_catalogs to True. Only valid if each "*_cal.fits" has a catalog named "*_cal_cat_for_tweakreg.csv" in the same directory.')
 @click.option('--combine-program/--no-combine-program', is_flag=True, default=False, help='Combine all programs into one.')
 @click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite?')
 @click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
-@click.option('--use-catfile/--no-use-catfile', is_flag=True, default=True, help='Use catfile if each cal file has a "*_cat_for_tweakreg.csv" catalog in the same directory.')
 def main(
         input_cal_files, 
         output_dir, 
@@ -199,12 +201,12 @@ def main(
         abs_refcat, 
         save_info_table_dir, 
         save_info_table_name, 
+        use_custom_catalogs, 
         combine_program, 
         combine_obsnum, 
         combine_filter, 
         overwrite, 
         run_individual_steps,
-        use_catfile, 
     ):
     
     # Add script dir to sys path
@@ -493,7 +495,7 @@ def main(
             json.dump(asn_dict, fp, indent=4)
         
         catfile = None
-        if use_catfile and len(catdict) > 0:
+        if use_custom_catalogs and len(catdict) > 0:
             catfilename = 'catfile.txt'
             catfilepath = os.path.join(output_subdir, catfilename)
             if os.path.isfile(catfilepath):
@@ -544,7 +546,7 @@ def main(
         pipeline_object.tweakreg.output_use_model = True # use DataModel.meta.filename as output_file
         # set catfile if found
         if catfile is not None:
-            pipeline_object.tweakreg.use_custom_catalogs = True
+            pipeline_object.tweakreg.use_custom_catalogs = use_custom_catalogs
             pipeline_object.tweakreg.catfile = catfile
         # set abs_refcat if user has input that
         if abs_refcat is not None and abs_refcat != '':
