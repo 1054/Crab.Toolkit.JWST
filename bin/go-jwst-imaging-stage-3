@@ -43,6 +43,8 @@ tweakreg_argnames=("--abs-refcat" "--use-catfile" "--no-use-catfile")
 tweakreg_kwargs=()
 resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
 resample_kwargs=()
+combine_argnames=("--combine-obsnum" "--combine-obs" "--combine-program")
+combine_kwargs=()
 reprocess_NIRCam=0
 reprocess_MIRI=1 # we will reprocess MIRI using masked source image as the background then redo stage 2 with image-for-image background subtraction
 while [[ $iarg -le $# ]]; do
@@ -93,6 +95,14 @@ while [[ $iarg -le $# ]]; do
             iarg=$((iarg+1))
             if [[ $iarg -le $# ]]; then
                 resample_kwargs+=("${!iarg}")
+                echo "\"${!iarg}\""
+            fi
+        elif [[ " ${combine_argnames[@]} " == *" $argstr "* ]]; then
+            combine_kwargs+=("${!iarg}")
+            echo -n "${!iarg} = "
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                combine_kwargs+=("${!iarg}")
                 echo "\"${!iarg}\""
             fi
         else
@@ -190,6 +200,14 @@ done
 for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
     proc_args+=(${resample_kwargs[i]})
 done
+for (( i = 0; i < ${#combine_kwargs[@]}; i++ )); do
+    proc_args+=(${combine_kwargs[i]})
+    if [[ "${combine_kwargs[i]}" == "--combine-obsnum" ]] || [[ "${combine_kwargs[i]}" == "--combine-obs" ]]; then
+        if [[ "$dir_out" != *"combined_multiobs"* ]]; then
+            dir_out="${dir_out}_combined_multiobs"
+        fi
+    fi
+done
 if [[ $overwrite -gt 0 ]]; then
     proc_args+=(--overwrite)
 fi
@@ -216,8 +234,8 @@ fi
 if [[ ! -z "$CRDS_CONTEXT" ]]; then
     crds_context_str=$(echo "$CRDS_CONTEXT" | perl -p -e 's/\.pmap$//g')
     timestamp_str=$(date +"%Y%m%d")
-    echo touch "${output_dir}/${timestamp_str}_pmap_${crds_context_str}"
-    touch "${output_dir}/${timestamp_str}_pmap_${crds_context_str}"
+    echo touch "${dir_out}/${timestamp_str}_pmap_${crds_context_str}"
+    touch "${dir_out}/${timestamp_str}_pmap_${crds_context_str}"
 fi
 
 
@@ -359,7 +377,7 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
     
     
     # Redo stage 3 step 1 mosaic
-    redo_dir_out="${output_dir}_redone_with_source_emission_mask"
+    redo_dir_out="${dir_out}_redone_with_source_emission_mask"
     proc_args=()
     for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
         proc_args+=(${resample_kwargs[i]})
