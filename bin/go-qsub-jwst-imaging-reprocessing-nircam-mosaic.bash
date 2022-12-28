@@ -78,7 +78,7 @@ for (( i=0; i<\${#dataset_names[@]}; i++ )); do
     dataset_files+=("\${dataset_name}/calibrated2_cals/\${dataset_name}_cal.fits")
 done
 
-go-jwst-imaging-stage-3-step-1.py \${dataset_files[@]} calibrated3_mosaic_multiobs_with_abs_refcat --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.030
+go-jwst-imaging-stage-3-step-1.py \${dataset_files[@]} calibrated3_mosaics_multiobs_with_abs_refcat --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.030
 
 EOF
 # 
