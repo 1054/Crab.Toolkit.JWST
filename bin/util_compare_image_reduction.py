@@ -295,6 +295,7 @@ class ImageComparer(object):
             colors, # a list, e.g., ['red', 'blue', 'orange', 'cyan']
             output_figure, 
             aperture_psf_fraction = 1.0, 
+            title = '', 
         ):
         # 
         if self.apertures_table is not None:
@@ -419,6 +420,10 @@ class ImageComparer(object):
                 ax.set_ylabel('N')
                 ax.legend()
             # 
+            # title
+            if title != '':
+                ax.set_title(title)
+            # 
             if output_figure.endswith('.pdf') or output_figure.endswith('.png'):
                 output_figure = os.path.splitext(output_figure)
             self.ensure_directory(output_figure)
@@ -441,6 +446,7 @@ class ImageComparer(object):
 @click.option('--plot-orders', type=str, default=None, help='orders for plotting, from 0 to N-1, using comma to separate.')
 @click.option('--plot-colors', type=str, default=None, help='colors for plotting, using comma to separate.')
 @click.option('--aper-corr', type=float, default=1.0, help='aperture to psf total flux fraction, 0-1.')
+@click.option('--title', type=str, default='', help='title of this plot.')
 @click.option('--output-dir', type=click.Path(exists=False), default=None, help='not implemented, just use path in `output_name`.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 @click.option('--verbose/--no-verbose', is_flag=True, default=True)
@@ -453,6 +459,7 @@ def main(
         plot_orders,
         plot_colors,
         aper_corr,
+        title,
         output_dir,
         overwrite,
         verbose, 
@@ -475,6 +482,7 @@ def main(
                 plot_colors.split(','), 
                 output_name+'_flux_histograms',
                 aperture_psf_fraction = aper_corr,
+                title = title, 
             )
     
 
