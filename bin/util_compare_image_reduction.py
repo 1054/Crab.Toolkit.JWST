@@ -85,7 +85,7 @@ CODE_HOMEPAGE = ''
 
 # logging
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 logger = logging.getLogger(CODE_NAME)
 logger.setLevel(logging.DEBUG)
@@ -422,7 +422,7 @@ class ImageComparer(object):
             # 
             # title
             if title != '':
-                ax.set_title(title)
+                axes[0].set_title(title)
             # 
             if output_figure.endswith('.pdf') or output_figure.endswith('.png'):
                 output_figure = os.path.splitext(output_figure)
