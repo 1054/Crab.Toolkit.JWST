@@ -309,7 +309,7 @@ class ImageComparer(object):
             fig_left = 0.7 # inches
             fig_right = 0.2 # inches
             fig_bottom = 0.6 # inches
-            fig_top = 0.2 # inches
+            fig_top = 0.4 # inches
             panel_wspace = 0.2 # inches
             panel_hspace = 0.25 # inches
             fig_width = fig_left + panel_width * ncols + panel_wspace * (ncols-1) + fig_right
