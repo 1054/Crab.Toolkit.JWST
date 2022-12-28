@@ -39,11 +39,12 @@ info_table_argnames=("--save-info-table-dir" "--save-info-table-name")
 info_table_kwargs=()
 info_table_dir=""
 info_table_name="mosaic_info_table" # must match the default in "go-jwst-imaging-stage-3-step-1.py"
-tweakreg_argnames=("--abs-refcat" "--use-catfile" "--no-use-catfile")
+tweakreg_argnames=("--abs-refcat")
+tweakreg_optnames=("--use-catfile" "--no-use-catfile")
 tweakreg_kwargs=()
 resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
 resample_kwargs=()
-combine_argnames=("--combine-obsnum" "--combine-obs" "--combine-program")
+combine_optnames=("--combine-obsnum" "--combine-obs" "--combine-program")
 combine_kwargs=()
 reprocess_NIRCam=0
 reprocess_MIRI=1 # we will reprocess MIRI using masked source image as the background then redo stage 2 with image-for-image background subtraction
@@ -89,6 +90,9 @@ while [[ $iarg -le $# ]]; do
                 tweakreg_kwargs+=("${!iarg}")
                 echo "\"${!iarg}\""
             fi
+        elif [[ " ${tweakreg_optnames[@]} " == *" $argstr "* ]]; then
+            tweakreg_kwargs+=("${!iarg}")
+            echo "${!iarg}"
         elif [[ " ${resample_argnames[@]} " == *" $argstr "* ]]; then
             resample_kwargs+=("${!iarg}")
             echo -n "${!iarg} = "
@@ -97,14 +101,9 @@ while [[ $iarg -le $# ]]; do
                 resample_kwargs+=("${!iarg}")
                 echo "\"${!iarg}\""
             fi
-        elif [[ " ${combine_argnames[@]} " == *" $argstr "* ]]; then
+        elif [[ " ${combine_optnames[@]} " == *" $argstr "* ]]; then
             combine_kwargs+=("${!iarg}")
-            echo -n "${!iarg} = "
-            iarg=$((iarg+1))
-            if [[ $iarg -le $# ]]; then
-                combine_kwargs+=("${!iarg}")
-                echo "\"${!iarg}\""
-            fi
+            echo "${!iarg}"
         else
             echo "Unkonwn argument: ${!iarg}"
         fi
