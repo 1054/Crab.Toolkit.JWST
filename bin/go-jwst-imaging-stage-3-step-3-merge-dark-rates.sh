@@ -64,6 +64,10 @@ for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
         if [[ "$cal_image" == "../"* ]]; then
             cal_image=$(dirname "$temp_mosaic_dir")/$(echo "${cal_image}" | perl -p -e 's%^../%%g') # paths in asn are relative to asn dir.
         fi
+        # check duplicates
+        if [[ x" ${multiobs_cal_images[@]} "x == x*" $cal_image "*x ]]; then
+            continue
+        fi
         rate_image=$(echo "$cal_image" | perl -p -e 's%/calibrated2_cals/%/calibrated1_rates/%g' | perl -p -e 's%_cal.fits$%_rate.fits%g')
         echo "rate_image = \"$rate_image\""
         masked_rate=$(echo "$rate_image" | perl -p -e 's%_rate.fits$%%g')"_masked_source_emission_rate.fits"
