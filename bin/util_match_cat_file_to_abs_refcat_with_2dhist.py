@@ -111,68 +111,73 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         refx, refy = wcs.all_world2pix(refra, refdec, 1, quiet=True) # internally I use DS9 1-based pixcoord
         idx, d2d, d3d = match_coordinates_sky(catcoords, refcatcoords)
         matches = np.argwhere(np.logical_and(idx>=0, d2d<=maxsep)).ravel()
-        d_ra = (ra[matches]-refra[idx[matches]]) * np.cos(np.deg2rad(refdec[idx[matches]])) * 3600.
-        d_dec = (dec[matches]-refdec[idx[matches]]) * 3600.
-        d_px = (x[matches]-refx[idx[matches]])
-        d_py = (y[matches]-refy[idx[matches]])
-        lim = np.max(np.abs([d_ra, d_dec])) * 1.2 # axes range +20%
-        # 
-        for imatch in matches:
-            key = refid[imatch]
-            #if key not in check_radecs:
-            #    check_radecs[key] = OrderedDict()
-            #    check_radecs[key]['x'] = np.full([ncats,], fill_value=np.nan)
-            #    check_radecs[key]['y'] = np.full([ncats,], fill_value=np.nan)
-            #    check_radecs[key]['ra'] = np.full([ncats,], fill_value=np.nan)
-            #    check_radecs[key]['dec'] = np.full([ncats,], fill_value=np.nan)
-            #    check_radecs[key]['refra'] = np.full([ncats,], fill_value=np.nan)
-            #    check_radecs[key]['refdec'] = np.full([ncats,], fill_value=np.nan)
-            #check_radecs[key]['x'][ipanel] = x[imatch]
-            #check_radecs[key]['y'][ipanel] = y[imatch]
-            #check_radecs[key]['ra'][ipanel] = ra[imatch]
-            #check_radecs[key]['dec'][ipanel] = dec[imatch]
-            #check_radecs[key]['refra'][ipanel] = refra[idx[imatch]]
-            #check_radecs[key]['refdec'][ipanel] = refdec[idx[imatch]]
-            # 
-            matched_abs_refcat_mask[idx[imatch]] = True
-        # 
         ax = axes.ravel()[ipanel]
-        ax.scatter(d_ra, d_dec, s=3, alpha=0.9)
-        ax.set_xlim([lim, -lim])
-        ax.set_ylim([-lim, lim])
-        # 
-        d_ra_mean, d_ra_median, d_ra_sigma = sigma_clipped_stats(d_ra)
-        d_dec_mean, d_dec_median, d_dec_sigma = sigma_clipped_stats(d_dec)
-        d_px_mean, d_px_median, d_px_sigma = sigma_clipped_stats(d_px)
-        d_py_mean, d_py_median, d_py_sigma = sigma_clipped_stats(d_py)
-        offsets[imfile] = OrderedDict()
-        offsets[imfile]['mean_arcsec'] = [d_ra_mean, d_dec_mean]
-        offsets[imfile]['mean_pixel'] = [d_px_mean, d_py_mean] # in detector frame
-        offsets[imfile]['median_arcsec'] = [d_ra_median, d_dec_median]
-        offsets[imfile]['median_pixel'] = [d_px_median, d_py_median] # in detector frame
-        offsets[imfile]['sigma_arcsec'] = [d_ra_sigma, d_dec_sigma]
-        offsets[imfile]['sigma_pixel'] = [d_px_sigma, d_py_sigma] # in detector frame
-        patch = Ellipse(xy=[d_ra_mean, d_dec_mean], width=2.*outlier_sigma*d_ra_sigma, height=2.*outlier_sigma*d_dec_sigma, 
-                        angle=0.0, ec='red', fc='none', alpha=0.8)
-        patch = Ellipse(xy=[d_ra_median, d_dec_median], width=2.*outlier_sigma*d_ra_sigma, height=2.*outlier_sigma*d_dec_sigma, 
-                        angle=0.0, ec='red', fc='none', alpha=0.8)
-        ax.add_patch(patch)
-        ax.text(d_ra_mean, d_dec_mean+outlier_sigma*d_dec_sigma, '{:+.4f}, {:+.4f}'.format(d_ra_mean, d_dec_mean),
-            ha='center', va='bottom', color='red')
-        # 
-        # identify outliers
-        outliers = ( ((d_ra-d_ra_mean)/(outlier_sigma*d_ra_sigma))**2 + ((d_dec-d_dec_mean)/(outlier_sigma*d_dec_sigma))**2 > 1.0)
-        ax.scatter(d_ra[outliers], d_dec[outliers], s=10, marker='*', alpha=0.7, 
-                   fc='none', ec='orangered')
-        catmask = np.full([len(ra),], fill_value=False, dtype=bool)
-        catmask[matches] = np.invert(outliers) # remove outliers, keep good ones
-        catmasks[imfile] = catmask
-        matched_abs_refcat_id[imfile] = refid[idx[matches][~outliers]]
-        matched_abs_refcat_x[imfile] = refx[idx[matches][~outliers]]
-        matched_abs_refcat_y[imfile] = refy[idx[matches][~outliers]]
-        # 
-        ax.plot([-lim, lim], [0., 0.], color='k', ls='dashed', alpha=0.7)
-        ax.plot([0., 0.], [-lim, lim], color='k', ls='dashed', alpha=0.7)
+        if len(matches) == 0:
+            logger.error('No match is found between the catfile of {!r} and the abs_refcat {!r}!'.format(imfile, abs_refcat))
+            ax.set_xticks([])
+            ax.set_yticks([])
+        else:
+            d_ra = (ra[matches]-refra[idx[matches]]) * np.cos(np.deg2rad(refdec[idx[matches]])) * 3600.
+            d_dec = (dec[matches]-refdec[idx[matches]]) * 3600.
+            d_px = (x[matches]-refx[idx[matches]])
+            d_py = (y[matches]-refy[idx[matches]])
+            lim = np.max(np.abs([d_ra, d_dec])) * 1.2 # axes range +20%
+            # 
+            for imatch in matches:
+                key = refid[imatch]
+                #if key not in check_radecs:
+                #    check_radecs[key] = OrderedDict()
+                #    check_radecs[key]['x'] = np.full([ncats,], fill_value=np.nan)
+                #    check_radecs[key]['y'] = np.full([ncats,], fill_value=np.nan)
+                #    check_radecs[key]['ra'] = np.full([ncats,], fill_value=np.nan)
+                #    check_radecs[key]['dec'] = np.full([ncats,], fill_value=np.nan)
+                #    check_radecs[key]['refra'] = np.full([ncats,], fill_value=np.nan)
+                #    check_radecs[key]['refdec'] = np.full([ncats,], fill_value=np.nan)
+                #check_radecs[key]['x'][ipanel] = x[imatch]
+                #check_radecs[key]['y'][ipanel] = y[imatch]
+                #check_radecs[key]['ra'][ipanel] = ra[imatch]
+                #check_radecs[key]['dec'][ipanel] = dec[imatch]
+                #check_radecs[key]['refra'][ipanel] = refra[idx[imatch]]
+                #check_radecs[key]['refdec'][ipanel] = refdec[idx[imatch]]
+                # 
+                matched_abs_refcat_mask[idx[imatch]] = True
+            # 
+            ax.scatter(d_ra, d_dec, s=3, alpha=0.9)
+            ax.set_xlim([lim, -lim])
+            ax.set_ylim([-lim, lim])
+            # 
+            d_ra_mean, d_ra_median, d_ra_sigma = sigma_clipped_stats(d_ra)
+            d_dec_mean, d_dec_median, d_dec_sigma = sigma_clipped_stats(d_dec)
+            d_px_mean, d_px_median, d_px_sigma = sigma_clipped_stats(d_px)
+            d_py_mean, d_py_median, d_py_sigma = sigma_clipped_stats(d_py)
+            offsets[imfile] = OrderedDict()
+            offsets[imfile]['mean_arcsec'] = [d_ra_mean, d_dec_mean]
+            offsets[imfile]['mean_pixel'] = [d_px_mean, d_py_mean] # in detector frame
+            offsets[imfile]['median_arcsec'] = [d_ra_median, d_dec_median]
+            offsets[imfile]['median_pixel'] = [d_px_median, d_py_median] # in detector frame
+            offsets[imfile]['sigma_arcsec'] = [d_ra_sigma, d_dec_sigma]
+            offsets[imfile]['sigma_pixel'] = [d_px_sigma, d_py_sigma] # in detector frame
+            patch = Ellipse(xy=[d_ra_mean, d_dec_mean], width=2.*outlier_sigma*d_ra_sigma, height=2.*outlier_sigma*d_dec_sigma, 
+                            angle=0.0, ec='red', fc='none', alpha=0.8)
+            patch = Ellipse(xy=[d_ra_median, d_dec_median], width=2.*outlier_sigma*d_ra_sigma, height=2.*outlier_sigma*d_dec_sigma, 
+                            angle=0.0, ec='red', fc='none', alpha=0.8)
+            ax.add_patch(patch)
+            ax.text(d_ra_mean, d_dec_mean+outlier_sigma*d_dec_sigma, '{:+.4f}, {:+.4f}'.format(d_ra_mean, d_dec_mean),
+                ha='center', va='bottom', color='red')
+            # 
+            # identify outliers
+            outliers = ( ((d_ra-d_ra_mean)/(outlier_sigma*d_ra_sigma))**2 + ((d_dec-d_dec_mean)/(outlier_sigma*d_dec_sigma))**2 > 1.0)
+            ax.scatter(d_ra[outliers], d_dec[outliers], s=10, marker='*', alpha=0.7, 
+                       fc='none', ec='orangered')
+            catmask = np.full([len(ra),], fill_value=False, dtype=bool)
+            catmask[matches] = np.invert(outliers) # remove outliers, keep good ones
+            catmasks[imfile] = catmask
+            matched_abs_refcat_id[imfile] = refid[idx[matches][~outliers]]
+            matched_abs_refcat_x[imfile] = refx[idx[matches][~outliers]]
+            matched_abs_refcat_y[imfile] = refy[idx[matches][~outliers]]
+            # 
+            ax.plot([-lim, lim], [0., 0.], color='k', ls='dashed', alpha=0.7)
+            ax.plot([0., 0.], [-lim, lim], color='k', ls='dashed', alpha=0.7)
         # 
         ax.set_title(imfile, fontsize='small')
         ax.set_aspect(1.0)
