@@ -379,8 +379,18 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
     # Redo stage 3 step 1 mosaic
     redo_dir_out="${dir_out}_redone_with_source_emission_mask"
     proc_args=()
+    proc_args=()
+    for (( i = 0; i < ${#info_table_kwargs[@]}; i++ )); do
+        proc_args+=(${info_table_kwargs[i]})
+    done
+    for (( i = 0; i < ${#tweakreg_kwargs[@]}; i++ )); do
+        proc_args+=(${tweakreg_kwargs[i]})
+    done
     for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
         proc_args+=(${resample_kwargs[i]})
+    done
+    for (( i = 0; i < ${#combine_kwargs[@]}; i++ )); do
+        proc_args+=(${combine_kwargs[i]})
     done
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
