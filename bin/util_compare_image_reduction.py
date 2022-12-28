@@ -86,6 +86,7 @@ CODE_HOMEPAGE = ''
 # logging
 import logging
 logging.basicConfig(level=logging.DEBUG)
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 logger = logging.getLogger(CODE_NAME)
 logger.setLevel(logging.DEBUG)
 
