@@ -22,12 +22,29 @@ from astropy.modeling import models as apy_models
 from astropy.modeling import fitting as apy_fitting
 from astropy.convolution import convolve as apy_convolve
 from astropy.convolution import Gaussian2DKernel
+from astropy.wcs import WCS
 from photutils.background import Background2D
 from scipy.ndimage import median_filter as scipy_median_filter
 # import matplotlib as mpl
 # import matplotlib.pyplot as plt
 # mpl.rcParams['savefig.dpi'] = 300
 # mpl.rcParams['figure.dpi'] = 300
+
+import regions
+
+try:
+    from regions import DS9Parser, ShapeList, Shape
+    my_ds9_parser = lambda x: [t.to_region() for t in DS9Parser(x).shapes]
+except:
+    from regions import Regions
+    my_ds9_parser = Regions.parse
+
+try:
+    from regions import read_ds9, write_ds9
+except:
+    from regions import Regions
+    read_ds9 = lambda x: Regions.read(x, format='ds9')
+    write_ds9 = lambda x: Regions.write(x, format='ds9')
 
 if "CRDS_PATH" not in os.environ:
     os.environ["CRDS_PATH"] = os.path.expanduser('~/jwst_crds_cache')
@@ -238,9 +255,10 @@ def detect_source_and_background_for_image(
         smooth = 0.0, 
         minpixarea = 1, # 
         flat_file = None, # for MIRI only, will combine DQ from the flat file.
-        with_filter_in_output_name = False, # with a filter name in the output filename
+        region_file = None, 
         output_dir = None, 
         output_suffix = '_galaxy_seed_image', 
+        with_filter_in_output_name = False, # with a filter name in the output filename
         overwrite = False, 
         verbose = True, 
     ):
@@ -302,6 +320,18 @@ def detect_source_and_background_for_image(
     else:
         dqmask *= np.isfinite(image).astype(int)
     
+    
+    # get ds9 region file
+    if region_file is not None:
+        region_list = read_ds9(region_file)
+        for region_object in region_list:
+            wcs = WCS(header, naxis=2)
+            try:
+                pixel_region = region_object.to_pixel()
+            except:
+                pixel_region = region_object
+            region_mask = pixel_region.to_mask().to_image(image.shape)
+            dqmask[region_mask] = 0 # mark these regions invalid so that we do not detect sources in them
     
     # get valid pixels, write to disk
     valid_mask = (dqmask > 0)
@@ -459,6 +489,7 @@ def detect_source_and_background_for_image(
 @click.option('--minpixarea', type=int, default=1)
 @click.option('--smooth', type=float, default=0.0)
 @click.option('--flat-file', type=click.Path(exists=True), default=None)
+@click.option('--region-file', type=click.Path(exists=True), default=None)
 @click.option('--output-dir', type=click.Path(exists=False), default=None)
 @click.option('--with-filter-in-output-name', is_flag=True, default=False)
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
@@ -474,6 +505,7 @@ def main(
         minpixarea, 
         smooth, 
         flat_file, 
+        region_file, 
         output_dir,
         with_filter_in_output_name, 
         overwrite,
@@ -491,6 +523,7 @@ def main(
         minpixarea = minpixarea, 
         smooth = smooth, 
         flat_file = flat_file, 
+        region_file = region_file, 
         output_dir = output_dir, 
         with_filter_in_output_name = with_filter_in_output_name, 
         overwrite = overwrite, 
