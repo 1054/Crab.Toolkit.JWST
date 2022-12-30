@@ -323,6 +323,8 @@ def detect_source_and_background_for_image(
     
     # get ds9 region file
     if region_file is not None:
+        if verbose:
+            logger.info('Reading ds9 region file: {!r}'.format(region_file))
         region_list = read_ds9(region_file)
         for region_object in region_list:
             wcs = WCS(header, naxis=2)
