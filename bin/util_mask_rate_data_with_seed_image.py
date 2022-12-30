@@ -136,8 +136,10 @@ def mask_rate_data_with_seed_image(
         # write out_image_file
         if os.path.isfile(out_image_file):
             shutil.move(out_image_file, out_image_file+'.backup')
-        elif not os.path.isdir(os.path.dirname(out_image_file)):
-            os.makedirs(os.path.dirname(out_image_file))
+        else:
+            output_dirpath = os.path.dirname(out_image_file)
+            if output_dirpath != '' and not os.path.isdir(output_dirpath):
+                os.makedirs(output_dirpath)
         image_model.write(out_image_file)
         
         logger.info('Output to {!r}'.format(out_image_file))
