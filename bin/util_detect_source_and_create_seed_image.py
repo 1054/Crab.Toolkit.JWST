@@ -333,7 +333,7 @@ def detect_source_and_background_for_image(
             except:
                 pixel_region = region_object
             region_mask = pixel_region.to_mask().to_image(image.shape)
-            dqmask[region_mask] = 0 # mark these regions invalid so that we do not detect sources in them
+            dqmask[region_mask > 0] = 0 # mark these regions invalid so that we do not detect sources in them
     
     # get valid pixels, write to disk
     valid_mask = (dqmask > 0)
