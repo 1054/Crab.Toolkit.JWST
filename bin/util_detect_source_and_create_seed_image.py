@@ -322,18 +322,21 @@ def detect_source_and_background_for_image(
     
     
     # get ds9 region file
+    region_mask = None
     if region_file is not None:
         if verbose:
             logger.info('Reading ds9 region file: {!r}'.format(region_file))
         region_list = read_ds9(region_file)
+        region_mask = np.full(image.shape, dtype=bool, fill_value=False)
         for region_object in region_list:
             wcs = WCS(header, naxis=2)
             try:
                 pixel_region = region_object.to_pixel(wcs)
             except:
                 pixel_region = region_object
-            region_mask = pixel_region.to_mask().to_image(image.shape)
-            dqmask[region_mask > 0] = 0 # mark these regions invalid so that we do not detect sources in them
+            pixel_mask = (pixel_region.to_mask().to_image(image.shape) > 0)
+            region_mask[pixel_mask] = True
+            dqmask[pixel_mask] = 0 # mark these regions invalid so that we do not detect sources in them
     
     # get valid pixels, write to disk
     valid_mask = (dqmask > 0)
@@ -412,6 +415,10 @@ def detect_source_and_background_for_image(
     # mask sources by 3-sigma and invalid data
     #mask = np.logical_or(bright_mask, dqmask == 0) # mask bright sources (>3sigma) and invalid pixels (dqmask == 0)
     mask = bright_mask # mask bright sources (>3sigma), IGNORING invalid pixels (dqmask == 0)
+    
+    if region_mask is not None:
+        mask[region_mask] = False
+    
     arr = mask.astype(int)
     
     
