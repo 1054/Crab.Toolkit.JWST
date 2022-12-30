@@ -329,7 +329,7 @@ def detect_source_and_background_for_image(
         for region_object in region_list:
             wcs = WCS(header, naxis=2)
             try:
-                pixel_region = region_object.to_pixel()
+                pixel_region = region_object.to_pixel(wcs)
             except:
                 pixel_region = region_object
             region_mask = pixel_region.to_mask().to_image(image.shape)
