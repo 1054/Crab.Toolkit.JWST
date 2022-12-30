@@ -703,22 +703,33 @@ def main(
                 pipeline_object.outlier_detection.save_results = True
                 pipeline_object.outlier_detection.suffix = 'crf'
                 pipeline_object.outlier_detection.search_output_file = False
-                if len(unique_obsnums) == 1:
+                if len(unique_obsnums) == 1 and len(unique_visitnums) == 1:
                     image_models = pipeline_object.outlier_detection(image_models)
                 else:
-                    for k, subsubgroup_obsnum in enumerate(unique_obsnums):
-                        subsubgroup_indices = np.argwhere(subgroup_table['obs_num'] == subsubgroup_obsnum).ravel()
-                        #subsubgroup_image_models = np.take(image_models, subsubgroup_indices) # this does not work
-                        subsubgroup_image_models = datamodels.ModelContainer()
-                        for kk in range(len(subsubgroup_indices)):
-                            subsubgroup_image_models.append(image_models[subsubgroup_indices[kk]])
-                        pipeline_object.log.info(
-                            'Running outlier_detection in obsnum group {}/{} for image models: {} (obsnum: {}, indices: {})'.format(
-                                k+1, len(unique_obsnums), subsubgroup_image_models, subsubgroup_obsnum, subsubgroup_indices)
-                        )
-                        subsubgroup_image_models = pipeline_object.outlier_detection(subsubgroup_image_models)
-                        for kk in range(len(subsubgroup_indices)):
-                            image_models[subsubgroup_indices[kk]] = subsubgroup_image_models[kk]
+                    obsnum_visitnum_counter = 0
+                    for subsubgroup_obsnum in unique_obsnums:
+                        for subsubgroup_visitnum in unique_visitnums:
+                            subsubgroup_indices = np.argwhere(np.logical_and(
+                                subgroup_table['obs_num'] == subsubgroup_obsnum,
+                                subgroup_table['visit_num'] == subsubgroup_visitnum,
+                                )).ravel()
+                            if len(subsubgroup_indices) > 0:
+                                #subsubgroup_image_models = np.take(image_models, subsubgroup_indices) # this does not work
+                                subsubgroup_image_models = datamodels.ModelContainer()
+                                for kk in range(len(subsubgroup_indices)):
+                                    subsubgroup_image_models.append(image_models[subsubgroup_indices[kk]])
+                                obsnum_visitnum_counter += 1
+                                message_str = 'Running outlier_detection in obsnum group {}/{} for image models: {}'.format(
+                                                obsnum_visitnum_counter, len(unique_obsnums), subsubgroup_image_models
+                                            ) + \
+                                            '(obs_num: {}, visit_num: {}, indices: {})'.format(
+                                                subsubgroup_obsnum, subsubgroup_visitnum, subsubgroup_indices
+                                            )
+                                logger.info(message_str)
+                                pipeline_object.log.info(message_str)
+                                subsubgroup_image_models = pipeline_object.outlier_detection(subsubgroup_image_models)
+                                for kk in range(len(subsubgroup_indices)):
+                                    image_models[subsubgroup_indices[kk]] = subsubgroup_image_models[kk]
                 # 
                 # 4. resample
                 pipeline_object.resample.output_file = output_name
