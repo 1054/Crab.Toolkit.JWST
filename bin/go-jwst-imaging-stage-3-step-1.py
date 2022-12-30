@@ -133,6 +133,19 @@ def setup_logger():
     
     return logger
 
+def expand_list_with_comma_items(input_list):
+    if isinstance(input_list, str):
+        input_list = [input_list]
+    output_list = []
+    for item in input_list:
+        if not isinstance(item, str):
+            item = str(item)
+        if item.find(',') >= 0:
+            output_list.extend(item.split(','))
+        else:
+            output_list.append(item)
+    return output_list
+    
 
 
 # Defaults
@@ -150,6 +163,7 @@ DEFAULT_PIXEL_SCALE = None
 @click.argument('output_dir', type=click.Path(exists=False))
 @click.option('--program', 'select_program', type=str, multiple=True, default=None, help='Specify a program.')
 @click.option('--obsnum', 'select_obsnum', type=str, multiple=True, default=None, help='Specify a obsnum.')
+@click.option('--visitnum', 'select_visitnum', type=str, multiple=True, default=None, help='Specify a visitnum.')
 @click.option('--instrument', 'select_instrument', type=str, multiple=True, default=None, help='Specify an instrument.')
 @click.option('--filter', 'select_filter', type=str, multiple=True, default=None, help='Specify a filter.')
 @click.option('--kernel', type=click.Choice(['point', 'square', 'gaussian', 'tophat', 'turbo', 'lanczos2', 'lanczos3']), 
@@ -184,6 +198,7 @@ DEFAULT_PIXEL_SCALE = None
                                        help='Set use_custom_catalogs to True. Only valid if each "*_cal.fits" has a catalog named "*_cal_cat_for_tweakreg.csv" in the same directory.')
 @click.option('--combine-program/--no-combine-program', is_flag=True, default=False, help='Combine all programs into one.')
 @click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
+@click.option('--combine-visitnum/--no-combine-visitnum', is_flag=True, default=False, help='Combine all visitnum into one. If `--combine-obsnum` is set then this will also be set to True.')
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite?')
 @click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
@@ -191,6 +206,7 @@ def main(
         input_cal_files, 
         output_dir, 
         select_program, 
+        select_visitnum, 
         select_obsnum, 
         select_instrument, 
         select_filter, 
@@ -204,6 +220,7 @@ def main(
         use_custom_catalogs, 
         combine_program, 
         combine_obsnum, 
+        combine_visitnum, 
         combine_filter, 
         overwrite, 
         run_individual_steps,
@@ -291,15 +308,23 @@ def main(
         info_dict['file_path'] = input_filepath
         # check selecting instrument and filter
         if len(select_program) > 0:
+            select_program = expand_list_with_comma_items(select_program)
             if info_dict['program'] not in select_program:
                 continue
         if len(select_obsnum) > 0:
+            select_obsnum = expand_list_with_comma_items(select_obsnum)
             if info_dict['obs_num'] not in select_obsnum:
                 continue
+        if len(select_visitnum) > 0:
+            select_visitnum = expand_list_with_comma_items(select_visitnum)
+            if info_dict['visit_num'] not in select_visitnum:
+                continue
         if len(select_instrument) > 0:
+            select_instrument = expand_list_with_comma_items(select_instrument)
             if info_dict['instrument'] not in select_instrument:
                 continue
         if len(select_filter) > 0:
+            select_filter = expand_list_with_comma_items(select_filter)
             if info_dict['filter'] not in select_filter:
                 continue
         info_list.append(info_dict)
@@ -309,11 +334,12 @@ def main(
     if len(info_list) == 0:
         if len(select_program) > 0 or \
            len(select_obsnum) > 0 or \
+           len(select_visitnum) > 0 or \
            len(select_instrument) > 0 or \
            len(select_filter) > 0:
             raise Exception('Error! No input file matching the specified ' + \
-                'program {!r} obsnum {!r} instrument {!r} and filter {!r}'.format(
-                select_program, select_obsnum, select_instrument, select_filter))
+                'program {!r} obsnum {!r} visitnum {!r} instrument {!r} and filter {!r}'.format(
+                select_program, select_obsnum, select_visitnum, select_instrument, select_filter))
         else:
             logger.error('Error! No input file to process!')
             sys.exit(255)
@@ -348,19 +374,26 @@ def main(
     
     
     # group by '{instrument}_{filter}' # '{program}_{obs_num}_{instrument}_{filter}'
-    group_by_columns = ['instrument', 'filter', 'program', 'obs_num']
+    #group_by_columns = ['instrument', 'filter', 'program', 'obs_num']
+    group_by_columns = ['instrument', 'filter', 'program', 'obs_num', 'visit_num']
     if combine_filter:
-        if len(np.unique(info_table['filter'])) > 0:
+        if len(np.unique(info_table['filter'])) > 1:
             logger.warning('We are combining different filters!')
         group_by_columns.remove('filter')
     if combine_program:
-        if len(np.unique(info_table['program'])) > 0:
+        if len(np.unique(info_table['program'])) > 1:
             logger.warning('We are combining different programs!')
         group_by_columns.remove('program')
     if combine_obsnum:
-        if len(np.unique(info_table['obs_num'])) > 0:
+        if len(np.unique(info_table['obs_num'])) > 1:
             logger.warning('We are combining different obs_num!')
         group_by_columns.remove('obs_num')
+    if combine_obsnum:
+        combine_visitnum = True # if `--combine-obsnum` is set, this will also be set to True.
+    if combine_visitnum:
+        if len(np.unique(info_table['visit_num'])) > 1:
+            logger.warning('We are combining different visit_num!')
+        group_by_columns.remove('visit_num')
     logger.info('group_by_columns: {}'.format(group_by_columns))
     groupped_table = info_table.group_by(group_by_columns)
     
@@ -375,6 +408,9 @@ def main(
         unique_obsnums = np.unique(subgroup_table['obs_num'])
         groupped_obsnum_str = '+'.join(unique_obsnums)
         
+        unique_visitnums = np.unique(subgroup_table['visit_num'])
+        groupped_visitnum_str = '+'.join(unique_visitnums)
+        
         unique_instruments = np.unique(subgroup_table['instrument'])
         groupped_instrument_str = '+'.join(unique_instruments)
         
@@ -386,6 +422,7 @@ def main(
         
         subgroup_files = subgroup_table['file_path'].data.tolist()
         
+        # set output directory name
         output_name = 'jw{}_obs{}_{}_{}'.format(
             groupped_program_str, 
             groupped_obsnum_str, 
@@ -393,6 +430,25 @@ def main(
             groupped_filter_str,
         )
         
+        groupped_asn_str = groupped_obsnum_str
+        
+        # check if this obs has multiple visits or not, we include visit num in the output directory name
+        # if there are multiple visits for this single obs. 
+        if len(unique_obsnums) == 1:
+            if len(np.unique(info_table['visit_num'])) > len(unique_visitnums):
+                
+                output_name = 'jw{}_obs{}_visit{}_{}_{}'.format(
+                    groupped_program_str,
+                    groupped_obsnum_str,
+                    groupped_visitnum_str,
+                    groupped_instrument_str,
+                    groupped_filter_str,
+                )
+                
+                groupped_asn_str = groupped_obsnum_str + groupped_visitnum_str
+        
+        
+        # set output full path
         output_subdir = os.path.join(output_dir, output_name)
         output_file = output_name + '_i2d.fits'
         output_filepath = os.path.join(output_subdir, output_file)
@@ -438,7 +494,7 @@ def main(
         asn_dict['degraded_status'] = 'No known degraded exposures in association.'
         asn_dict['program'] = groupped_program_str
         asn_dict['constraints'] = 'No constraints'
-        asn_dict['asn_id'] = groupped_obsnum_str
+        asn_dict['asn_id'] = groupped_asn_str
         asn_dict['asn_pool'] = 'none'
         asn_dict['products'] = []
         product_dict = OrderedDict()
