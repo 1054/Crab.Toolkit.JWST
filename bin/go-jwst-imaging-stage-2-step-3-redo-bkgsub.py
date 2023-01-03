@@ -139,7 +139,7 @@ def main(
     if do_skymatch:
         before_skymatch_filepath = os.path.join(output_dir, output_filename+'_before_skymatchstep.fits')
         skymatchstep_filepath = os.path.join(output_dir, output_filename+'_skymatchstep.fits')
-        skymatchstep_filename = os.path.join(output_dir, output_filename+'_skymatchstep')
+        skymatchstep_filename = output_filename+'_skymatchstep'
     
     # Check output_filepath existence or history
     if os.path.isfile(output_filepath):
