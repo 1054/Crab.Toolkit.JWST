@@ -246,7 +246,7 @@ def main(
         if os.path.isfile(skymatchstep_filepath):
             shutil.move(skymatchstep_filepath, skymatchstep_filepath+'.backup')
         
-        shutil.move(output_filepath, before_skymatch_filepath)
+        shutil.copy2(output_filepath, before_skymatch_filepath)
         
         # Print progress
         logger.info("Processing {} -> {}".format(output_filepath, skymatchstep_filepath))
@@ -327,9 +327,8 @@ def main(
         
         # update "_cal.fits"
         # directly copy "_skymatchstep.fits" to "_cal.fits"
-        if inplace:
-            logger.info('Updating {} inplace'.format(output_filepath))
-            shutil.copy2(skymatchstep_filepath, output_filepath)
+        logger.info('Updating {} inplace'.format(output_filepath))
+        shutil.copy2(skymatchstep_filepath, output_filepath)
     
     
     
