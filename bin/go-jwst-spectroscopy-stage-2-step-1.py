@@ -167,13 +167,13 @@ def main(
         linked_sourcecat_file = os.path.join(output_dir, os.path.basename(input_sourcecat_file))
         linked_segmap_file = os.path.join(output_dir, os.path.basename(input_segmap_file))
         linked_direct_image_file = os.path.join(output_dir, os.path.basename(input_direct_image_file))
-        if os.path.exists(linked_rate_file):
+        if os.path.isfile(linked_rate_file) or os.path.islink(linked_rate_file):
             os.remove(linked_rate_file)
-        if os.path.exists(linked_sourcecat_file):
+        if os.path.isfile(linked_sourcecat_file) or os.path.islink(linked_sourcecat_file):
             os.remove(linked_sourcecat_file)
-        if os.path.exists(linked_segmap_file):
+        if os.path.isfile(linked_segmap_file) or os.path.islink(linked_segmap_file):
             os.remove(linked_segmap_file)
-        if os.path.exists(linked_direct_image_file):
+        if os.path.isfile(linked_direct_image_file) or os.path.islink(linked_direct_image_file):
             os.remove(linked_direct_image_file)
         os.symlink(os.path.relpath(input_rate_file, output_dir), linked_rate_file)
         os.symlink(os.path.relpath(input_sourcecat_file, output_dir), linked_sourcecat_file)
