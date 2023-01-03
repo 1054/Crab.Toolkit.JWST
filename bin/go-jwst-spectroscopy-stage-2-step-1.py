@@ -154,19 +154,39 @@ def main(
     logger.info("Processing {} -> {}".format(input_filepath, output_filepath))
     
     
+    # check WFSS
+    if is_WFSS calwebb_spec2.WFSS_TYPES:
+        asn_items = [(os.path.basename(input_rate_file), 'science'),
+                     (os.path.basename(input_sourcecat_file), 'sourcecat'),
+                     (os.path.basename(input_segmap_file), 'segmap'),
+                     (os.path.basename(input_direct_image_file), 'direct_image'),
+                    ]
+        linked_rate_file = os.path.join(output_dir, os.path.baesname(input_rate_file))
+        linked_sourcecat_file = os.path.join(output_dir, os.path.baesname(input_sourcecat_file))
+        linked_segmap_file = os.path.join(output_dir, os.path.baesname(input_segmap_file))
+        linked_direct_image_file = os.path.join(output_dir, os.path.baesname(input_direct_image_file))
+        if os.path.exists(linked_rate_file):
+            os.remove(linked_rate_file)
+        if os.path.exists(linked_sourcecat_file):
+            os.remove(linked_sourcecat_file)
+        if os.path.exists(linked_segmap_file):
+            os.remove(linked_segmap_file)
+        if os.path.exists(linked_direct_image_file):
+            os.remove(linked_direct_image_file)
+        os.symlink(input_rate_file, linked_rate_file)
+        os.symlink(input_sourcecat_file, linked_sourcecat_file)
+        os.symlink(input_segmap_file, linked_segmap_file)
+        os.symlink(input_direct_image_file, linked_direct_image_file)
+    
+    
     # prepare asn file
-    asn_file = os.path.join(os.path.dirname(output_filepath), 'asn_for_calwebb_spec2.json')
-    asn_items = [(os.path.abspath(input_rate_file), 'science'),
-                 (os.path.abspath(input_sourcecat_file), 'sourcecat'),
-                 (os.path.abspath(input_segmap_file), 'segmap'),
-                 (os.path.abspath(input_direct_image_file), 'direct_image'),
-                ]
+    asn_file = os.path.join(output_dir, 'asn_for_calwebb_spec2.json')
     asn_obj = asn_from_list(asn_items, 
         product_name=output_filename,
         with_exptype=True,
         #rule=DMSLevel2bBase,
     )
-    asn_obj.filename = asn_file
+    #asn_obj.filename = asn_file
     _file_name, serialized = asn_obj.dump()
     if os.path.isfile(asn_file):
         shutil.move(asn_file, asn_file+'.backup')
