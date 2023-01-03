@@ -175,10 +175,10 @@ def main(
             os.remove(linked_segmap_file)
         if os.path.exists(linked_direct_image_file):
             os.remove(linked_direct_image_file)
-        os.symlink(input_rate_file, linked_rate_file)
-        os.symlink(input_sourcecat_file, linked_sourcecat_file)
-        os.symlink(input_segmap_file, linked_segmap_file)
-        os.symlink(input_direct_image_file, linked_direct_image_file)
+        os.symlink(os.path.relpath(input_rate_file, output_dir), linked_rate_file)
+        os.symlink(os.path.relpath(input_sourcecat_file, output_dir), linked_sourcecat_file)
+        os.symlink(os.path.relpath(input_segmap_file, output_dir), linked_segmap_file)
+        os.symlink(os.path.relpath(input_direct_image_file, output_dir), linked_direct_image_file)
     else:
         raise NotImplementedError('Not implemented for the exp_type {!r} of data file {!r}!'.format(exp_type, input_rate_file))
     
@@ -200,12 +200,15 @@ def main(
     
     # prepare to run
     pipeline_object = calwebb_spec2.Spec2Pipeline()
-    pipeline_object.output_dir = output_dir
+    #pipeline_object.output_dir = output_dir
     pipeline_object.save_results = True
     
     
     # run
-    run_output = pipeline_object.run(asn_file)
+    current_dir = os.getcwd()
+    os.chdir(output_dir)
+    run_output = pipeline_object.run(os.path.basename(asn_file))
+    os.chdir(current_dir)
     
     
     # Check
