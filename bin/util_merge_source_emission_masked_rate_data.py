@@ -107,6 +107,7 @@ def merge_source_emission_masked_rate_data(
     rate_images_count = None
     rate_images_dq = None
     rate_images_obsdate = []
+    combined_files = []
     for i, rate_image_file in enumerate(rate_image_files):
         #rate_image_sci, rate_image_header = fits.getdata(rate_image_file, extname='SCI', header=True)
         #rate_image_err = fits.getdata(rate_image_file, extname='ERR', header=False)
@@ -126,6 +127,7 @@ def merge_source_emission_masked_rate_data(
                 continue
         logger.info('Merging {!r} (obs date time {})'.format(
             rate_image_file, rate_image_datetime))
+        combined_files.append(rate_image_file)
         if rate_images_sci is None:
             rate_images_sci = np.full(rate_image_sci.shape, fill_value=0.0)
             rate_images_err = np.full(rate_image_sci.shape, fill_value=0.0)
@@ -208,6 +210,15 @@ def merge_source_emission_masked_rate_data(
         image_model.write(out_image_file)
         
         logger.info('Output to {!r}'.format(out_image_file))
+    
+    # write combined_list_file
+    if os.path.isfile(combined_list_file):
+        shutil.move(combined_list_file, combined_list_file+'.backup')
+    combined_list_file = os.path.splitext(out_image_file)[0] + '.combined.list.txt'
+    with open(combined_list_file, 'w') as fp:
+        for combined_file in combined_files:
+            fp.write(combined_file+'\n')
+    logger.info('Output to {!r}'.format(combined_list_file))
 
 
 

@@ -145,9 +145,9 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     fi
     
     
-    # then also re-run stage2
+    # then re-run stage2 with an associated background so that `calwebb_image2.Image2Pipeline.bkg_subtract` will be used.
     if [[ ! -f "$output_cal_image" ]] || [[ $overwrite -gt 0 ]] || [[ $merged_masked_rate_updated -gt 0 ]]; then
-        proc_args=(--darkobs "$merged_masked_rate")
+        proc_args=(--darkobs "$merged_masked_rate" --skymatch)
         if [[ $overwrite -gt 0 ]] || [[ $merged_masked_rate_updated -gt 0 ]]; then
             proc_args+=(--overwrite)
         fi
