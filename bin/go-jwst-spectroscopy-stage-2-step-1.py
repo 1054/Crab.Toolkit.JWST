@@ -161,7 +161,13 @@ def main(
                  (os.path.abspath(input_segmap_file), 'segmap'),
                  (os.path.abspath(input_direct_image_file), 'direct_image'),
                 ]
-    asn_dict = asn_from_list(items, rule=DMSLevel2bBase)
+    asn_obj = asn_from_list(asn_items, rule=DMSLevel2bBase)
+    asn_obj.filename = asn_file
+    _file_name, serialized = asn_obj.dump()
+    if os.path.isfile(asn_file):
+        shutil.move(asn_file, asn_file+'.backup')
+    with open(asn_file, 'w') as fp:
+        fp.write(serialized)
     
     
     # prepare to run
