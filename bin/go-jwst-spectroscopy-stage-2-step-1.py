@@ -155,7 +155,7 @@ def main(
     
     
     # prepare asn file
-    asn_file = os.path.dirname(output_filepath, 'asn_for_calwebb_spec2.json')
+    asn_file = os.path.join(os.path.dirname(output_filepath), 'asn_for_calwebb_spec2.json')
     asn_items = [(os.path.abspath(input_rate_file), 'science'),
                  (os.path.abspath(input_sourcecat_file), 'sourcecat'),
                  (os.path.abspath(input_segmap_file), 'segmap'),
