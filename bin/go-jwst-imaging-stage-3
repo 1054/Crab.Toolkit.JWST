@@ -332,6 +332,9 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
 done
 
 
+echo "reprocess_with_source_emission_mask = $reprocess_with_source_emission_mask"
+
+
 if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
     
     # Get _bkgsub_masked_source_emission_cal.fits
