@@ -155,7 +155,9 @@ def main(
     
     
     # check WFSS
-    if is_WFSS calwebb_spec2.WFSS_TYPES:
+    with datamodels.open(input_rate_file) as model:
+        exp_type = model.meta.exposure.type
+    if exp_type in calwebb_spec2.WFSS_TYPES:
         asn_items = [(os.path.basename(input_rate_file), 'science'),
                      (os.path.basename(input_sourcecat_file), 'sourcecat'),
                      (os.path.basename(input_segmap_file), 'segmap'),
@@ -177,6 +179,8 @@ def main(
         os.symlink(input_sourcecat_file, linked_sourcecat_file)
         os.symlink(input_segmap_file, linked_segmap_file)
         os.symlink(input_direct_image_file, linked_direct_image_file)
+    else:
+        raise NotImplementedError('Not implemented for the exp_type {!r} of data file {!r}!'.format(exp_type, input_rate_file))
     
     
     # prepare asn file
