@@ -39,7 +39,7 @@ if not ('CRDS_SERVER_URL' in os.environ):
 import jwst
 from jwst.pipeline import calwebb_spec2
 from jwst import datamodels
-from jwst.associations import asn_from_list
+from jwst.associations.asn_from_list import asn_from_list
 from jwst.associations.lib.rules_level2_base import DMSLevel2bBase
 from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
 
