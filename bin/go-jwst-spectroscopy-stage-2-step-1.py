@@ -39,6 +39,9 @@ if not ('CRDS_SERVER_URL' in os.environ):
 import jwst
 from jwst.pipeline import calwebb_spec2
 from jwst import datamodels
+from jwst.associations import asn_from_list
+from jwst.associations.lib.rules_level2_base import DMSLevel2bBase
+from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
 
 # Setup logging
 import logging
@@ -80,12 +83,18 @@ def setup_logger():
 @click.command()
 @click.argument('input_rate_file', type=click.Path(exists=True))
 @click.argument('output_cal_file', type=click.Path(exists=False))
+@click.option('--sourcecat', 'input_sourcecat_file', type=click.Path(exists=True))
+@click.option('--segmap', 'input_segmap_file', type=click.Path(exists=True))
+@click.option('--direct-image', 'input_direct_image_file', type=click.Path(exists=True))
 @click.option('--user-flat-file', type=click.Path(exists=True), default=None, help='A user-specified flat file, FITS format.')
 @click.option('--user-flat-dir', type=click.Path(exists=True), default=None, help='A directory to find user-specified flat file e.g. "*{filter}*.fits".')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 def main(
         input_rate_file, 
         output_cal_file, 
+        input_sourcecat_file, 
+        input_segmap_file, 
+        input_direct_image_file, 
         user_flat_file, 
         user_flat_dir, 
         overwrite = False, 
@@ -145,6 +154,15 @@ def main(
     logger.info("Processing {} -> {}".format(input_filepath, output_filepath))
     
     
+    # prepare asn file
+    asn_file = os.path.dirname(output_filepath, 'asn_for_calwebb_spec2.json')
+    asn_items = [(os.path.abspath(input_rate_file), 'science'),
+                 (os.path.abspath(input_sourcecat_file), 'sourcecat'),
+                 (os.path.abspath(input_segmap_file), 'segmap'),
+                 (os.path.abspath(input_direct_image_file), 'direct_image'),
+                ]
+    asn_dict = asn_from_list(items, rule=DMSLevel2bBase)
+    
     
     # prepare to run
     pipeline_object = calwebb_spec2.Spec2Pipeline()
@@ -153,7 +171,7 @@ def main(
     
     
     # run
-    run_output = pipeline_object.run(input_filepath)
+    run_output = pipeline_object.run(asn_file)
     
     
     # Check
