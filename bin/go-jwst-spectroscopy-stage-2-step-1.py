@@ -163,10 +163,10 @@ def main(
                      (os.path.basename(input_segmap_file), 'segmap'),
                      (os.path.basename(input_direct_image_file), 'direct_image'),
                     ]
-        linked_rate_file = os.path.join(output_dir, os.path.baesname(input_rate_file))
-        linked_sourcecat_file = os.path.join(output_dir, os.path.baesname(input_sourcecat_file))
-        linked_segmap_file = os.path.join(output_dir, os.path.baesname(input_segmap_file))
-        linked_direct_image_file = os.path.join(output_dir, os.path.baesname(input_direct_image_file))
+        linked_rate_file = os.path.join(output_dir, os.path.basename(input_rate_file))
+        linked_sourcecat_file = os.path.join(output_dir, os.path.basename(input_sourcecat_file))
+        linked_segmap_file = os.path.join(output_dir, os.path.basename(input_segmap_file))
+        linked_direct_image_file = os.path.join(output_dir, os.path.basename(input_direct_image_file))
         if os.path.exists(linked_rate_file):
             os.remove(linked_rate_file)
         if os.path.exists(linked_sourcecat_file):
