@@ -312,7 +312,11 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     mosaic_asn=$(dirname "$mosaic_image")"/asn.json"
     echo "mosaic_asn = $mosaic_asn"
     
-    instrument_filter=($(basename $(dirname "$mosaic_image") | cut -d '_' -f 3,4))
+    mosaic_dirname=$(basename $(dirname "$mosaic_image")) # dirname like "jw01345_obs001_visit001_MIRI_F1000W"
+    mosaic_dirname_parts=($(echo "$mosaic_dirname" | tr -s '_' ' '))
+    mosaic_dirname_nparts=${#mosaic_dirname_parts[@]}
+    #instrument_filter=($(basename $(dirname "$mosaic_image") | cut -d '_' -f 3,4)) # not working now if it contains 'visit00X'
+    instrument_filter="${mosaic_dirname_parts[mosaic_dirname_nparts-2]}_${mosaic_dirname_parts[mosaic_dirname_nparts-1]}"
     echo "instrument_filter = $instrument_filter"
     
     #multiobs_mosaic_asn=($(ls $(dirname "$mosaic_asn")/jw*_obs*_${instrument_filter}"_asn.json"))
