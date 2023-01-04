@@ -72,13 +72,26 @@ echo ")" >> $goscript
 # 
 cat << EOF >> $goscript
 
-dataset_files=()
-for (( i=0; i<\${#dataset_names[@]}; i++ )); do
-    dataset_name="\${dataset_names[i]}"
-    dataset_files+=("\${dataset_name}/calibrated2_cals/\${dataset_name}_cal.fits")
-done
+# dataset_files=()
+# for (( i=0; i<\${#dataset_names[@]}; i++ )); do
+#     dataset_name="\${dataset_names[i]}"
+#     dataset_files+=("\${dataset_name}/calibrated2_cals/\${dataset_name}_cal.fits")
+# done
+# 
+# go-jwst-imaging-stage-3-step-1.py \${dataset_files[@]} calibrated3_mosaics_multiobs_with_abs_refcat --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.030
 
-go-jwst-imaging-stage-3-step-1.py \${dataset_files[@]} calibrated3_mosaics_multiobs_with_abs_refcat --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.030
+# go-jwst-imaging-stage-3 \${dataset_names[@]} --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.015 --output-dir calibrated3_mosaics_multiobs_with_abs_refcat
+
+# go-jwst-imaging-stage-3 \${dataset_names[@]} --run-individual-steps --combine-visitnum --abs-refcat abs_refcat.fits --pixel-scale 0.015 --output-dir calibrated3_mosaics_multivisit_with_abs_refcat
+
+# Do not set a pixel scale so that the default pixel scale ratio 0.48 is used. 
+# In this way the SW filters will have a pixel scale of about 15mas and LW filters about 30mas. 
+# Here I set \`--combine-visitnum\` but not \`--combine-obsnum\`, so that different obs_num are not combined, but visit_num in each obs will be combined. 
+
+echo "*** "
+echo "*** Running: go-jwst-imaging-stage-3 \${dataset_names[@]} --run-individual-steps --combine-visitnum --abs-refcat abs_refcat.fits --output-dir calibrated3_mosaics_multivisit_with_abs_refcat"
+echo "*** "
+go-jwst-imaging-stage-3 \${dataset_names[@]} --run-individual-steps --combine-visitnum --abs-refcat abs_refcat.fits
 
 EOF
 # 

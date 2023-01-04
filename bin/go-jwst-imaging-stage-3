@@ -12,6 +12,12 @@
 #    For each input jwst dataset name, the main output file is: 
 #        {dataset_name}/calibrated2_cals/{dataset_name}_cal.fits
 # 
+# Notes:
+#    
+#    If the option `--combine-obsnum` is set, the output directory name will be appended with "_multiobs".
+#    If the option `--combine-visitnum` is set, the output directory name will be appended with "_multivisit".
+#    If the option `--abs-refcat` is set, the output directory name will be appended with "_absref".
+# 
 # 
 set -e
 
@@ -44,7 +50,7 @@ tweakreg_optnames=("--use-catfile" "--no-use-catfile")
 tweakreg_kwargs=()
 resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
 resample_kwargs=()
-combine_optnames=("--combine-obsnum" "--combine-obs" "--combine-visitnum" "--combine-program" "--run-individual-steps")
+combine_optnames=("--combine-obsnum" "--no-combine-obsnum" "--combine-visitnum" "--no-combine-visitnum" "--combine-program" "--run-individual-steps")
 combine_kwargs=()
 reprocess_NIRCam=0
 reprocess_MIRI=1 # we will reprocess MIRI using masked source image as the background then redo stage 2 with image-for-image background subtraction
@@ -193,19 +199,28 @@ proc_args=()
 for (( i = 0; i < ${#info_table_kwargs[@]}; i++ )); do
     proc_args+=(${info_table_kwargs[i]})
 done
-for (( i = 0; i < ${#tweakreg_kwargs[@]}; i++ )); do
-    proc_args+=(${tweakreg_kwargs[i]})
-done
-for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
-    proc_args+=(${resample_kwargs[i]})
-done
 for (( i = 0; i < ${#combine_kwargs[@]}; i++ )); do
     proc_args+=(${combine_kwargs[i]})
     if [[ "${combine_kwargs[i]}" == "--combine-obsnum" ]] || [[ "${combine_kwargs[i]}" == "--combine-obs" ]]; then
         if [[ "$dir_out" != *"_multiobs"* ]]; then
             dir_out="${dir_out}_multiobs"
         fi
+    elif [[ "${combine_kwargs[i]}" == "--combine-visitnum" ]] || [[ "${combine_kwargs[i]}" == "--combine-visit" ]]; then
+        if [[ "$dir_out" != *"_multivisit"* ]] && [[ "$dir_out" != *"_multiobs"* ]]; then
+            dir_out="${dir_out}_multivisit"
+        fi
     fi
+done
+for (( i = 0; i < ${#tweakreg_kwargs[@]}; i++ )); do
+    proc_args+=(${tweakreg_kwargs[i]})
+    if [[ "${tweakreg_kwargs[i]}" == "--abs-refcat" ]]; then
+        if [[ "$dir_out" != *"_absref"* ]]; then
+            dir_out="${dir_out}_absref"
+        fi
+    fi
+done
+for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
+    proc_args+=(${resample_kwargs[i]})
 done
 if [[ $overwrite -gt 0 ]]; then
     proc_args+=(--overwrite)
@@ -389,14 +404,14 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
     for (( i = 0; i < ${#info_table_kwargs[@]}; i++ )); do
         proc_args+=(${info_table_kwargs[i]})
     done
+    for (( i = 0; i < ${#combine_kwargs[@]}; i++ )); do
+        proc_args+=(${combine_kwargs[i]})
+    done
     for (( i = 0; i < ${#tweakreg_kwargs[@]}; i++ )); do
         proc_args+=(${tweakreg_kwargs[i]})
     done
     for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
         proc_args+=(${resample_kwargs[i]})
-    done
-    for (( i = 0; i < ${#combine_kwargs[@]}; i++ )); do
-        proc_args+=(${combine_kwargs[i]})
     done
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)

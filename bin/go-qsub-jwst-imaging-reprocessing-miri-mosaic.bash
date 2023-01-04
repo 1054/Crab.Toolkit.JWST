@@ -68,19 +68,51 @@ echo ")" >> $goscript
 # 
 cat << EOF >> $goscript
 
-for (( i=0; i<\${#dataset_names[@]}; i++ )); do
-    dataset_name="\${dataset_names[i]}"
-    if [[ -f "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits" ]]; then
-        mv "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits" \\
-           "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits.backup"
-    fi
-    if [[ -f "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt" ]]; then
-        mv "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt" \\
-           "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt.backup"
-    fi
-done
+# Reset the merged dark rate so that the code will combine the dark rates from all possible obs_num and visitnum. 
+# In principle we do not need it here now, because \`go-jwst-imaging-stage-3\` with \`--reprocess-miri\` and without
+# \`--combine-obsnum\` will already try to find all possible asn files in the sibling directories of the output directory, 
+# which means all obs_num and visitnum which has a stage3 asn file created there will be read in. 
+# But in case that during the processing of each obs_num and visitnum, some asn files are created later than the time
+# the current running process searching for sibling asn files, then the merging of dark rates will be incomplete. 
+# So here when we reprocess stage3 with the \`--combine-obsnum\` option, we can re-do the merging of dark rate to make 
+# sure all silbing obs_num and visitnum data are considered. 
 
-go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --combine-obsnum --pixel-scale 0.060
+reset_merged_dark_rate=0
+
+if [[ \$reset_merged_dark_rate -gt 0 ]]; then
+    for (( i=0; i<\${#dataset_names[@]}; i++ )); do
+        dataset_name="\${dataset_names[i]}"
+        if [[ -f "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits" ]]; then
+            mv "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits" \\
+               "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.fits.backup"
+        fi
+        if [[ -f "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt" ]]; then
+            mv "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt" \\
+               "\$dataset_name/calibrated1_rates/merged_other_visits_masked_source_emission_rate.list.txt.backup"
+        fi
+    done
+fi
+
+# Use an absolute reference catalog for the stage3 \`tweakreg\` step for the astrometric alignment. 
+# Please prepare your "abs_refcat.fits" FITS-format catalog file in advance if you turn this on!
+
+use_abs_refcat=1
+
+if [[ \$use_abs_refcat -gt 0 ]]; then
+    
+    echo "*** "
+    echo "*** Running: go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.060"
+    echo "*** "
+    go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.060
+    
+else
+    
+    echo "*** "
+    echo "*** Running: go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --combine-obsnum --pixel-scale 0.060"
+    echo "*** "
+    go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --combine-obsnum --pixel-scale 0.060
+    
+fi
 
 EOF
 # 
