@@ -12,7 +12,7 @@ same name as the data set file, e.g., 'jw01837022001_02201_00002_nrca1_rate.reg'
 import os, sys, re, copy, shutil, glob, datetime
 import click
 import numpy as np
-import tqdm
+#import tqdm
 from astropy.io import fits
 from astropy.nddata.bitmask import (
     bitfield_to_boolean_mask,
@@ -43,6 +43,7 @@ CODE_DATADIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'util_re
 
 # logging
 import logging
+logging.basicConfig(level='INFO')
 logger = logging.getLogger(CODE_NAME)
 logger.setLevel(logging.DEBUG)
 
@@ -74,7 +75,10 @@ def main(
         ))
         return
     
+    logger.info('Found region_file(s): {}'.format(region_files))
+    
     # check input image
+    logger.info('Reading input data: {!r}'.format(input_file))
     with ImageModel(input_file) as model:
 
         # check if already processed
@@ -125,7 +129,7 @@ def main(
                          'homepage':CODE_HOMEPAGE}
         substr = util.create_history_entry(stepdescription, software=software_dict)
         out_model.history.append(substr)
-        print('out_model.history', out_model.history)
+        #print('out_model.history', out_model.history)
         out_model.save(output_file)
         logger.info('Saved claws-removed data into {!r}'.format(output_file))
     

@@ -212,9 +212,9 @@ def merge_source_emission_masked_rate_data(
         logger.info('Output to {!r}'.format(out_image_file))
     
     # write combined_list_file
+    combined_list_file = os.path.splitext(out_image_file)[0] + '.combined.list.txt'
     if os.path.isfile(combined_list_file):
         shutil.move(combined_list_file, combined_list_file+'.backup')
-    combined_list_file = os.path.splitext(out_image_file)[0] + '.combined.list.txt'
     with open(combined_list_file, 'w') as fp:
         for combined_file in combined_files:
             fp.write(combined_file+'\n')

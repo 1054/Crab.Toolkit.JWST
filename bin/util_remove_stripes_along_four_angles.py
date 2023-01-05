@@ -24,7 +24,7 @@ Last updates:
 import os, sys, re, copy, shutil, glob, datetime
 import click
 import numpy as np
-import tqdm
+#import tqdm
 from astropy.io import fits
 from astropy.nddata.bitmask import (
     bitfield_to_boolean_mask,
@@ -34,7 +34,7 @@ from astropy.convolution import Gaussian2DKernel, convolve
 from astropy.stats import sigma_clipped_stats
 #from scipy.optimize import curve_fit
 from scipy.ndimage import median_filter, gaussian_filter, binary_dilation, generate_binary_structure
-from tqdm import tqdm
+#from tqdm import tqdm
 
 # jwst
 from jwst.datamodels import ImageModel, FlatModel, dqflags

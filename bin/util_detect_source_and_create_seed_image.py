@@ -22,6 +22,7 @@ from astropy.modeling import models as apy_models
 from astropy.modeling import fitting as apy_fitting
 from astropy.convolution import convolve as apy_convolve
 from astropy.convolution import Gaussian2DKernel
+from astropy.stats import sigma_clipped_stats
 from astropy.wcs import WCS
 from photutils.background import Background2D
 from scipy.ndimage import median_filter as scipy_median_filter
@@ -255,10 +256,12 @@ def detect_source_and_background_for_image(
         smooth = 0.0, 
         minpixarea = 1, # 
         flat_file = None, # for MIRI only, will combine DQ from the flat file.
-        region_file = None, 
+        include_region_files = None, 
+        exclude_region_files = None, 
         output_dir = None, 
         output_suffix = '_galaxy_seed_image', 
         with_filter_in_output_name = False, # with a filter name in the output filename
+        ignore_background = False, 
         overwrite = False, 
         verbose = True, 
     ):
@@ -322,21 +325,48 @@ def detect_source_and_background_for_image(
     
     
     # get ds9 region file
-    region_mask = None
-    if region_file is not None:
-        if verbose:
-            logger.info('Reading ds9 region file: {!r}'.format(region_file))
-        region_list = read_ds9(region_file)
-        region_mask = np.full(image.shape, dtype=bool, fill_value=False)
-        for region_object in region_list:
-            wcs = WCS(header, naxis=2)
-            try:
-                pixel_region = region_object.to_pixel(wcs)
-            except:
-                pixel_region = region_object
-            pixel_mask = (pixel_region.to_mask().to_image(image.shape) > 0)
-            region_mask[pixel_mask] = True
-            dqmask[pixel_mask] = 0 # mark these regions invalid so that we do not detect sources in them
+    if include_region_files is None:
+        include_region_files = []
+    if exclude_region_files is None:
+        exclude_region_files = []
+    include_region_mask = None # where to include
+    if len(include_region_files) > 0:
+        include_region_mask = np.full(image.shape, dtype=bool, fill_value=False)
+        for region_file in include_region_files:
+            if verbose:
+                logger.info('Reading ds9 region file: {!r} (to include)'.format(region_file))
+            region_list = read_ds9(region_file)
+            for region_object in region_list:
+                wcs = WCS(header, naxis=2)
+                try:
+                    pixel_region = region_object.to_pixel(wcs)
+                except:
+                    pixel_region = region_object
+                pixel_mask = (pixel_region.to_mask().to_image(image.shape) > 0)
+                include_region_mask[pixel_mask] = True
+    # 
+    exclude_region_mask = None # where to exclude
+    if len(exclude_region_files) > 0:
+        exclude_region_mask = np.full(image.shape, dtype=bool, fill_value=False)
+        for region_file in exclude_region_files:
+            if verbose:
+                logger.info('Reading ds9 region file: {!r} (to exclude)'.format(region_file))
+            region_list = read_ds9(region_file)
+            for region_object in region_list:
+                wcs = WCS(header, naxis=2)
+                try:
+                    pixel_region = region_object.to_pixel(wcs)
+                except:
+                    pixel_region = region_object
+                pixel_mask = (pixel_region.to_mask().to_image(image.shape) > 0)
+                exclude_region_mask[pixel_mask] = True
+    
+    # mark these regions invalid so that we do not detect sources in them
+    if include_region_mask is not None:
+        dqmask[~include_region_mask] = 0 # here 0 means invalid pixels
+        dqmask[include_region_mask] = 1 # here 0 means invalid pixels
+    if exclude_region_mask is not None:
+        dqmask[exclude_region_mask] = 0 # here 0 means invalid pixels
     
     # get valid pixels, write to disk
     valid_mask = (dqmask > 0)
@@ -351,17 +381,31 @@ def detect_source_and_background_for_image(
     pixval_max = np.nanmax(valid_data)
     
     # analyze Background2D with a 1/10 box size
-    box_size = min(header['NAXIS1'], header['NAXIS2']) // 10
-    bkg = Background2D(image, box_size = box_size, 
-                       mask = ~valid_mask, # mask means invalid here. dqmask 1 means valid.
-                       exclude_percentile = 50.0, # default is 10.0 percent bad pixel per box
-                      ) 
-    pixval_median = bkg.background_median
-    pixval_rms = np.nanmean(bkg.background_rms)
-    bkg2d_map = bkg.background
-    rms2d_map = bkg.background_rms
-    if verbose:
-        logger.info('Computed background median {} rms {}'.format(pixval_median, pixval_rms))
+    if not ignore_background:
+        if box_size is None:
+            box_size_ = min(header['NAXIS1'], header['NAXIS2']) // 10
+        else:
+            box_size_ = box_size
+        bkg = Background2D(image, box_size = box_size_, 
+                           mask = ~valid_mask, # mask means invalid here. dqmask 1 means valid.
+                           exclude_percentile = 50.0, # default is 10.0 percent bad pixel per box
+                          )
+        pixval_median = bkg.background_median
+        pixval_rms = np.nanmean(bkg.background_rms)
+        bkg2d_map = bkg.background
+        rms2d_map = bkg.background_rms
+        if verbose:
+            logger.info('Computed background median {} rms {}'.format(pixval_median, pixval_rms))
+    else:
+        pixval_mean, pixval_median, pixval_rms = \
+                sigma_clipped_stats(image, 
+                                    mask = ~valid_mask, # mask means invalid here. dqmask 1 means valid.
+                                   )
+        pixval_mean, pixval_median = 0.0, 0.0
+        bkg2d_map = np.full(image.shape, fill_value=pixval_median)
+        rms2d_map = np.full(image.shape, fill_value=pixval_rms)
+        if verbose:
+            logger.info('Ignored background median {} rms {}'.format(pixval_median, pixval_rms))
     
     
     # get lsigma, usigma
@@ -382,17 +426,32 @@ def detect_source_and_background_for_image(
     
     
     # analyze Background2D with a 1/30 box size
-    box_size = min(header['NAXIS1'], header['NAXIS2']) // 30
-    bkg2 = Background2D(image, box_size = box_size, 
-                       mask = ~np.logical_and(valid_mask, nonbright_mask), # mask means invalid here. 
-                       exclude_percentile = 50.0, # default is 10.0 percent bad pixel per box
-                      ) 
-    pixval_median = bkg2.background_median
-    pixval_rms = np.nanmean(bkg2.background_rms)
-    bkg2d_map = bkg2.background
-    rms2d_map = bkg2.background_rms
-    if verbose:
-        logger.info('Computed background median {} rms {}'.format(pixval_median, pixval_rms))
+    if not ignore_background:
+        if box_size is None:
+            box_size_ = min(header['NAXIS1'], header['NAXIS2']) // 30
+        else:
+            box_size_ = box_size
+        bkg2 = Background2D(image, box_size = box_size_, 
+                           mask = ~np.logical_and(valid_mask, nonbright_mask), # mask means invalid here. 
+                           exclude_percentile = 50.0, # default is 10.0 percent bad pixel per box
+                          )
+        pixval_median = bkg2.background_median
+        pixval_rms = np.nanmean(bkg2.background_rms)
+        bkg2d_map = bkg2.background
+        rms2d_map = bkg2.background_rms
+        if verbose:
+            logger.info('Computed background median {} rms {}'.format(pixval_median, pixval_rms))
+    else:
+        pixval_mean, pixval_median, pixval_rms = \
+                sigma_clipped_stats(image, 
+                                    mask = ~np.logical_and(valid_mask, nonbright_mask), # mask means invalid here. 
+                                   )
+        pixval_mean, pixval_median = 0.0, 0.0
+        bkg2d_map = np.full(image.shape, fill_value=pixval_median)
+        rms2d_map = np.full(image.shape, fill_value=pixval_rms)
+        if verbose:
+            logger.info('Ignored background median {} rms {}'.format(pixval_median, pixval_rms))
+    
     
     output_bkg2d_image = re.sub(r'\.fits$', '_bkg2d.fits', output_fits_image) # 1 means valid pixel
     output_hdu = fits.PrimaryHDU(data=bkg2d_map, header=header)
@@ -416,8 +475,11 @@ def detect_source_and_background_for_image(
     #mask = np.logical_or(bright_mask, dqmask == 0) # mask bright sources (>3sigma) and invalid pixels (dqmask == 0)
     mask = bright_mask # mask bright sources (>3sigma), IGNORING invalid pixels (dqmask == 0)
     
-    if region_mask is not None:
-        mask[region_mask] = False
+    if include_region_mask is not None:
+        mask[~include_region_mask] = False
+        #mask[include_region_mask] = True
+    if exclude_region_mask is not None:
+        mask[exclude_region_mask] = False
     
     arr = mask.astype(int)
     
@@ -448,7 +510,7 @@ def detect_source_and_background_for_image(
         arrmsk = (arrsum >= minpixarea).astype(int)
         arr = arr * arrmsk
     
-    
+    #arr = arr * image
     arr = arr.astype(float)
     
     # smoothing/expanding the mask
@@ -498,9 +560,12 @@ def detect_source_and_background_for_image(
 @click.option('--minpixarea', type=int, default=1)
 @click.option('--smooth', type=float, default=0.0)
 @click.option('--flat-file', type=click.Path(exists=True), default=None)
-@click.option('--region-file', type=click.Path(exists=True), default=None)
+@click.option('--include-region', 'include_region_files', type=click.Path(exists=True), multiple=True)
+@click.option('--exclude-region', 'exclude_region_files', type=click.Path(exists=True), multiple=True)
 @click.option('--output-dir', type=click.Path(exists=False), default=None)
+@click.option('--output-suffix', type=str, default='_galaxy_seed_image')
 @click.option('--with-filter-in-output-name', is_flag=True, default=False)
+@click.option('--ignore-background', is_flag=True, default=False)
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 @click.option('--verbose/--no-verbose', is_flag=True, default=True)
 def main(
@@ -514,9 +579,12 @@ def main(
         minpixarea, 
         smooth, 
         flat_file, 
-        region_file, 
+        include_region_files, 
+        exclude_region_files, 
         output_dir,
+        output_suffix, 
         with_filter_in_output_name, 
+        ignore_background, 
         overwrite,
         verbose, 
     ):
@@ -532,9 +600,12 @@ def main(
         minpixarea = minpixarea, 
         smooth = smooth, 
         flat_file = flat_file, 
-        region_file = region_file, 
+        include_region_files = include_region_files, 
+        exclude_region_files = exclude_region_files, 
         output_dir = output_dir, 
+        output_suffix = output_suffix, 
         with_filter_in_output_name = with_filter_in_output_name, 
+        ignore_background = ignore_background, 
         overwrite = overwrite, 
         verbose = verbose, 
     )

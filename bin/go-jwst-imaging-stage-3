@@ -30,6 +30,9 @@ if [[ -z "$CRDS_SERVER_URL" ]]; then
     export CRDS_SERVER_URL=https://jwst-crds.stsci.edu
 fi
 
+# Check python packages
+python -c 'import jwst,click,shapely,astropy,stdatamodels,stpipe,crds,regions,photutils,scipy'
+
 # Get script_dir
 script_dir=$(dirname "${BASH_SOURCE[0]}")
 
