@@ -60,7 +60,10 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             imfile, catpath = line.split()
             cats[imfile] = Table.read(catpath)
             catpaths[imfile] = catpath
-    refcat = Table.read(abs_refcat)
+    if abs_refcat.endswith('.txt') or abs_refcat.endswith('.dat'):
+        refcat = Table.read(abs_refcat, format='ascii')
+    else:
+        refcat = Table.read(abs_refcat)
 
     # make 2dhist plot
     ncats = len(cats)
