@@ -14,6 +14,7 @@ from astropy.nddata.utils import Cutout2D
 from astropy.visualization import simple_norm
 from astropy.stats import sigma_clipped_stats
 from collections import OrderedDict
+from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Ellipse
 import click
 import warnings
@@ -65,17 +66,21 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     maxsep = 0.7 * u.arcsec
     ipanel = 0
     ncols = 2
-    nrows = int(np.ceil(ncats/ncols))
+    nrows = 5
+    npages = int(np.ceil(ncats/(ncols*nrows)))
     logger.info('Creating 2Dhist plot with ncols {} nrows {} ncats {}'.format(ncols, nrows, ncats))
-    fig = plt.figure(figsize=(2.5+ncols*2.0, 1.0+nrows*2.0))
+    # 
+    figs = []
     axes = []
-    for irow in range(nrows):
-        for icol in range(ncols):
-            axes.append(fig.add_subplot(nrows, ncols, irow*ncols+icol+1))
-    axes = np.array(axes)
-    #fig, axes = plt.subplots(ncols=ncols, nrows=nrows, figsize=(1.0+ncols*2.0, 1.0+nrows*2.0), 
-    #                         gridspec_kw=dict(left=0.09, bottom=0.06, right=0.98, top=0.98, wspace=1.0, hspace=0.4)
-    #                        )
+    for ipage in range(npages):
+        fig = plt.figure(figsize=(2.5+ncols*2.0, 1.0+nrows*2.0))
+        for irow in range(nrows):
+            for icol in range(ncols):
+                ax = fig.add_subplot(nrows, ncols, irow*ncols+icol+1)
+                ax.axis('off')
+                axes.append(ax)
+        figs.append(fig)
+    # 
     #check_numb = 10
     #check_radecs = {}
     catmasks = OrderedDict()
@@ -111,7 +116,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         refx, refy = wcs.all_world2pix(refra, refdec, 1, quiet=True) # internally I use DS9 1-based pixcoord
         idx, d2d, d3d = match_coordinates_sky(catcoords, refcatcoords)
         matches = np.argwhere(np.logical_and(idx>=0, d2d<=maxsep)).ravel()
-        ax = axes.ravel()[ipanel]
+        ax = axes[ipanel]
+        ax.axis('on')
         if len(matches) == 0:
             logger.error('No match is found between the catfile of {!r} and the abs_refcat {!r}!'.format(imfile, abs_refcat))
             ax.set_xticks([])
@@ -182,8 +188,9 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         ax.set_title(imfile, fontsize='small')
         ax.set_aspect(1.0)
         # 
-        icol = ipanel%ncols
-        irow = ipanel//ncols
+        icol = (ipanel%(ncols*nrows))%ncols
+        irow = (ipanel%(ncols*nrows))//ncols
+        ipage = ipanel//(ncols*nrows)
         if icol == 0:
             ax.set_ylabel(r'$\Delta$ DEC [arcsec]')
         if irow == nrows-1:
@@ -247,35 +254,36 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         logger.info('Output to {!r}'.format(chkcatpath))
     
     # 
-    fig.tight_layout(w_pad=3.5)
+    for ipage in range(npages):
+        figs[ipage].tight_layout(w_pad=3.5)
     
     # write the big two-column cat_file
     cat_filebase, cat_filesuffix = os.path.splitext(cat_file)
     out_file = cat_filebase + output_suffix + cat_filesuffix
     out_json = cat_filebase + output_suffix + '.json'
     out_png = cat_filebase + output_suffix + '.png'
-    out_pdf = cat_filebase + output_suffix + '.png'
-    try:
+    out_pdf = cat_filebase + output_suffix + '.pdf'
+    
+    # save figure in png format if `len(imfiles) <= 10`
+    if npages == 1:
         fig.savefig(out_png, dpi=300)
-    except:
-        try:
-            fig.savefig(out_png, dpi=150)
-        except:
-            fig.savefig(out_png, dpi=75)
-    logger.info('Output to {!r}'.format(out_png))
-    try:
-        fig.savefig(out_pdf, dpi=300)
-    except:
-        try:
-            fig.savefig(out_pdf, dpi=150)
-        except:
-            fig.savefig(out_pdf, dpi=75)
+        logger.info('Output to {!r}'.format(out_png))
+    
+    # save figure in pdf format
+    with PdfPages(out_pdf) as pdf:
+        for fig in figs:
+            plt.figure(fig.number)
+            pdf.savefig()
     logger.info('Output to {!r}'.format(out_pdf))
+    
+    # save json
     if os.path.isfile(out_json):
         shutil.move(out_json, out_json+'.backup')
     with open(out_json, 'w') as fp:
         json.dump(offsets, fp, indent=4)
     logger.info('Output to {!r}'.format(out_json))
+    
+    # save output catalog
     if os.path.isfile(out_file):
         shutil.move(out_file, out_file+'.backup')
     with open(out_file, 'w') as fp:
@@ -284,7 +292,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             fp.write('{} {}\n'.format(imfile, newcatpath))
     logger.info('Output to {!r}'.format(out_file))
     
-    # 
+    # save optimized abs_refcat
     if output_abs_refcat is None:
         output_abs_refcat = os.path.splitext(abs_refcat)[0] + output_suffix + '.fits' # FITS-format catalog
     if output_abs_refcat != '':
