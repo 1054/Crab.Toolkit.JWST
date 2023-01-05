@@ -107,12 +107,12 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
         
         echo $script_dir/util_merge_source_emission_masked_rate_data.py \
             --check-date "$rate_image" \
-            --date-diff 5 \
+            --date-diff 7 \
             ${applicable_masked_rate_images[@]} \
             "$merged_masked_rate"
         $script_dir/util_merge_source_emission_masked_rate_data.py \
             --check-date "$rate_image" \
-            --date-diff 5 \
+            --date-diff 7 \
             ${applicable_masked_rate_images[@]} \
             "$merged_masked_rate"
         echo "# $script_dir/util_merge_source_emission_masked_rate_data.py" > "$merged_masked_rate_list_file"
@@ -120,7 +120,7 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
         echo "cd \$(dirname \${BASH_SOURCE[0]})" >> "$merged_masked_rate_script_file"
         echo "$script_dir/util_merge_source_emission_masked_rate_data.py \\" >> "$merged_masked_rate_script_file"
         echo "  --check-date \"$rate_image\" \\" >> "$merged_masked_rate_script_file"
-        echo "  --date-diff 5 \\" >> "$merged_masked_rate_script_file"
+        echo "  --date-diff 7 \\" >> "$merged_masked_rate_script_file"
         for (( m = 0; m < ${#applicable_masked_rate_images[@]}; m++ )); do
             echo "${applicable_masked_rate_images[m]}" >> "$merged_masked_rate_list_file"
             echo "  \"${applicable_masked_rate_images[m]}\" \\" >> "$merged_masked_rate_script_file"
