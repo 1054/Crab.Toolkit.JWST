@@ -199,7 +199,12 @@ def run_outlier_detection_in_parallel(
     # make footprints
     image_footprints = []
     for i in range(len(image_models)):
-        #image_models[i].meta.wcs.pixel_to_world(0, 0)
+        message_str = ('Extracting image_models[{}] @{} {!r} footprint'
+                       .format(
+                         i, hex(id(image_models[i])), image_models[i].meta.filename, 
+                       )
+                      )
+        this_logger.info(message_str)
         image_footprint = Polygon(image_models[i].meta.wcs.footprint())
         image_footprints.append(image_footprint)
     
@@ -313,9 +318,11 @@ def run_outlier_detection_in_parallel(
         for k in range(len(group_full_indices)):
             updated_image_models = rets[k].get()
             for kk in range(len(main_indices)):
-                message_str = ('Updating image_models[{}] from outlier_detection group {}/{}'
+                message_str = ('Updating image_models[{}] @{} {!r} from outlier_detection group {}/{}'
                                .format(
-                                 main_indices[kk], k+1, len(group_full_indices), 
+                                 main_indices[kk], hex(id(image_models[main_indices[kk]])), 
+                                 image_models[main_indices[kk]].meta.filename, 
+                                 k+1, len(group_full_indices), 
                                )
                               )
                 this_logger.info(message_str)
@@ -342,9 +349,11 @@ def run_outlier_detection_in_parallel(
                                                 full_indices)
             
             for kk in range(len(main_indices)):
-                message_str = ('Updating image_models[{}] from outlier_detection group {}/{}'
+                message_str = ('Updating image_models[{}] @{} {!r} from outlier_detection group {}/{}'
                                .format(
-                                 kk, k+1, len(group_full_indices), 
+                                 main_indices[kk], hex(id(image_models[main_indices[kk]])), 
+                                 image_models[main_indices[kk]].meta.filename, 
+                                 k+1, len(group_full_indices), 
                                )
                               )
                 this_logger.info(message_str)

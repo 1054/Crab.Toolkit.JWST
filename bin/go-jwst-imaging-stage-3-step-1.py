@@ -710,38 +710,39 @@ def main(
                     image_models = pipeline_object.outlier_detection(image_models)
                 else:
                     from util_run_outlier_detection_in_parallel import run_outlier_detection_in_parallel
-                    run_outlier_detection_in_parallel(pipeline_object, image_models)
+                    image_models = run_outlier_detection_in_parallel(pipeline_object, image_models)
                     # 
-                    obsnum_visitnum_counter = 0
-                    for subsubgroup_obsnum in unique_obsnums:
-                        for subsubgroup_visitnum in unique_visitnums:
-                            subsubgroup_indices = np.argwhere(np.logical_and(
-                                subgroup_table['obs_num'] == subsubgroup_obsnum,
-                                subgroup_table['visit_num'] == subsubgroup_visitnum,
-                                )).ravel()
-                            if len(subsubgroup_indices) > 0:
-                                obsnum_visitnum_counter += 1
-                                stride = int(len(subsubgroup_indices)/61)+1 # make 30-60 images per sub-sub-sub-group
-                                for k in range(stride):
-                                    running_indices = subsubgroup_indices[k::stride]
-                                    running_image_models = datamodels.ModelContainer()
-                                    for kk in range(len(running_indices)):
-                                        running_image_models.append(image_models[running_indices[kk]])
-                                    message_str = ('Running outlier_detection for obsnum visitnum subgroup {}/{} '
-                                                   'stride {}/{} with {} image models: {} '
-                                                   '(obs_num: {}, visit_num: {}, indices: {})'
-                                                   .format(
-                                                     obsnum_visitnum_counter, len(unique_obsnums)*len(unique_visitnums), 
-                                                     k+1, stride, len(running_image_models), running_image_models, 
-                                                     subsubgroup_obsnum, subsubgroup_visitnum, running_indices
-                                                   )
-                                                  )
-                                    logger.info(message_str)
-                                    pipeline_object.log.info(message_str)
-                                    running_image_models = pipeline_object.outlier_detection(running_image_models)
-                                    for kk in range(len(running_indices)):
-                                        image_models[running_indices[kk]] = running_image_models[kk]
-                            gc.collect()
+                    # 2023-01-05 TO DELETE (REPLACED BY run_outlier_detection_in_parallel)
+                    # obsnum_visitnum_counter = 0
+                    # for subsubgroup_obsnum in unique_obsnums:
+                    #     for subsubgroup_visitnum in unique_visitnums:
+                    #         subsubgroup_indices = np.argwhere(np.logical_and(
+                    #             subgroup_table['obs_num'] == subsubgroup_obsnum,
+                    #             subgroup_table['visit_num'] == subsubgroup_visitnum,
+                    #             )).ravel()
+                    #         if len(subsubgroup_indices) > 0:
+                    #             obsnum_visitnum_counter += 1
+                    #             stride = int(len(subsubgroup_indices)/61)+1 # make 30-60 images per sub-sub-sub-group
+                    #             for k in range(stride):
+                    #                 running_indices = subsubgroup_indices[k::stride]
+                    #                 running_image_models = datamodels.ModelContainer()
+                    #                 for kk in range(len(running_indices)):
+                    #                     running_image_models.append(image_models[running_indices[kk]])
+                    #                 message_str = ('Running outlier_detection for obsnum visitnum subgroup {}/{} '
+                    #                                'stride {}/{} with {} image models: {} '
+                    #                                '(obs_num: {}, visit_num: {}, indices: {})'
+                    #                                .format(
+                    #                                  obsnum_visitnum_counter, len(unique_obsnums)*len(unique_visitnums), 
+                    #                                  k+1, stride, len(running_image_models), running_image_models, 
+                    #                                  subsubgroup_obsnum, subsubgroup_visitnum, running_indices
+                    #                                )
+                    #                               )
+                    #                 logger.info(message_str)
+                    #                 pipeline_object.log.info(message_str)
+                    #                 running_image_models = pipeline_object.outlier_detection(running_image_models)
+                    #                 for kk in range(len(running_indices)):
+                    #                     image_models[running_indices[kk]] = running_image_models[kk]
+                    #         gc.collect()
                 # 
                 # 4. resample
                 pipeline_object.resample.output_file = output_name
