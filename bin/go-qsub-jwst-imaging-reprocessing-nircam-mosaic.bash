@@ -89,9 +89,9 @@ cat << EOF >> $goscript
 # Here I set \`--combine-visitnum\` but not \`--combine-obsnum\`, so that different obs_num are not combined, but visit_num in each obs will be combined. 
 
 echo "*** "
-echo "*** Running: go-jwst-imaging-stage-3 \${dataset_names[@]} --run-individual-steps --combine-visitnum --abs-refcat abs_refcat.fits"
+echo "*** Running: go-jwst-imaging-stage-3 \${dataset_names[@]} --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits"
 echo "*** "
-go-jwst-imaging-stage-3 \${dataset_names[@]} --run-individual-steps --combine-visitnum --abs-refcat abs_refcat.fits
+go-jwst-imaging-stage-3 \${dataset_names[@]} --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits
 
 EOF
 # 
