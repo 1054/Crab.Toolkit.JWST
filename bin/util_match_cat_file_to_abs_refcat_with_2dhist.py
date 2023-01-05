@@ -3,6 +3,7 @@
 import os, sys, re, copy, json, shutil
 import numpy as np
 import matplotlib as mpl
+mpl.rcParams['figure.max_open_warning'] = 0
 import matplotlib.pyplot as plt
 import astropy.units as u
 from astropy.table import Table
@@ -68,12 +69,12 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     ncols = 2
     nrows = 5
     npages = int(np.ceil(ncats/(ncols*nrows)))
-    logger.info('Creating 2Dhist plot with ncols {} nrows {} ncats {}'.format(ncols, nrows, ncats))
+    logger.info('Creating 2Dhist plot with ncols {} * nrows {} * npages {} = ncats {}'.format(ncols, nrows, npages, ncats))
     # 
     figs = []
     axes = []
     for ipage in range(npages):
-        fig = plt.figure(figsize=(2.5+ncols*2.0, 1.0+nrows*2.0))
+        fig = plt.figure(figsize=(2.5+ncols*2.0, 1.0+nrows*2.0)) # figsize in inches
         for irow in range(nrows):
             for icol in range(ncols):
                 ax = fig.add_subplot(nrows, ncols, irow*ncols+icol+1)

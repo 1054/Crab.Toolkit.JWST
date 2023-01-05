@@ -97,6 +97,9 @@ from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
 # Import jwst package itself
 import jwst
 
+# Import stpipe.Pipeline
+from stpipe import Pipeline
+
 # Import AsdfFile
 from asdf import AsdfFile
 
@@ -706,6 +709,9 @@ def main(
                 if len(unique_obsnums) == 1 and len(unique_visitnums) == 1:
                     image_models = pipeline_object.outlier_detection(image_models)
                 else:
+                    from util_run_outlier_detection_in_parallel import run_outlier_detection_in_parallel
+                    run_outlier_detection_in_parallel(pipeline_object, image_models)
+                    # 
                     obsnum_visitnum_counter = 0
                     for subsubgroup_obsnum in unique_obsnums:
                         for subsubgroup_visitnum in unique_visitnums:
