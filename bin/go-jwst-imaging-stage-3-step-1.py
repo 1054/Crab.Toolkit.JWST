@@ -61,7 +61,7 @@ From ceers_nircam_reduction.ipynb
 """
 
 # Packages that allow us to get information about objects:
-import os, sys, re, json, copy, datetime, time, glob, shutil
+import os, sys, re, gc, json, copy, datetime, time, glob, shutil
 import click
 from collections import OrderedDict
 try:
@@ -714,22 +714,28 @@ def main(
                                 subgroup_table['visit_num'] == subsubgroup_visitnum,
                                 )).ravel()
                             if len(subsubgroup_indices) > 0:
-                                #subsubgroup_image_models = np.take(image_models, subsubgroup_indices) # this does not work
-                                subsubgroup_image_models = datamodels.ModelContainer()
-                                for kk in range(len(subsubgroup_indices)):
-                                    subsubgroup_image_models.append(image_models[subsubgroup_indices[kk]])
                                 obsnum_visitnum_counter += 1
-                                message_str = 'Running outlier_detection in obsnum group {}/{} for image models: {}'.format(
-                                                obsnum_visitnum_counter, len(unique_obsnums), subsubgroup_image_models
-                                            ) + \
-                                            '(obs_num: {}, visit_num: {}, indices: {})'.format(
-                                                subsubgroup_obsnum, subsubgroup_visitnum, subsubgroup_indices
-                                            )
-                                logger.info(message_str)
-                                pipeline_object.log.info(message_str)
-                                subsubgroup_image_models = pipeline_object.outlier_detection(subsubgroup_image_models)
-                                for kk in range(len(subsubgroup_indices)):
-                                    image_models[subsubgroup_indices[kk]] = subsubgroup_image_models[kk]
+                                stride = int(len(subsubgroup_indices)/61)+1 # make 30-60 images per sub-sub-sub-group
+                                for k in range(stride):
+                                    running_indices = subsubgroup_indices[k::stride]
+                                    running_image_models = datamodels.ModelContainer()
+                                    for kk in range(len(running_indices)):
+                                        running_image_models.append(image_models[running_indices[kk]])
+                                    message_str = ('Running outlier_detection for obsnum visitnum subgroup {}/{} '
+                                                   'stride {}/{} with {} image models: {} '
+                                                   '(obs_num: {}, visit_num: {}, indices: {})'
+                                                   .format(
+                                                     obsnum_visitnum_counter, len(unique_obsnums)*len(unique_visitnums), 
+                                                     k+1, stride, len(running_image_models), running_image_models, 
+                                                     subsubgroup_obsnum, subsubgroup_visitnum, running_indices
+                                                   )
+                                                  )
+                                    logger.info(message_str)
+                                    pipeline_object.log.info(message_str)
+                                    running_image_models = pipeline_object.outlier_detection(running_image_models)
+                                    for kk in range(len(running_indices)):
+                                        image_models[running_indices[kk]] = running_image_models[kk]
+                            gc.collect()
                 # 
                 # 4. resample
                 pipeline_object.resample.output_file = output_name

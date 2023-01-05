@@ -17,6 +17,7 @@
 #    If the option `--combine-obsnum` is set, the output directory name will be appended with "_multiobs".
 #    If the option `--combine-visitnum` is set, the output directory name will be appended with "_multivisit".
 #    If the option `--abs-refcat` is set, the output directory name will be appended with "_absref".
+#    If the option `--reprocess-miri` is set, the output directory name will be appended with "_redone_with_source_emission_mask".
 # 
 # 
 set -e
