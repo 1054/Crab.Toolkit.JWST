@@ -58,6 +58,7 @@ combine_optnames=("--combine-obsnum" "--no-combine-obsnum" "--combine-visitnum" 
 combine_kwargs=()
 reprocess_NIRCam=0
 reprocess_MIRI=1 # we will reprocess MIRI using masked source image as the background then redo stage 2 with image-for-image background subtraction
+date_diff=7 # days, for merging MIRI dark rates. Set it to 0 will disable date check in 'go-jwst-imaging-stage-3-step-3-merge-dark-rates.sh'.
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
     if [[ "$argstr" == "--"* ]]; then
@@ -72,6 +73,12 @@ while [[ $iarg -le $# ]]; do
             if [[ $iarg -le $# ]]; then
                 output_dir="${!iarg}"
                 echo "output_dir = \"$output_dir\""
+            fi
+        elif [[ "$argstr" == "--date-diff" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                date_diff="${!iarg}"
+                echo "date_diff = \"$date_diff\""
             fi
         elif [[ "$argstr" == "--reprocess-nircam" ]]; then
             reprocess_NIRCam=1
@@ -344,6 +351,7 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     echo "multiobs_mosaic_asn = ${multiobs_mosaic_asn[@]} (${#multiobs_mosaic_asn[@]})"
     
     proc_args=()
+    proc_args+=(--date-diff $date_diff) # 2023-01-06 check user input here
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
     fi
