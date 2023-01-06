@@ -535,8 +535,14 @@ def detect_source_and_background_for_image(
         logger.info('Output to "{}"'.format(output_masked_image))
     
     # save masked image
+    output_masked_image = re.sub(r'\.fits$', '_zeroonemask.fits', output_fits_image) # 1 means valid pixel
+    output_hdu = fits.PrimaryHDU(data=(arr>0).astype(int), header=header)
+    output_hdu.writeto(output_masked_image, overwrite=True)
+    if verbose:
+        logger.info('Output to "{}"'.format(output_masked_image))
+    
+    # save masked image
     masked_image = np.full(image.shape, fill_value=0.0)
-    #mask1 = np.logical_and(arr>0, dqmask > 0)
     mask1 = (arr>0)
     masked_image[mask1] = image[mask1]
     output_masked_image = re.sub(r'\.fits$', '_masked.fits', output_fits_image) # 1 means valid pixel
@@ -550,23 +556,23 @@ def detect_source_and_background_for_image(
 
 @click.command()
 @click.argument('fits_image', type=click.Path(exists=True))
-@click.option('--lsigma', type=float, default=None)
-@click.option('--usigma', type=float, default=None)
-@click.option('--sigma', type=float, default=3.0)
-@click.option('--box-size', type=int, default=None)
-@click.option('--box-frac', type=float, default=0.05)
-@click.option('--median-filter', type=int, default=1) # median_filter
-@click.option('--minpixarea', type=int, default=1)
-@click.option('--smooth', type=float, default=0.0)
-@click.option('--flat-file', type=click.Path(exists=True), default=None)
-@click.option('--include-region', 'include_region_files', type=click.Path(exists=True), multiple=True)
-@click.option('--exclude-region', 'exclude_region_files', type=click.Path(exists=True), multiple=True)
-@click.option('--output-dir', type=click.Path(exists=False), default=None)
-@click.option('--output-suffix', type=str, default='_galaxy_seed_image')
-@click.option('--with-filter-in-output-name', is_flag=True, default=False)
-@click.option('--ignore-background', is_flag=True, default=False)
-@click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
-@click.option('--verbose/--no-verbose', is_flag=True, default=True)
+@click.option('--lsigma', type=float, default=None, help='Lower sigma value. Usually not needed because we can set --sigma.')
+@click.option('--usigma', type=float, default=None, help='Upper sigma value. Usually not needed because we can set --sigma.')
+@click.option('--sigma', type=float, default=3.0, help='Sigma value to detect emission above local background.')
+@click.option('--box-size', type=int, default=None, help='Box size for 2D background detection.')
+@click.option('--box-frac', type=float, default=0.05, help='Another way to set the box size as a fraction to the image size.')
+@click.option('--median-filter', type=int, default=1, help='Do median filter before detecting sources.') # median_filter
+@click.option('--minpixarea', type=int, default=1, help='Mininum pixel area to detect an emission.')
+@click.option('--smooth', type=float, default=0.0, help='Convovling an Gaussian2DKernel with sigma of this input value, in pixel units.')
+@click.option('--flat-file', type=click.Path(exists=True), default=None, help='Apply a flat file?')
+@click.option('--include-region', 'include_region_files', type=click.Path(exists=True), multiple=True, help='If input an include-region file, then source detection is performed only in these regions.')
+@click.option('--exclude-region', 'exclude_region_files', type=click.Path(exists=True), multiple=True, help='If input an exclude-region file, then we will avoid detecting sources in these regions.')
+@click.option('--output-dir', type=click.Path(exists=False), default=None, help='Output directory name, default is None, i.e., current directory.')
+@click.option('--output-suffix', type=str, default='_galaxy_seed_image', help='Output file name suffix.')
+@click.option('--with-filter-in-output-name', is_flag=True, default=False, help='Whether to include the filter string in the output file name or not.')
+@click.option('--ignore-background', is_flag=True, default=False, help='Do not do background detection.')
+@click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite output files.')
+@click.option('--verbose/--no-verbose', is_flag=True, default=True, help='Verbose screen output.')
 def main(
         fits_image, 
         lsigma, 

@@ -62,25 +62,26 @@ def write_ds9_region_file(
         for i in core_indices:
             vertices = image_models[i].meta.wcs.footprint().ravel().tolist()
             vertices.extend([vertices[0], vertices[1]])
-            fp.write('polygon({}) # text={{{}({})}} color={}\n'.format(
+            fp.write('polygon({}) # text={{[{}]({}){}}} color={}\n'.format(
                     ', '.join(map(str, vertices)),
-                    i, 'core', 'cyan'
+                    i, 'core', image_models[i].meta.filename, 
+                    'cyan'
                 )
             )
         for i in list(set(main_indices)-set(core_indices)):
             vertices = image_models[i].meta.wcs.footprint().ravel().tolist()
             vertices.extend([vertices[0], vertices[1]])
-            fp.write('polygon({}) # text={{{}({})}} color={}\n'.format(
+            fp.write('polygon({}) # text={{[{}]({}){}}} color={}\n'.format(
                     ', '.join(map(str, vertices)),
-                    i, 'main', 'green'
+                    i, 'main', image_models[i].meta.filename, 'green'
                 )
             )
         for i in list(set(full_indices)-set(main_indices)):
             vertices = image_models[i].meta.wcs.footprint().ravel().tolist()
             vertices.extend([vertices[0], vertices[1]])
-            fp.write('polygon({}) # text={{{}({})}} color={} dash=1\n'.format(
+            fp.write('polygon({}) # text={{[{}]({}){}}} color={} dash=1\n'.format(
                     ', '.join(map(str, vertices)),
-                    i, 'edge', 'orange'
+                    i, 'edge', image_models[i].meta.filename, 'orange'
                 )
             )
     
