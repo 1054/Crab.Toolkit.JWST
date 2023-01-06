@@ -22,6 +22,7 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
 from astropy.wcs.utils import proj_plane_pixel_area
+from collections import OrderedDict
 
 from stpipe import Pipeline
 from jwst import datamodels
@@ -144,6 +145,8 @@ def run_outlier_detection_in_parallel(
         main_image_min_overlap = 0.5, # expand the main image list of each group with images overlapping by more than this fraction with 
         use_pipeline_logger = True, 
         max_cores = 'all', 
+        save_group_table_file = '', 
+        return_group_table = False, 
         verbose = True, 
     ):
     """
@@ -285,9 +288,46 @@ def run_outlier_detection_in_parallel(
                 this_logger.info('group_full_indices[{}] = {}'.format(g, repr(full_indices)))
             # 
             g+=1
-
+    
     # 
-    using_multiprocessing = False # TODO can not be True because something can not be pickled
+    # if return_group_table then do not run any processing but just return the group table
+    group_table_dict = OrderedDict()
+    group_table_dict['group_id'] = []
+    group_table_dict['main_indices'] = []
+    group_table_dict['main_filenames'] = []
+    group_table_dict['edge_indices'] = []
+    group_table_dict['edge_filenames'] = []
+    for k in range(len(group_full_indices)):
+        core_indices = group_core_indices[k]
+        main_indices = group_main_indices[k]
+        edge_indices = group_edge_indices[k]
+        full_indices = group_full_indices[k]
+        main_filenames = [image_models[t].meta.filename for t in main_indices]
+        edge_filenames = [image_models[t].meta.filename for t in edge_indices]
+        group_table_dict['group_id'].append(k+1)
+        group_table_dict['main_indices'].append(','.join(map(str,main_indices)))
+        group_table_dict['main_filenames'].append(','.join(main_filenames))
+        group_table_dict['edge_indices'].append(','.join(map(str,edge_indices)))
+        group_table_dict['edge_filenames'].append(','.join(edge_filenames))
+        group_table = Table(group_table_dict)
+    if save_group_table_file != '':
+        if os.path.isfile(save_group_table_file):
+            shutil.move(save_group_table_file, save_group_table_file+'.backup')
+        else: 
+            save_group_table_dir = os.path.dirname(save_group_table_file)
+            if save_group_table_dir != '' and not os.path.isdir(save_group_table_dir):
+                os.makedirs(save_group_table_dir)
+        this_logger.info('Building outlier_detection group table and saving it to {!r}.'.format(save_group_table_file))
+        if re.match(r'^.*\.(txt|dat)', save_group_table_file):
+            group_table.write(save_group_table_file, format='ascii.commented_header')
+        else:
+            group_table.write(save_group_table_file)
+    if return_group_table:
+        this_logger.info('Building outlier_detection group table and returning it without actually running outlier_detection.')
+        return group_table
+    
+    # 
+    using_multiprocessing = False # TODO can not be True because something can not be pickled -- CANNOT DO PARALLEL!
     if using_multiprocessing:
         pool = mp.Pool(n_parallel)
         k = 0
@@ -370,11 +410,15 @@ def run_outlier_detection_in_parallel(
 @click.argument('input_asn_file', type=click.Path(exists=True))
 @click.argument('output_name', type=click.Path(exists=False))
 @click.option('--max-cores', type=str, default='none')
+@click.option('--save-group-table-file', type=click.Path(exists=False), default='')
+@click.option('--return-group-table', is_flag=True, default=False)
 @click.option('--verbose/--no-verbose', is_flag=True, default=True)
 def main(
         input_asn_file, 
         output_name, 
         max_cores, 
+        save_group_table_file, 
+        return_group_table, 
         verbose, 
     ):
 
@@ -394,6 +438,8 @@ def main(
             pipeline_object, 
             input_models, 
             max_cores = max_cores, 
+            save_group_table_file = save_group_table_file, 
+            return_group_table = return_group_table, 
             verbose = verbose, 
         )
 
