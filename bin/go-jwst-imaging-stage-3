@@ -31,7 +31,7 @@ if [[ -z "$CRDS_SERVER_URL" ]]; then
 fi
 
 # Check python packages
-python -c 'import jwst,click,shapely,astropy,stdatamodels,stpipe,crds,regions,photutils,scipy'
+python -c 'import jwst,click,shapely,astropy,stdatamodels,stpipe,crds,regions,photutils,scipy,reproject'
 
 # Get script_dir
 script_dir=$(dirname "${BASH_SOURCE[0]}")
@@ -239,6 +239,7 @@ fi
 echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-1.py ${files_in[@]} $dir_out "${proc_args[@]}"
 $script_dir/go-jwst-imaging-stage-3-step-1.py ${files_in[@]} $dir_out "${proc_args[@]}"
 ret=$?
+echo "*** Finished ***" $script_dir/go-jwst-imaging-stage-3-step-1.py "(return code $ret)"
 if [[ $ret -ne 0 ]]; then
     echo "Error occurred?!"
     exit 255
@@ -248,6 +249,7 @@ if [[ "$info_table_dir"x == ""x ]]; then
     info_table_dir="$dir_out"
 fi
 #files_out=($(find $dir_out -maxdepth 2 -mindepth 2 -type f -name "jw*_obs*_*_i2d.fits" | sort -V | grep -v '+' | grep -v 'outlier'))
+echo "Checking \"$info_table_dir/$info_table_name.out\""
 files_out=($(cat "$info_table_dir/$info_table_name.out"))
 if [[ ${#files_out[@]} -eq 0 ]]; then
     echo "Error! Failed to produce the output files: \"$dir_out/jw*_obs*_*/jw*_obs*_*_i2d.fits\""
