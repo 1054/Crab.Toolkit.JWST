@@ -39,7 +39,8 @@ CODE_NAME = 'util_remove_claws_for_specific_data_sets.py'
 CODE_AUTHOR = 'Daizhong Liu'
 CODE_VERSION = '20230105'
 CODE_HOMEPAGE = 'https://github.com/1054/Crab.Toolkit.JWST'
-CODE_DATADIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'util_remove_claws_for_specific_data_sets_region_files')
+CODE_DATADIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                            'util_remove_claws_for_specific_data_sets_region_and_mask_files')
 
 # logging
 import logging

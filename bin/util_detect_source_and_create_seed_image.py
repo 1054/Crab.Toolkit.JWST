@@ -510,7 +510,6 @@ def detect_source_and_background_for_image(
         arrmsk = (arrsum >= minpixarea).astype(int)
         arr = arr * arrmsk
     
-    #arr = arr * image
     arr = arr.astype(float)
     
     # smoothing/expanding the mask
