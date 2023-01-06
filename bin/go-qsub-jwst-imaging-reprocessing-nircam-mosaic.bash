@@ -86,7 +86,9 @@ cat << EOF >> $goscript
 
 # Do not set a pixel scale so that the default pixel scale ratio 0.48 is used. 
 # In this way the SW filters will have a pixel scale of about 15mas and LW filters about 30mas. 
-# Here I set \`--combine-visitnum\` but not \`--combine-obsnum\`, so that different obs_num are not combined, but visit_num in each obs will be combined. 
+
+# Here I set \`--combine-obsnum\` so that the mosaic will have multiple 'obs_num' data combined. 
+# We can also set \`--combine-visitnum\` instead, so that different 'obs_num' are not combined, but all 'visit_num' in each obs will be combined. 
 
 echo "*** "
 echo "*** Running: go-jwst-imaging-stage-3 \${dataset_names[@]} --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits"
