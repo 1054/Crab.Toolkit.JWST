@@ -64,6 +64,8 @@ current_dir=$(pwd)
 maxcores="all" # "none", "quarter", "half", "all"
 overwrite=0
 dataset_names=()
+use_ellipses="False"
+destripe_tilted_angles="False"
 unused_args=()
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^[-]+/--/g')
@@ -80,6 +82,14 @@ while [[ $iarg -le $# ]]; do
                 maxcores=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
                 echo "maxcores = \"$maxcores\""
             fi
+        elif [[ "$argstr" == "--use-ellipses" ]]; then
+            iarg=$((iarg+1))
+            use_ellipses="True"
+            echo "use_ellipses = \"$use_ellipses\""
+        elif [[ "$argstr" == "--destripe-tilted-angles" ]]; then
+            iarg=$((iarg+1))
+            destripe_tilted_angles="True"
+            echo "destripe_tilted_angles = \"$destripe_tilted_angles\""
         else
             unused_args+=("${!iarg}")
         fi
@@ -187,6 +197,11 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     if [[ ! -z "$maxcores" ]]; then
         kwargs+=(--maximum-cores "$maxcores")
     fi
+    if [[ "$use_ellipses" == "False" ]]; then
+        kwargs+=(--no-use-ellipses)
+    else
+        kwargs+=(--use-ellipses)
+    fi
     echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}
     python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}
     if [[ $? -ne 0 ]]; then
@@ -253,8 +268,14 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     file_in="calibrated1_rates/${dataset_name}_rate.fits"
     file_out1="calibrated1_rates/${dataset_name}_rate_before_removing_stripes.fits"
     file_out2="calibrated1_rates/${dataset_name}_rate_removing_stripes_bkg.fits" # 20221002 using remstriping-dzliu.py
-    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-1-step-4-remove-stripes "$file_in"
-    $script_dir/go-jwst-imaging-stage-1-step-4-remove-stripes.sh "$file_in"
+    kwargs=()
+    if [[ "$destripe_tilted_angles" == "False" ]]; then
+        kwargs+=(--no-tilted-angle)
+    else
+        kwargs+=(--tilted-angle)
+    fi
+    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-1-step-4-remove-stripes "$file_in" ${kwargs[@]}
+    $script_dir/go-jwst-imaging-stage-1-step-4-remove-stripes.sh "$file_in" ${kwargs[@]}
     if [[ $? -ne 0 ]]; then
         echo "Error?! Please check previous messages."
         exit 255
