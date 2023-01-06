@@ -99,12 +99,14 @@ def setup_logger():
 @click.argument('output_rate_file', type=click.Path(exists=False))
 @click.option('--maximum-cores', type=str, default='all')
 @click.option('--remove-snowballs/--no-remove-snowballs', is_flag=True, default=True)
+@click.option('--use-ellipses/--no-use-ellipses', is_flag=True, default=False, help='The jwst.jump `use_ellipses` paramter, for NIRCam only. Default is False. For MIRI this will always be True.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 def main(
         input_uncal_file, 
         output_rate_file, 
         maximum_cores, 
         remove_snowballs, 
+        use_ellipses, 
         overwrite, 
     ):
     
@@ -188,8 +190,11 @@ def main(
         pipeline_object.jump.expand_factor = 1.5 # 2.0 is the default, The expansion factor for the enclosing circles or ellipses
         pipeline_object.jump.sat_required_snowball = False
         pipeline_object.jump.expand_large_events = True
-        if instrument_name.upper() == 'MIRI':
+        if instrument_name.upper() == 'NIRCAM':
+            pipeline_object.jump.use_ellipses = use_ellipses
+        elif instrument_name.upper() == 'MIRI':
             pipeline_object.jump.use_ellipses = True # "stcal/jump/jump.py" says that "Use ellipses rather than circles (better for MIRI)"
+            
     pipeline_object.ramp_fit.maximum_cores = maximum_cores
     pipeline_object.save_calibrated_ramp = True
     

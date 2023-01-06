@@ -24,9 +24,9 @@ warnings.filterwarnings('ignore')
 def usage():
     print('Usage: ')
     print('  make_a_cutout_image_using_reproject.py \\')
-    print('    INPUT_IMAGE_OR_CUBE.fits \\')
-    print('    TEMPLATE_IMAGE_OR_CUBE.fits \\')
-    print('    OUTPUT_IMAGE_OR_CUBE.fits')
+    print('    INPUT_FITS_IMAGE.fits \\')
+    print('    TEMPLATE_FITS_IMAGE.fits \\')
+    print('    OUTPUT_FITS_IMAGE.fits')
     print('')
 
 
@@ -102,7 +102,19 @@ if __name__ == '__main__':
     
     # 
     # read fits
-    dataI, headerI = fits.getdata(input_file, header=True)
+    dataI, headerI = None, None
+    with fits.open(input_file) as hdul:
+        if 'SCI' in hdul:
+            dataI, headerI = hdul['SCI'].data, hdul['SCI'].header
+        else:
+            hdu0 = hdul[0]
+            for hdu in hdul:
+                if hdu.header['NAXIS'] >= 2:
+                    dataI, headerI = hdu.data, hdu.header
+                    break
+    #dataI, headerI = fits.getdata(input_file, header=True)
+    if dataI is None:
+        raise Exception('Error! Could not read an image from {!r}'.format(input_file))
     wcsI = WCS(headerI, naxis=2)
     #print('wcsI.wcs.obsgeo', wcsI.wcs.obsgeo)
     wcsI.wcs.obsgeo[:] = np.nan
@@ -114,8 +126,20 @@ if __name__ == '__main__':
     # "ValueError: Input WCS has celestial components but output WCS does not"
     
     # 
-    # prepare template header
-    dataT, headerT = fits.getdata(template_file, header=True)
+    # prepare template
+    dataT, headerT = None, None
+    with fits.open(template_file) as hdul:
+        if 'SCI' in hdul:
+            dataT, headerT = hdul['SCI'].data, hdul['SCI'].header
+        else:
+            hdu0 = hdul[0]
+            for hdu in hdul:
+                if hdu.header['NAXIS'] >= 2:
+                    dataT, headerT = hdu.data, hdu.header
+                    break
+    #dataT, headerT = fits.getdata(template_file, header=True)
+    if dataT is None:
+        raise Exception('Error! Could not read an image from {!r}'.format(template_file))
     wcsT = WCS(headerT, naxis=2)
     #print('wcsT.wcs.obsgeo', wcsT.wcs.obsgeo)
     wcsT.wcs.obsgeo[:] = np.nan
@@ -125,7 +149,7 @@ if __name__ == '__main__':
     # reshape cubeI, as our internal calculation is always 2D plus a channel axis
     shapeI = np.array(list(dataI.shape))
     if len(shapeI) < 2:
-        raise Exception('Input cube has a wrong dimension %d!'%(len(dataI.shape)))
+        raise Exception('Input data has a wrong dimension %d!'%(len(dataI.shape)))
     elif len(shapeI) == 2:
         nchanI = 1
     else:
@@ -136,7 +160,7 @@ if __name__ == '__main__':
     # reshape cubeT, we will only use the 2D information in the template data
     shapeT = np.array(list(dataT.shape))
     if len(shapeT) < 2:
-        raise Exception('Input cube has a wrong dimension %d!'%(len(dataT.shape)))
+        raise Exception('Input data has a wrong dimension %d!'%(len(dataT.shape)))
     elif len(shapeT) == 2:
         nchanT = 1
     else:
