@@ -25,7 +25,6 @@ while [[ $iarg -le $# ]]; do
     argstr="${!iarg}"
     if [[ "$argstr" == "--overwrite" ]]; then
         overwrite=1
-        nargs
     else
         if [[ ! -z "$filepath" ]]; then
             inpfiles+=("$filepath")
