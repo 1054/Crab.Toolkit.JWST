@@ -96,7 +96,7 @@ for filepath in "${inpfiles[@]}"; do
         pixscale=$(fitsheader -k CDELT2 "$outdir/$outname" 2>/dev/null | grep '^CDELT2' | awk '{printf "%.0f",(($3)*3600*1000);}')
         pixscales+=("${pixscale} mas")
         
-        crdscontext=(fitsheader -k CRDS_CTX "$outdir/$outname" 2>/dev/null | grep '^CRDS_CTX' | awk '{print $3}')
+        crdscontext=$(fitsheader -k CRDS_CTX "$outdir/$outname" 2>/dev/null | grep '^CRDS_CTX' | awk '{print $3}')
         crdscontexts+=("${crdscontext}")
         
         outnames+=("$outname")
