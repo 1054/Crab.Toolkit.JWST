@@ -410,13 +410,17 @@ def run_outlier_detection_in_parallel(
 @click.command()
 @click.argument('input_asn_file', type=click.Path(exists=True))
 @click.argument('output_name', type=click.Path(exists=False))
-@click.option('--max-cores', type=str, default='none')
-@click.option('--save-group-table-file', type=click.Path(exists=False), default='')
-@click.option('--return-group-table', is_flag=True, default=False)
-@click.option('--verbose/--no-verbose', is_flag=True, default=True)
+@click.option('--core-image-per-group', type=int, default=1, help='The number of core images to start with. We will grow the coverage by overlapped fraction.')
+@click.option('--main-image-min-overlap', type=float, default=0.5, help='The minimum overlapping fraction of each main image to the union of core images.')
+@click.option('--max-cores', type=str, default='none', help='This parameter is not used because multiprocessing does not work. Something cannot be pickled.')
+@click.option('--save-group-table-file', type=click.Path(exists=False), default='run_outlier_detection_group_table.txt', help='An output table listing the determined groups of images.')
+@click.option('--return-group-table', is_flag=True, default=False, help='Only return the group table then exit. Will not actually run the outlier_detection step.')
+@click.option('--verbose/--no-verbose', is_flag=True, default=True, help='Verbose screen output.')
 def main(
         input_asn_file, 
         output_name, 
+        core_image_per_group, 
+        main_image_min_overlap, 
         max_cores, 
         save_group_table_file, 
         return_group_table, 
@@ -438,6 +442,8 @@ def main(
         run_outlier_detection_in_parallel(
             pipeline_object, 
             input_models, 
+            core_image_per_group = core_image_per_group, 
+            main_image_min_overlap = main_image_min_overlap, 
             max_cores = max_cores, 
             save_group_table_file = save_group_table_file, 
             return_group_table = return_group_table, 
