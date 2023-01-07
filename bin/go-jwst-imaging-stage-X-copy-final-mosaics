@@ -20,13 +20,17 @@ inpfiles=() # "../processing_MIRI_Imaging"
 outdir="" # "../processed_MIRI_Imaging"
 overwrite=0
 iarg=1
+filepath=""
 while [[ $iarg -le $# ]]; do
     argstr="${!iarg}"
     if [[ "$argstr" == "--overwrite" ]]; then
         overwrite=1
-    elif [[ $iarg -ne $# ]]; then
-        inpfiles+=("${!iarg}")
+        nargs
     else
+        if [[ ! -z "$filepath" ]]; then
+            inpfiles+=("$filepath")
+        fi
+        filepath="${!iarg}"
         outdir="${!iarg}"
     fi
     iarg=$((iarg+1))
