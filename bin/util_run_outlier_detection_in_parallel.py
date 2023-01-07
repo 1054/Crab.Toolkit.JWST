@@ -256,10 +256,12 @@ def run_outlier_detection_in_parallel(
                 next_index = all_indices[k]
                 next_footprint = image_footprints[next_index]
                 overlap_fraction = core_footprint.intersection(next_footprint).area / next_footprint.area
+                this_logger.info('checking overlap fraction between core_footprint and next_footprint ({}): {}'.format(k, overlap_fraction))
                 if overlap_fraction >= main_image_min_overlap:
                     all_indices.pop(k)
                     main_indices.append(next_index)
                     main_footprint = main_footprint.union(next_footprint)
+                    this_logger.info('growing main indices ({}): {}'.format(len(main_indices), next_index))
                 else:
                     k+=1
             # 
