@@ -95,11 +95,10 @@ for filepath in "${inpfiles[@]}"; do
         cp "$filepath" "$outdir/$outname"
         
         # get pixel size for the newly copied image
-        #echo "fitsheader -k CDELT2 \"$outname\" 2>/dev/null | grep '^CDELT2' | awk '{print ((\$3)*3600*1000);}'"
-        pixscale=$(fitsheader -k CDELT2 "$outdir/$outname" 2>/dev/null | grep '^CDELT2' | awk '{printf "%.0f",(($3)*3600*1000);}')
+        pixscale=$(fitsheader -k CDELT2 "$outdir/$outname" 2>/dev/null | grep '^CDELT2' | perl -p -e 's/=/ /g' | awk '{printf "%.0f",(($2)*3600*1000);}')
         pixscales+=("${pixscale} mas")
         
-        crdscontext=$(fitsheader -k CRDS_CTX "$outdir/$outname" 2>/dev/null | grep '^CRDS_CTX' | awk '{print $3}')
+        crdscontext=$(fitsheader -k CRDS_CTX "$outdir/$outname" 2>/dev/null | grep '^CRDS_CTX' | perl -p -e 's/=/ /g' | awk '{print $2}')
         crdscontexts+=("${crdscontext}")
         
         outnames+=("$outname")
