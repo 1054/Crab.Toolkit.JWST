@@ -1,0 +1,121 @@
+#!/bin/bash
+# 
+# copy final mosaic files from processing directory to processed directory
+# 
+set -e
+
+usage() {
+    echo "Usage: "
+    echo "    go-jwst-imaging-stage-X-copy-final-mosaics INPUT_MOSAIC_FILES OUTPUT_DIR"
+    echo "Example: "
+    echo "    go-jwst-imaging-stage-X-copy-final-mosaics \\"
+    echo "        ./calibrated3_mosaics_multiobs_absref/jw*/jw*_i2d.fits \\"
+    echo "        ../processed_MIRI_Imaging"
+    echo "Notes: "
+    echo "    We can input multiple INPUT_MOSAIC_DIR, separated by whitespace."
+    echo ""
+}
+
+inpfiles=() # "../processing_MIRI_Imaging"
+outdir="" # "../processed_MIRI_Imaging"
+overwrite=0
+iarg=1
+while [[ $iarg -le $# ]]; do
+    argstr="${!iarg}"
+    if [[ "$argstr" == "--overwrite" ]]; then
+        overwrite=1
+    elif [[ $iarg -ne $# ]]; then
+        inpfiles+=("${!iarg}")
+    else
+        outdir="${!iarg}"
+    fi
+    iarg=$((iarg+1))
+done
+if [[ ${#inpfiles[@]} -eq 0 ]]; then
+    usage
+    exit
+fi
+
+
+timestamp=$(date +"%Y-%m-%d %Hh%Mm%Ss %Z")
+timestampshort=$(echo "$timestamp" | cut -d ' ' -f 1,2 | perl -p -e 's/ /_/g')
+
+if [[ -d "$outdir" ]]; then
+    #if [[ $overwrite -gt 0 ]]; then
+    #    mv "$outdir" "${outdir}_${timestampshort}"
+    #fi
+    if [[ $overwrite -eq 0 ]]; then
+        echo "Error! The output directory \"$outdir\" exists! Cannot proceed!"
+        exit
+    fi
+fi
+if [[ ! -d "$outdir" ]]; then
+    echo "mkdir -p \"$outdir\""
+    mkdir -p "$outdir"
+fi
+
+if [[ -f "$outdir/copy_files.log" ]]; then
+    echo "" >> "$outdir/copy_files.log"
+    echo "" >> "$outdir/copy_files.log"
+fi
+echo "# $timestamp" | tee -a "$outdir/copy_files.log"
+
+#pmapfile=($(ls -tr1 $inpdir/*pmap* | tail -n 1))
+#echo "pmap file: $pmapfile"
+#if [[ ! -f "$pmapfile" ]]; then
+#    echo "cp \"$pmapfile\" \"$outdir/\"" | tee -a "$outdir/copy_files.log"
+#    cp "$pmapfile" "$outdir/"
+#fi
+
+pixscales=()
+outnames=()
+outnamelength=0
+crdscontexts=()
+
+for filepath in "${inpfiles[@]}"; do
+    filename=$(basename "$filepath")
+    echo "filename: $filename"
+    if [[ "$filepath" == *"redone_with_source_emission_mask"*"MIRI"* ]]; then
+        outname=$(echo "$filename" | perl -p -e 's/(.*)_i2d.fits/\1_dzliu_darkratesub_i2d.fits/g')
+    elif [[ "$filepath" == *"MIRI"* ]]; then
+        outname=$(echo "$filename" | perl -p -e 's/(.*)_i2d.fits/\1_default_i2d.fits/g')
+    else
+        outname="$filename"
+    fi
+    outnamelen=$(echo "$outname" | wc -c)
+    if [[ $outnamelength -lt $outnamelen ]]; then
+        outnamelength=$outnamelen
+    fi
+    
+    if [[ ! -f "$outdir/$outname" ]] || [[ $overwrite -gt 0 ]]; then
+        echo "cp \"$filepath\" \"$outdir/$outname\"" | tee -a "$outdir/copy_files.log"
+        cp "$filepath" "$outdir/$outname"
+        
+        # get pixel size for the newly copied image
+        #echo "fitsheader -k CDELT2 \"$outname\" 2>/dev/null | grep '^CDELT2' | awk '{print ((\$3)*3600*1000);}'"
+        pixscale=$(fitsheader -k CDELT2 "$outdir/$outname" 2>/dev/null | grep '^CDELT2' | awk '{printf "%.0f",(($3)*3600*1000);}')
+        pixscales+=("${pixscale} mas")
+        
+        crdscontext=(fitsheader -k CRDS_CTX "$outdir/$outname" 2>/dev/null | grep '^CRDS_CTX' | awk '{print $3}')
+        crdscontexts+=("${crdscontext}")
+        
+        outnames+=("$outname")
+    fi
+done
+
+#if [[ -f "$outdir/all_pixel_scales.txt" ]]; then
+#    mv "$outdir/all_pixel_scales.txt" "$outdir/all_pixel_scales.txt.backup"
+#fi
+for (( i=0; i<${#outnames[@]}; i++ )); do
+    fmtstr=$(echo "%-$((outnamelength+2))s %10s")
+    printf "$fmtstr\n" "${outnames[i]}" "${pixscales[i]}"
+    printf "$fmtstr\n" "${outnames[i]}" "${pixscales[i]}" >> "$outdir/all_pixel_scales.txt"
+    
+    fmtstr=$(echo "%-$((outnamelength+2))s %15s")
+    printf "$fmtstr\n" "${outnames[i]}" "${crdscontexts[i]}"
+    printf "$fmtstr\n" "${outnames[i]}" "${crdscontexts[i]}" >> "$outdir/all_crds_contexts.txt"
+done
+
+
+
+
