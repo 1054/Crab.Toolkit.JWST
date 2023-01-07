@@ -391,8 +391,8 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
                 if [[ $overwrite -gt 0 ]]; then
                     proc_args+=(--overwrite)
                 fi
-                echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-4-do-sextractor.sh "$file_in" "${proc_args[@]}"
-                $script_dir/go-jwst-imaging-stage-2-step-4-do-sextractor.sh "$file_in" "${proc_args[@]}"
+                echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-5-do-sextractor.sh "$file_in" "${proc_args[@]}"
+                $script_dir/go-jwst-imaging-stage-2-step-5-do-sextractor.sh "$file_in" "${proc_args[@]}"
                 ret=$?
                 if [[ $ret -ne 0 ]]; then
                     echo "Error occurred?!"
