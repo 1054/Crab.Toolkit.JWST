@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib as mpl
 mpl.rcParams['figure.max_open_warning'] = 0
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import astropy.units as u
 from astropy.table import Table
 from astropy.io import fits
@@ -28,6 +29,7 @@ logger = logging.getLogger()
 
 default_output_suffix = '_new2dhist'
 default_outlier_sigma = 5.0
+default_initial_offset = [0.0, 0.0]
 default_output_abs_refcat = None
 default_input_index_base = 1
 default_output_index_base = 0
@@ -41,6 +43,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
                     # It must include 'RA', 'DEC', and 'ID' (or 'phot_id') columns. 
         output_suffix = default_output_suffix, 
         outlier_sigma = default_outlier_sigma, # filter out outliers of large offsets
+        initial_offset = default_initial_offset, 
         output_abs_refcat = default_output_abs_refcat, # also output the filtered abs_refcat
         input_index_base = default_input_index_base, # the input image catalog listed in catfile should have 1-based x y coordinates
         output_index_base = default_output_index_base, # the output catalog x y coordinate base, default is 0 because jwst pipeline tweakwcs uses that.
@@ -57,9 +60,10 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     catpaths = OrderedDict()
     with open(cat_file, 'r') as fp:
         for line in fp.readlines():
-            imfile, catpath = line.split()
-            cats[imfile] = Table.read(catpath)
-            catpaths[imfile] = catpath
+            if line.strip() != '' and not line.startswith('#'):
+                imfile, catpath = line.split()
+                cats[imfile] = Table.read(catpath)
+                catpaths[imfile] = catpath
     if abs_refcat.endswith('.txt') or abs_refcat.endswith('.dat'):
         refcat = Table.read(abs_refcat, format='ascii')
     else:
@@ -103,6 +107,12 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             x += 1
             y += 1
         ra, dec = wcs.all_pix2world(x, y, 1) # wcs.wcs_pix2world(x, y) is not enough # internally I use DS9 1-based pixcoord
+        if initial_offset is not None:
+            ioffra, ioffdec = initial_offset
+            if ioffra != 0 and ioffdec != 0:
+                logger.info('Applying initial offset {} {} arcsec for {}'.format(ioffra, ioffdec, imfile))
+                dec -= ioffdec / 3600.0
+                ra -= ioffra / 3600.0 / np.cos(np.deg2rad(dec))
         catcoords = SkyCoord(ra*u.deg, dec*u.deg, frame=FK5)
         colra = [colname for colname in ['RA', 'ra', 'ALPHA_J2000'] if colname in refcat.colnames][0]
         coldec = [colname for colname in ['DEC', 'Dec', 'dec', 'DELTA_J2000'] if colname in refcat.colnames][0]
@@ -124,6 +134,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         ax.axis('on')
         if len(matches) == 0:
             logger.error('No match is found between the catfile of {!r} and the abs_refcat {!r}!'.format(imfile, abs_refcat))
+            raise Exception('No match is found between the catfile of {!r} and the abs_refcat {!r}!'.format(imfile, abs_refcat))
             ax.set_xticks([])
             ax.set_yticks([])
         else:
@@ -131,7 +142,13 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             d_dec = (dec[matches]-refdec[idx[matches]]) * 3600.
             d_px = (x[matches]-refx[idx[matches]])
             d_py = (y[matches]-refy[idx[matches]])
-            lim = np.max(np.abs([d_ra, d_dec])) * 1.2 # axes range +20%
+            #lim = np.max(np.abs([d_ra, d_dec])) * 1.2 # axes range +20%
+            # 
+            if initial_offset is not None:
+                d_ra += ioffra
+                d_dec += ioffdec
+                d_px += (-ioffra/pixsc)
+                d_py += (ioffdec/pixsc)
             # 
             for imatch in matches:
                 key = refid[imatch]
@@ -153,8 +170,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
                 matched_abs_refcat_mask[idx[imatch]] = True
             # 
             ax.scatter(d_ra, d_dec, s=3, alpha=0.9)
-            ax.set_xlim([lim, -lim])
-            ax.set_ylim([-lim, lim])
+            #ax.set_xlim([lim, -lim])
+            #ax.set_ylim([-lim, lim])
             # 
             d_ra_mean, d_ra_median, d_ra_sigma = sigma_clipped_stats(d_ra)
             d_dec_mean, d_dec_median, d_dec_sigma = sigma_clipped_stats(d_dec)
@@ -167,13 +184,25 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             offsets[imfile]['median_pixel'] = [d_px_median, d_py_median] # in detector frame
             offsets[imfile]['sigma_arcsec'] = [d_ra_sigma, d_dec_sigma]
             offsets[imfile]['sigma_pixel'] = [d_px_sigma, d_py_sigma] # in detector frame
-            patch = Ellipse(xy=[d_ra_mean, d_dec_mean], width=2.*outlier_sigma*d_ra_sigma, height=2.*outlier_sigma*d_dec_sigma, 
-                            angle=0.0, ec='red', fc='none', alpha=0.8)
+            #patch = Ellipse(xy=[d_ra_mean, d_dec_mean], width=2.*outlier_sigma*d_ra_sigma, height=2.*outlier_sigma*d_dec_sigma, 
+            #                angle=0.0, ec='red', fc='none', alpha=0.8)
             patch = Ellipse(xy=[d_ra_median, d_dec_median], width=2.*outlier_sigma*d_ra_sigma, height=2.*outlier_sigma*d_dec_sigma, 
                             angle=0.0, ec='red', fc='none', alpha=0.8)
             ax.add_patch(patch)
             ax.text(d_ra_mean, d_dec_mean+outlier_sigma*d_dec_sigma, '{:+.4f}, {:+.4f}'.format(d_ra_mean, d_dec_mean),
                 ha='center', va='bottom', color='red')
+            # 
+            #patch = Ellipse(xy=[d_ra_median, d_dec_median], width=2.*3.*d_ra_sigma, height=2.*3.*d_dec_sigma, 
+            #                angle=0.0, ec='red', fc='none', ls='--', alpha=0.8)
+            #ax.add_patch(patch)
+            # 
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+            lim = np.max(np.abs([xlim, ylim])) * 1.2 # axes range +20%
+            ax.set_xlim([lim, -lim])
+            ax.set_ylim([-lim, lim])
+            #ax.xaxis.set_major_locator(ticker.MaxNLocator(6))
+            #ax.yaxis.set_major_locator(ticker.MaxNLocator(6))
             # 
             # identify outliers
             outliers = ( ((d_ra-d_ra_mean)/(outlier_sigma*d_ra_sigma))**2 + ((d_dec-d_dec_mean)/(outlier_sigma*d_dec_sigma))**2 > 1.0)
@@ -186,8 +215,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             matched_abs_refcat_x[imfile] = refx[idx[matches][~outliers]]
             matched_abs_refcat_y[imfile] = refy[idx[matches][~outliers]]
             # 
-            ax.plot([-lim, lim], [0., 0.], color='k', ls='dashed', alpha=0.7)
-            ax.plot([0., 0.], [-lim, lim], color='k', ls='dashed', alpha=0.7)
+            ax.plot([-lim, lim], [0., 0.], color='k', ls='dashed', lw=0.6, alpha=0.7)
+            ax.plot([0., 0.], [-lim, lim], color='k', ls='dashed', lw=0.6, alpha=0.7)
         # 
         ax.set_title(imfile, fontsize='small')
         ax.set_aspect(1.0)
@@ -320,6 +349,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
 @click.argument('abs_refcat', type=click.Path(exists=True))
 @click.option('--output-suffix', type=str, default=default_output_suffix)
 @click.option('--outlier-sigma', type=float, default=default_outlier_sigma, help='filter outlier by large offsets, in sigma of the offset distribution.')
+@click.option('--initial-offset', type=float, nargs=2, default=default_initial_offset, help='initial offset (RA_offset, Dec_offset) in arcsec, increasing towards East and North, for all images in the input catfile.')
 @click.option('--output-abs-refcat', type=click.Path(exists=False), default=default_output_abs_refcat, help='also output the filtered abs_refcat.')
 @click.option('--input-index-base', type=click.Choice([0, 1]), default=default_input_index_base, help='x y pixcoord base for input sextractor catalog listed in catfile. The default is 1 because sextractor uses 1-based pixcoord.')
 @click.option('--output-index-base', type=click.Choice([0, 1]), default=default_output_index_base, help='x y pixcoord base for output matched csv. The default is 0 because jwst pipeline tweakwcs correctors.py uses 0-based pixcoord.')
@@ -327,7 +357,8 @@ def main(
         cat_file,
         abs_refcat,
         output_suffix,
-        outlier_sigma,
+        outlier_sigma, 
+        initial_offset, 
         output_abs_refcat, 
         input_index_base, 
         output_index_base, 
@@ -337,7 +368,8 @@ def main(
         cat_file, 
         abs_refcat, 
         output_suffix, 
-        outlier_sigma,
+        outlier_sigma, 
+        initial_offset, 
         output_abs_refcat, 
         input_index_base, 
         output_index_base, 

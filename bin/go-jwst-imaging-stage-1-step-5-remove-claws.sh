@@ -1,6 +1,7 @@
 #!/bin/bash
 # 
-# Remove claws with custom region files.
+# Remove claws for specific data sets with custom region and mask 
+# files under "util_remove_claws_for_specific_data_sets_region_and_mask_files".
 # 
 
 # Set necessary system variables

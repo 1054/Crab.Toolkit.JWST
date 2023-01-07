@@ -88,7 +88,7 @@ def main(
     # find region and mask file(s)
     # TODO: region files
     dataset_name = os.path.splitext(os.path.basename(input_file))[0]
-    dataset_name = re.sub(r'^(.*)_rate', r'\1', dataset_name)
+    dataset_name = re.sub(r'^(.*)(_rate|_cal)$', r'\1', dataset_name)
     #region_files = glob.glob(os.path.join(template_dir, dataset_name + '*.reg'))
     mask_files = glob.glob(os.path.join(template_dir, dataset_name + '*.fits.gz')) + \
                  glob.glob(os.path.join(template_dir, dataset_name + '*.fits'))
@@ -99,7 +99,7 @@ def main(
                      glob.glob(os.path.join(template_dir, '*', dataset_name + '*.fits'))
     #if len(region_files) == 0 and len(mask_files) == 0:
     if len(mask_files) == 0:
-        logger.warning('No region or mask file is found associating with the data set {!r} in the directory {!r}'.format(
+        logger.warning('No region or mask file is found associating with the data set {!r} in the directory {!r}. Skipping.'.format(
             dataset_name, template_dir, 
         ))
         return

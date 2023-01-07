@@ -1,0 +1,3 @@
+examined "jw01837004020_02201_00001_nrca1_cal.fits"
+but all "jw01837004020" should have this large offset of about 0.5" 15" in RA and Dec.
+

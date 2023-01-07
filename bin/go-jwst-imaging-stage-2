@@ -212,6 +212,22 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     fi
     
     # Run step 4
+    file_in="calibrated2_cals/${dataset_name}_cal.fits"
+    file_out1="calibrated2_cals/${dataset_name}_cal_before_correcting_astrometry.fits" # optional, no need to check
+    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-4-correct-astrometry.sh "$file_in"
+    $script_dir/go-jwst-imaging-stage-2-step-4-correct-astrometry.sh "$file_in"
+    if [[ $? -ne 0 ]]; then
+        echo "Error?! Please check previous messages."
+        exit 255
+    fi
+    # for file_out in "$file_out1" "$file_out2"; do
+    #    if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
+    #        echo "Error! Failed to produce the output file: $file_out"
+    #        exit 255
+    #    fi
+    # done
+    
+    # Run step 5
     # This step will use sextractor to detect bright sources and make catalog (catfile) for stage3 tweakreg
     if [[ $no_sextractor -eq 0 ]]; then
         
@@ -225,8 +241,8 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
             if [[ $overwrite -gt 0 ]]; then
                 proc_args+=(--overwrite)
             fi
-            echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-4-do-sextractor.sh "$file_in" "${proc_args[@]}"
-            $script_dir/go-jwst-imaging-stage-2-step-4-do-sextractor.sh "$file_in" "${proc_args[@]}"
+            echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-5-do-sextractor.sh "$file_in" "${proc_args[@]}"
+            $script_dir/go-jwst-imaging-stage-2-step-5-do-sextractor.sh "$file_in" "${proc_args[@]}"
             ret=$?
             if [[ $ret -ne 0 ]]; then
                 echo "Error occurred?!"
