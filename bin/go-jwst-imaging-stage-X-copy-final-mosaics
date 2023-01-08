@@ -120,4 +120,16 @@ done
 
 
 
+###### also make plots ######
+echo "go-make-quicklook-images.sh $outdir/*_i2d.fits"
+go-make-quicklook-images.sh $outdir/*_i2d.fits
+
+
+
+
+echo "All done!"
+
+
+
+
 

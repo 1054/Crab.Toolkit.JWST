@@ -184,7 +184,8 @@ def main(
             for key in all_jwst_dataset_dict:
                 d[key] = manager.list([None]*ndataset)
             for i in range(ndataset):
-                pool.apply_async(store_into_jwst_dataset_dict, args=(i, d, all_jwst_uncal_files, all_jwst_dataset_name, all_jwst_dataset_info))
+                pool.apply_async(store_into_jwst_dataset_dict, 
+                                 args=(i, d, all_jwst_uncal_files, all_jwst_dataset_name, all_jwst_dataset_info))
             pool.close()
             pool.join()
             for key in all_jwst_dataset_dict.keys():

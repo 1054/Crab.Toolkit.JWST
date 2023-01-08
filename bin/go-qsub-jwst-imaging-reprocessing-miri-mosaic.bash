@@ -18,14 +18,14 @@ crds_context="$CRDS_CONTEXT" # "jwst_0986.pmap"
 conda_env="$CONDA_DEFAULT_ENV" # "jwstpmap1009" # "jwstpmap0995" # "base"
 concurrent=20
 ncpu=1
-mem="20gb" # 
+mem="50gb" # 
 maxcores="none" # "quarter"
 timestamp=$(date +"%Y%m%d_%Hh%Mm%Ss")
 currentdir=$(pwd -P)
 goscript="go_qsub_processing_jwst_imaging_${timestamp}_repreocessing_miri_mosaic.bash"
 echo "#!/bin/bash" > $goscript
 echo "#PBS -N JW${timestamp}" >> $goscript
-echo "#PBS -l nodes=1:ppn=${ncpu},mem=${mem},walltime=24:00:00" >> $goscript
+echo "#PBS -l nodes=1:ppn=${ncpu},mem=${mem},walltime=48:00:00" >> $goscript
 echo "#PBS -d ${currentdir}/" >> $goscript
 echo "#PBS -o log_processing_jwst_imaging_${timestamp}_repreocessing_miri_mosaic" >> $goscript
 #echo "#PBS -e log_processing_jwst_imaging_${timestamp}_\${PBS_ARRAYID}.err" >> $goscript
@@ -101,16 +101,16 @@ use_abs_refcat=1
 if [[ \$use_abs_refcat -gt 0 ]]; then
     
     echo "*** "
-    echo "*** Running: go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.060"
+    echo "*** Running: go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.060"
     echo "*** "
-    go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.060
+    go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --run-individual-steps --combine-obsnum --abs-refcat abs_refcat.fits --pixel-scale 0.060
     
 else
     
     echo "*** "
-    echo "*** Running: go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --combine-obsnum --pixel-scale 0.060"
+    echo "*** Running: go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --run-individual-steps --combine-obsnum --pixel-scale 0.060"
     echo "*** "
-    go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --combine-obsnum --pixel-scale 0.060
+    go-jwst-imaging-stage-3 \${dataset_names[@]} --reprocess-miri --run-individual-steps --combine-obsnum --pixel-scale 0.060
     
 fi
 

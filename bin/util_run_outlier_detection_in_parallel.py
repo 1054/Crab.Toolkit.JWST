@@ -37,7 +37,7 @@ from shapely.geometry import Point, Polygon
 # code name and version
 CODE_NAME = 'util_run_outlier_detection_in_parallel.py'
 CODE_AUTHOR = 'Daizhong Liu'
-CODE_VERSION = '20231205'
+CODE_VERSION = '20230105'
 CODE_HOMEPAGE = ''
 
 # logging
