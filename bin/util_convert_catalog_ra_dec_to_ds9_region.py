@@ -3,9 +3,11 @@
 
 import os, sys, re, copy, shutil
 import click
+import numpy as np
 from astropy.table import Table
 from matplotlib import cm
 from matplotlib import colors as mpl_colors
+from tqdm import tqdm
 
 
 @click.command()
@@ -82,12 +84,14 @@ def main(
     #    print('Error! Could not find ID column ({}) in the input table ({})'.format(colID_list, table.colnames))
     #    sys.exit(255)
     
+    if os.path.isfile(output_region_file):
+        shutil.move(output_region_file, output_region_file+'.backup')
     
     with open(output_region_file, 'w') as fp:
         fp.write('# DS9 region file\n')
         fp.write('global color={}\n'.format(color))
         fp.write('fk5\n')
-        for i in range(len(table)):
+        for i in tqdm(range(len(table))):
             line_str = 'circle({},{},{}")'.format(table[colRA][i], table[colDec][i], radius)
             text_str = ''
             color_str = ''
@@ -96,9 +100,11 @@ def main(
             if colRedshift is not None:
                 if text_str != '':
                     text_str += ','
-                text_str += 'z={:.3f}'.format(table[colRedshift][i])
-                if color_by_redshift:
-                    color_str = mpl_colors.to_hex(color_mapper.to_rgba(table[colRedshift][i]))
+                redshift_value = table[colRedshift][i]
+                if np.isfinite(redshift_value) and redshift_value>0.0:
+                    text_str += 'z={:.3f}'.format(redshift_value)
+                    if color_by_redshift:
+                        color_str = mpl_colors.to_hex(color_mapper.to_rgba(redshift_value))
             if text_str != '' and color_str != '': 
                 line_str += ' # text={{{}}} color={{{}}}'.format(text_str, color_str)
             elif text_str != '': 
