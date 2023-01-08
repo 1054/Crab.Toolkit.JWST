@@ -7,7 +7,6 @@ from astropy.table import Table
 from matplotlib import cm
 from matplotlib import colors as mpl_colors
 
-COLOR_CYCLER = itertools.cycle(cm.rainbow(np.linspace(0, 1, 7)))
 
 @click.command()
 @click.argument('input_catalog_file', type=click.Path(exists=True))
