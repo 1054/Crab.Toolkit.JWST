@@ -71,9 +71,9 @@ def main(
         color_mapper = cm.ScalarMappable(norm=mpl_colors.Normalize(vmin=-1, vmax=8), cmap=cm.gist_rainbow)
     
     colID = None
-    colID_list = []
-    if ID_column is not None:
-        colID_list = [ID_column]
+    colID_list = ['ID', 'id']
+    if id_column is not None:
+        colID_list = [id_column]
     for colname in colID_list:
         if colname in table.colnames:
             colID = colname
