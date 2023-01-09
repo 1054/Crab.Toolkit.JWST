@@ -218,7 +218,25 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             ax.plot([-lim, lim], [0., 0.], color='k', ls='dashed', lw=0.6, alpha=0.7)
             ax.plot([0., 0.], [-lim, lim], color='k', ls='dashed', lw=0.6, alpha=0.7)
         # 
-        ax.set_title(imfile, fontsize='small')
+        imfile_pieces = imfile.split('_')
+        imfile_blocks = []
+        imfile_block = ''
+        while len(imfile_pieces) > 0:
+            imfile_piece = imfile_pieces[0]
+            if imfile_block == '':
+                imfile_block = imfile_piece
+                imfile_pieces.pop(0)
+            elif len(imfile_block+'_'+imfile_piece) < 35:
+                imfile_block = imfile_block+'_'+imfile_piece
+                imfile_pieces.pop(0)
+            else:
+                imfile_blocks.append(imfile_block)
+                imfile_block = ''
+            if len(imfile_pieces) == 0:
+                imfile_blocks.append(imfile_block)
+                imfile_block = ''
+        imfile_str = '\n_'.join(imfile_blocks)
+        ax.set_title(imfile_str, fontsize='small')
         ax.set_aspect(1.0)
         # 
         icol = (ipanel%(ncols*nrows))%ncols

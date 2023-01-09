@@ -6,6 +6,20 @@ import click
 import numpy as np
 from astropy.table import Table
 
+# code name and version
+CODE_NAME = 'util_convert_catalog_ra_dec_to_ds9_region.py'
+CODE_AUTHOR = 'Daizhong Liu'
+CODE_VERSION = '20230108'
+CODE_HOMEPAGE = ''
+
+# logging
+#import logging
+#logging.basicConfig(level=logging.INFO)
+#logger = logging.getLogger(CODE_NAME)
+#logger.setLevel(logging.DEBUG)
+
+
+
 @click.command()
 @click.argument('input_catalog_file', type=click.Path(exists=True))
 @click.argument('output_region_file', type=click.Path(exists=False))

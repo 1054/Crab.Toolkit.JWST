@@ -9,6 +9,19 @@ from matplotlib import cm
 from matplotlib import colors as mpl_colors
 from tqdm import tqdm
 
+# code name and version
+CODE_NAME = 'util_convert_catalog_ra_dec_to_ds9_region.py'
+CODE_AUTHOR = 'Daizhong Liu'
+CODE_VERSION = '20230108'
+CODE_HOMEPAGE = ''
+
+# logging
+#import logging
+#logging.basicConfig(level=logging.INFO)
+#logger = logging.getLogger(CODE_NAME)
+#logger.setLevel(logging.DEBUG)
+
+
 
 @click.command()
 @click.argument('input_catalog_file', type=click.Path(exists=True))
@@ -32,7 +45,10 @@ def main(
         color_by_redshift, 
     ):
     
+    print('Reading catalog file {!r}'.format(input_catalog_file))
     table = Table.read(input_catalog_file)
+    
+    print('Reading columns ...')
     
     colRA = None
     colRA_list = ['RA', 'ALPHA_J2000', 'ra']
@@ -83,6 +99,8 @@ def main(
     #if color_by_ID and colID is None:
     #    print('Error! Could not find ID column ({}) in the input table ({})'.format(colID_list, table.colnames))
     #    sys.exit(255)
+    
+    print('Writing region file {!r} ...'.format(output_region_file))
     
     if os.path.isfile(output_region_file):
         shutil.move(output_region_file, output_region_file+'.backup')

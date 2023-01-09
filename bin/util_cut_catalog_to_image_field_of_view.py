@@ -23,14 +23,14 @@ from astropy.wcs.utils import proj_plane_pixel_area
 
 
 # code name and version
-CODE_NAME = 'util_detect_source_and_create_seed_image.py'
+CODE_NAME = 'util_cut_catalog_to_image_field_of_view.py'
 CODE_AUTHOR = 'Daizhong Liu'
-CODE_VERSION = '20221111'
+CODE_VERSION = '20230108' # '20221111'
 CODE_HOMEPAGE = ''
 
 # logging
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(CODE_NAME)
 logger.setLevel(logging.DEBUG)
 

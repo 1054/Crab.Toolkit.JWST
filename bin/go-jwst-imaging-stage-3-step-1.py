@@ -199,6 +199,9 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--use-custom-catalogs', type=bool, 
                                        default=True, 
                                        help='Set use_custom_catalogs to True. Only valid if each "*_cal.fits" has a catalog named "*_cal_cat_for_tweakreg.csv" in the same directory.')
+@click.option('--enforce-user-order', type=bool, 
+                                      default=False, 
+                                      help='Set enforce_user_order to True for tweakreg_step. Align images in user specified order.')
 @click.option('--combine-program/--no-combine-program', is_flag=True, default=False, help='Combine all programs into one.')
 @click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
 @click.option('--combine-visitnum/--no-combine-visitnum', is_flag=True, default=False, help='Combine all visitnum into one. If `--combine-obsnum` is set then this will also be set to True.')
@@ -221,6 +224,7 @@ def main(
         save_info_table_dir, 
         save_info_table_name, 
         use_custom_catalogs, 
+        enforce_user_order, 
         combine_program, 
         combine_obsnum, 
         combine_visitnum, 
@@ -438,7 +442,7 @@ def main(
         # check if this obs has multiple visits or not, we include visit num in the output directory name
         # if there are multiple visits for this single obs. 
         if len(unique_obsnums) == 1:
-            if len(np.unique(info_table['visit_num'])) > len(unique_visitnums):
+            if (not combine_obsnum) and (len(np.unique(info_table['visit_num'])) > len(unique_visitnums)):
                 
                 output_name = 'jw{}_obs{}_visit{}_{}_{}'.format(
                     groupped_program_str,
@@ -595,6 +599,7 @@ def main(
         # Turn on TweakRegStep
         #pipeline_object.tweakreg.skip = False
         #[20221203]#pipeline_object.tweakreg.output_dir = output_subdir
+        pipeline_object.tweakreg.enforce_user_order = enforce_user_order
         pipeline_object.tweakreg.minobj = 7 # default is 15
         pipeline_object.tweakreg.searchrad = 1.0 # default is 2.0
         pipeline_object.tweakreg.separation = 1.0 # default is 0.1 arcsec
