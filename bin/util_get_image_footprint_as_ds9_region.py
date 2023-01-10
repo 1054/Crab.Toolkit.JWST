@@ -24,6 +24,7 @@ from matplotlib import cm
 from matplotlib import colors as mpl_colors
 from shapely.geometry import Point, Polygon
 
+from jwst.associations.asn_from_list import asn_from_list
 from jwst.associations import load_asn
 
 # code name and version

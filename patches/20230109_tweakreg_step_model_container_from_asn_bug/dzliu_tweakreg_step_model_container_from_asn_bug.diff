@@ -1,0 +1,14 @@
+--- /home/dzliu/Software/CONDA/miniconda3/envs/jwstpmap1027/lib/python3.9/site-packages/jwst/tweakreg/tweakreg_step.backup	2023-01-10 03:00:28.163277303 +0100
++++ /home/dzliu/Software/CONDA/miniconda3/envs/jwstpmap1027/lib/python3.9/site-packages/jwst/tweakreg/tweakreg_step.py	2023-01-10 02:59:55.827652366 +0100
+@@ -122,7 +122,11 @@
+                         elif 'tweakreg_catalog' in member:
+                             del member['tweakreg_catalog']
+ 
++                    #<DZLIU># 2023-01-09 BUG???
++                    #<DZLIU># images.from_asn(input)
++                    self.log.info('dzliu fixing a potential tweak_step bug "images.from_asn(input)" --> "images.from_asn(asn_data)"')
+                     images.from_asn(asn_data)
++                    #<DZLIU>#
+ 
+                 elif is_association(input):
+                     images.from_asn(input)
