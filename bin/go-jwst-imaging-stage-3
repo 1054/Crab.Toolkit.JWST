@@ -54,7 +54,8 @@ tweakreg_optnames=("--use-catfile" "--no-use-catfile")
 tweakreg_kwargs=()
 resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
 resample_kwargs=()
-combine_optnames=("--combine-obsnum" "--no-combine-obsnum" "--combine-visitnum" "--no-combine-visitnum" "--combine-program" "--run-individual-steps")
+combine_argnames=("--grid-step")
+combine_optnames=("--combine-obsnum" "--no-combine-obsnum" "--combine-visitnum" "--no-combine-visitnum" "--combine-program" "--run-individual-steps" "--very-big-mosaic")
 combine_kwargs=()
 reprocess_NIRCam=0
 reprocess_MIRI=1 # we will reprocess MIRI using masked source image as the background then redo stage 2 with image-for-image background subtraction
@@ -99,6 +100,7 @@ while [[ $iarg -le $# ]]; do
                     info_table_name="${!iarg}"
                 fi
             fi
+        # tweakreg
         elif [[ " ${tweakreg_argnames[@]} " == *" $argstr "* ]]; then
             tweakreg_kwargs+=("${!iarg}")
             echo -n "${!iarg} = "
@@ -110,12 +112,22 @@ while [[ $iarg -le $# ]]; do
         elif [[ " ${tweakreg_optnames[@]} " == *" $argstr "* ]]; then
             tweakreg_kwargs+=("${!iarg}")
             echo "${!iarg}"
+        # resample
         elif [[ " ${resample_argnames[@]} " == *" $argstr "* ]]; then
             resample_kwargs+=("${!iarg}")
             echo -n "${!iarg} = "
             iarg=$((iarg+1))
             if [[ $iarg -le $# ]]; then
                 resample_kwargs+=("${!iarg}")
+                echo "\"${!iarg}\""
+            fi
+        # combine
+        elif [[ " ${combine_argnames[@]} " == *" $argstr "* ]]; then
+            combine_kwargs+=("${!iarg}")
+            echo -n "${!iarg} = "
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                combine_kwargs+=("${!iarg}")
                 echo "\"${!iarg}\""
             fi
         elif [[ " ${combine_optnames[@]} " == *" $argstr "* ]]; then
