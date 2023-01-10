@@ -524,14 +524,14 @@ DEFAULT_PIXEL_SCALE = None
                                       help='Set enforce_user_order to True for tweakreg_step. Align images in user specified order.')
 @click.option('--grid-step', type=float, 
                              default=10.0, 
-                             help='If `--big-mosaic` is set, this will be the box size to divide the full mosaic into. In arcminutes.')
+                             help='If `--very-big-mosaic` is set, this will be the box size to divide the full mosaic into. In arcminutes.')
 @click.option('--combine-program/--no-combine-program', is_flag=True, default=False, help='Combine all programs into one.')
 @click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
 @click.option('--combine-visitnum/--no-combine-visitnum', is_flag=True, default=False, help='Combine all visitnum into one. If `--combine-obsnum` is set then this will also be set to True.')
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite?')
 @click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
-@click.option('--big-mosaic/--no-big-mosaic', is_flag=True, default=False, help='Big mosaic mode! If Ture, we will divide images into boxes with size set by `grid_step` in arcmin.')
+@click.option('--very-big-mosaic/--no-very-big-mosaic', is_flag=True, default=False, help='Big mosaic mode! If Ture, we will divide images into boxes with size set by `grid_step` in arcmin.')
 def main(
         input_cal_files, 
         output_dir, 
@@ -556,7 +556,7 @@ def main(
         combine_filter, 
         overwrite, 
         run_individual_steps,
-        big_mosaic, 
+        very_big_mosaic, 
     ):
     
     # Add script dir to sys path
@@ -784,9 +784,9 @@ def main(
         
         # set output full path
         output_subdir = os.path.join(output_dir, output_name)
-        output_file = output_name + '_i2d.fits'
-        if big_mosaic:
-            output_file = output_name + '_big_mosaic_i2d.fits'
+        output_file = output_name + '_i2d.fits' # dose not contain the path
+        #if very_big_mosaic:
+        #    output_file = output_name + '_very_big_mosaic.fits'
         output_filepath = os.path.join(output_subdir, output_file)
         
         # add to lookup dict
@@ -1015,7 +1015,7 @@ def main(
             
             # 20230109 big mosaic
             
-            if big_mosaic:
+            if very_big_mosaic:
                 pipeline_object.log.info('*-*-*\n*-*-* Big mosaic mode! *-*-*\n*-*-*')
                 
                 # get pixel_size if only pixel_scale_ratio is given
@@ -1127,16 +1127,16 @@ def main(
                 header.append('', useblanks=False, end=True)
                 while (len(header))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
                     header.append('', useblanks=False, end=True)
-                pipeline_object.log.info('Building final big mosaic {!r}'.format(output_name+'_big_mosaic_i2d.fits'))
-                if not os.path.isfile(output_name+'_big_mosaic_i2d.fits') or overwrite:
-                    header.tofile(output_name+'_big_mosaic_i2d.fits', overwrite=overwrite)
-                    with open(output_name+'_big_mosaic_i2d.fits', 'rb+') as fobj:
+                pipeline_object.log.info('Building final big mosaic {!r}'.format(output_file))
+                if not os.path.isfile(output_file) or overwrite:
+                    header.tofile(output_file, overwrite=overwrite)
+                    with open(output_file, 'rb+') as fobj:
                         last_byte = len(header.tostring()) + (header['NAXIS1'] * header['NAXIS2'] * np.abs(header['BITPIX']//8))
                         last_byte_padded = int(np.ceil(float(last_byte)/2880))*2880 # fits data blocks are padded to 2880 by standard
                         fobj.seek(last_byte-1)
                         for iter_byte in range(last_byte-1, last_byte_padded):
                             fobj.write(b'\0')
-                with fits.open(output_name+'_big_mosaic_i2d.fits', mode='update', memmap=True) as out_hdul:
+                with fits.open(output_file, mode='update', memmap=True) as out_hdul:
                     for mosaic_group_idx in range(len(mosaic_group_table)):
                         imagefile1 = os.path.join(mosaic_group_table['group_dir'][mosaic_group_idx], 
                                                   mosaic_group_table['group_dir'][mosaic_group_idx]+'_i2d.fits')
@@ -1151,7 +1151,7 @@ def main(
                             out_y2 = mosaic_group_table['out_y2'][mosaic_group_idx]
                             pipeline_object.log.info('Copying image data from {!r} [{}:{},{}:{}] to {!r} [{}:{},{}:{}]'.format(
                                 imagefile1, in_y1, in_y2, in_x1, in_x2, 
-                                output_name+'_big_mosaic_i2d.fits', out_y1, out_y2, out_x1, out_x2, 
+                                output_file, out_y1, out_y2, out_x1, out_x2, 
                             ))
                             out_hdul[0].data[out_y1:out_y2,out_x1:out_x2] = in_hdul['SCI'].data[in_y1:in_y2,in_x1:in_x2]
                     out_hdul.flush()
