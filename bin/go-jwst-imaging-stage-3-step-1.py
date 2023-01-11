@@ -1040,17 +1040,25 @@ def main(
                 # make mosaic subgrouping
                 from util_run_mosaic_image_subgrouping import run_mosaic_image_subgrouping
                 mosaic_group_meta, mosaic_group_table, group_asn_files, group_cat_files = \
-                run_mosaic_image_subgrouping(
-                    image_files = None, # we input asn_file, no need to input image_files.
-                    output_name = 'run_mosaic_image_subgroup', # hard-coded output prefix
-                    asn_file = asn_filename, 
-                    grid_step = grid_step, 
-                    cat_file = catfile, # it cannot contain a path otherwise things will be complicated.
-                    pixel_size = ref_pixel_size, 
-                )
+                    run_mosaic_image_subgrouping(
+                        image_files = None, # we input asn_file, no need to input image_files.
+                        output_name = 'run_mosaic_image_subgroup', # hard-coded output prefix
+                        asn_file = asn_filename, 
+                        grid_step = grid_step, 
+                        cat_file = catfile, # it cannot contain a path otherwise things will be complicated.
+                        pixel_size = ref_pixel_size, 
+                    )
                 
                 # loop each mosaic group in 'mosaic_group_dir'
+                first_valid_idx = None
                 for mosaic_group_idx in range(len(mosaic_group_table)):
+                    
+                    if mosaic_group_table['n_images'][mosaic_group_idx] == 0:
+                        continue
+                    
+                    if first_valid_idx is None:
+                        first_valid_idx = mosaic_group_idx
+                    
                     pipeline_object_copy = copy.deepcopy(pipeline_object)
                     pipeline_object_copy.tweakreg.catfile = os.path.basename(group_cat_files[mosaic_group_idx])
                     pipeline_object_copy.resample.crpix = (
@@ -1096,8 +1104,9 @@ def main(
                 # 
                 gc.collect()
                 
-                # 
-                imagefile1 = os.path.join(mosaic_group_table['group_dir'][0], mosaic_group_table['group_dir'][0]+'_i2d.fits')
+                # initialize the output big mosaic fits file using memmap
+                imagefile1 = os.path.join(mosaic_group_table['group_dir'][first_valid_idx], 
+                                          mosaic_group_table['group_dir'][first_valid_idx]+'_i2d.fits')
                 header1 = fits.getheader(imagefile1, 0)
                 data = np.zeros((100, 100), dtype=np.float32)
                 hdu = fits.PrimaryHDU(data=data, header=header1.copy())
@@ -1138,6 +1147,8 @@ def main(
                             fobj.write(b'\0')
                 with fits.open(output_file, mode='update', memmap=True) as out_hdul:
                     for mosaic_group_idx in range(len(mosaic_group_table)):
+                        if mosaic_group_table['n_images'][mosaic_group_idx] == 0:
+                            continue
                         imagefile1 = os.path.join(mosaic_group_table['group_dir'][mosaic_group_idx], 
                                                   mosaic_group_table['group_dir'][mosaic_group_idx]+'_i2d.fits')
                         with fits.open(imagefile1, mode='readonly', memmap=True) as in_hdul:

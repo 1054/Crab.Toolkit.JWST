@@ -358,24 +358,28 @@ def run_mosaic_image_subgrouping(
             image_indices = np.argwhere(where_intersects).ravel().tolist()
             image_files_in_group = (np.array(image_files)[where_intersects]).tolist()
             footprints_in_group = np.take(footprints, image_indices)
-            max_ra_in_group = np.max([t.max_ra() for t in footprints_in_group])
-            min_ra_in_group = np.min([t.min_ra() for t in footprints_in_group])
-            min_dec_in_group = np.min([t.min_dec() for t in footprints_in_group])
-            max_dec_in_group = np.max([t.max_dec() for t in footprints_in_group])
-            # compute the padding of image at left, bottom and right, top, 
-            # to make sure we enclosed all images in this group so that 
-            # the jwst pipeline resample step can drizzle all of them.
-            # I added 5.0 arcsec (`5.0 / pixel_size`) to make sure all images are enclosed, 
-            # because the jwst pipeline resample step seems will discard images 
-            # which are partially enclosed!
-            pad_ra1 = max(0.0, (max_ra_in_group - origin_ra))
-            pad_ra2 = max(0.0, ((origin_ra + step_ra) - min_ra_in_group))
-            pad_dec1 = max(0.0, (origin_dec - min_dec_in_group))
-            pad_dec2 = max(0.0, (max_dec_in_group - (origin_dec + step_dec)))
-            pad_x1 = int(np.ceil(pad_ra1 * np.cos(np.deg2rad(anchor_dec)) / pixel_size * 3600.0) + 5.0 / pixel_size)
-            pad_x2 = int(np.ceil(pad_ra2 * np.cos(np.deg2rad(anchor_dec)) / pixel_size * 3600.0) + 5.0 / pixel_size)
-            pad_y1 = int(np.ceil(pad_dec1 / pixel_size * 3600.0) + 5.0 / pixel_size)
-            pad_y2 = int(np.ceil(pad_dec2 / pixel_size * 3600.0) + 5.0 / pixel_size) 
+            if len(image_indices) > 0:
+                max_ra_in_group = np.max([t.max_ra() for t in footprints_in_group])
+                min_ra_in_group = np.min([t.min_ra() for t in footprints_in_group])
+                min_dec_in_group = np.min([t.min_dec() for t in footprints_in_group])
+                max_dec_in_group = np.max([t.max_dec() for t in footprints_in_group])
+                # compute the padding of image at left, bottom and right, top, 
+                # to make sure we enclosed all images in this group so that 
+                # the jwst pipeline resample step can drizzle all of them.
+                # I added 5.0 arcsec (`5.0 / pixel_size`) to make sure all images are enclosed, 
+                # because the jwst pipeline resample step seems will discard images 
+                # which are partially enclosed!
+                pad_ra1 = max(0.0, (max_ra_in_group - origin_ra))
+                pad_ra2 = max(0.0, ((origin_ra + step_ra) - min_ra_in_group))
+                pad_dec1 = max(0.0, (origin_dec - min_dec_in_group))
+                pad_dec2 = max(0.0, (max_dec_in_group - (origin_dec + step_dec)))
+                pad_x1 = int(np.ceil(pad_ra1 * np.cos(np.deg2rad(anchor_dec)) / pixel_size * 3600.0) + 5.0 / pixel_size)
+                pad_x2 = int(np.ceil(pad_ra2 * np.cos(np.deg2rad(anchor_dec)) / pixel_size * 3600.0) + 5.0 / pixel_size)
+                pad_y1 = int(np.ceil(pad_dec1 / pixel_size * 3600.0) + 5.0 / pixel_size)
+                pad_y2 = int(np.ceil(pad_dec2 / pixel_size * 3600.0) + 5.0 / pixel_size) 
+            else:
+                pad_ra1 = pad_ra2 = pad_dec1 = pad_dec2 = 0.0
+                pad_x1 = pad_x2 = pad_y1 = pad_y2 = 0
             group_table_dict['id'].append(group_id) # kfmt.format(group_id)
             group_table_dict['col'].append(col) # str
             group_table_dict['row'].append(row) # str
@@ -477,61 +481,70 @@ def run_mosaic_image_subgrouping(
         col = group_table['col'][i]
         row = group_table['row'][i]
         group_dir = group_table['group_dir'][i] # f'{output_name}_{group_id}_col{col}_row{row}'
-        logger.info('Copying/linking image files into the subgroup directory {!r}'.format(group_dir))
-        
-        if not os.path.isdir(group_dir):
-            os.makedirs(group_dir)
-        
-        image_files_in_group = group_table['image_files'][i].split(',')
-        image_names_in_group = []
-        cat_dict_in_group = OrderedDict()
-        
-        for image_file in image_files_in_group:
-            image_name = os.path.basename(image_file)
-            image_path = os.path.join(group_dir, image_name)
-            if os.path.islink(image_path):
-                os.remove(image_path)
-            os.symlink(os.path.relpath(image_file, group_dir), image_path)
-            image_names_in_group.append(image_name)
-        
-            if image_name in cat_dict:
-                cat_name = os.path.basename(cat_dict[image_name])
-                cat_path = os.path.join(group_dir, cat_name)
-                if os.path.islink(cat_path):
-                    os.remove(cat_path)
-                os.symlink(os.path.relpath(cat_dict[image_name], group_dir), cat_path)
-                cat_dict_in_group[image_name] = cat_name
-        
-        # write catfile.txt
-        if len(cat_dict_in_group) > 0:
-            cat_file_in_group = os.path.join(group_dir, 'catfile.txt')
-            if os.path.isfile(cat_file_in_group):
-                shutil.move(cat_file_in_group, cat_file_in_group+'.backup')
-            with open(cat_file_in_group, 'w') as fp:
-                for key in cat_dict_in_group:
-                    fp.write('{} {}\n'.format(key, cat_dict_in_group[key]))
+        n_images = group_table['n_images'][i]
+        if n_images > 0:
+            
+            logger.info('Copying/linking image files into the subgroup directory {!r}'.format(group_dir))
+            
+            if not os.path.isdir(group_dir):
+                os.makedirs(group_dir)
+            
+            image_files_in_group = group_table['image_files'][i].split(',')
+            image_names_in_group = []
+            cat_dict_in_group = OrderedDict()
+            
+            for image_file in image_files_in_group:
+                image_name = os.path.basename(image_file)
+                image_path = os.path.join(group_dir, image_name)
+                if os.path.islink(image_path):
+                    os.remove(image_path)
+                os.symlink(os.path.relpath(image_file, group_dir), image_path)
+                image_names_in_group.append(image_name)
+            
+                if image_name in cat_dict:
+                    cat_name = os.path.basename(cat_dict[image_name])
+                    cat_path = os.path.join(group_dir, cat_name)
+                    if os.path.islink(cat_path):
+                        os.remove(cat_path)
+                    os.symlink(os.path.relpath(cat_dict[image_name], group_dir), cat_path)
+                    cat_dict_in_group[image_name] = cat_name
+            
+            # write catfile.txt
+            if len(cat_dict_in_group) > 0:
+                cat_file_in_group = os.path.join(group_dir, 'catfile.txt')
+                if os.path.isfile(cat_file_in_group):
+                    shutil.move(cat_file_in_group, cat_file_in_group+'.backup')
+                with open(cat_file_in_group, 'w') as fp:
+                    for key in cat_dict_in_group:
+                        fp.write('{} {}\n'.format(key, cat_dict_in_group[key]))
+            else:
+                cat_file_in_group = ''
+            
+            # write asn.json
+            asn_file_in_group = os.path.join(group_dir, 'asn.json')
+            #asn_obj = asn_from_list(
+            #    list(zip(image_names_in_group, ['science']*len(image_files_in_group))), 
+            #    product_name=group_dir,
+            #    with_exptype=True,
+            #)
+            asn_obj = asn_from_list(
+                image_names_in_group,
+                product_name=group_dir,
+                with_exptype=False,
+            )
+            _file_name, serialized = asn_obj.dump()
+            if os.path.isfile(asn_file_in_group):
+                shutil.move(asn_file_in_group, asn_file_in_group+'.backup')
+            with open(asn_file_in_group, 'w') as fp:
+                fp.write(serialized)
+            
+            group_asn_files.append(asn_file_in_group)
+            group_cat_files.append(cat_file_in_group)
+            
         else:
-            cat_file_in_group = ''
-        
-        # write asn.json
-        asn_file_in_group = os.path.join(group_dir, 'asn.json')
-        #asn_obj = asn_from_list(
-        #    list(zip(image_names_in_group, ['science']*len(image_files_in_group))), 
-        #    product_name=group_dir,
-        #    with_exptype=True,
-        #)
-        asn_obj = asn_from_list(
-            image_names_in_group,
-            product_name=group_dir,
-            with_exptype=False,
-        )
-        _file_name, serialized = asn_obj.dump()
-        if os.path.isfile(asn_file_in_group):
-            shutil.move(asn_file_in_group, asn_file_in_group+'.backup')
-        with open(asn_file_in_group, 'w') as fp:
-            fp.write(serialized)
-        group_asn_files.append(asn_file_in_group)
-        group_cat_files.append(cat_file_in_group)
+            
+            group_asn_files.append('')
+            group_cat_files.append('')
     
     
     # return
