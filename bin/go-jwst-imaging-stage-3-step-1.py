@@ -265,7 +265,14 @@ def clean_up_intermediate_outlier_i2d_files(
                 if not os.path.isdir(dir_move_to):
                     os.makedirs(dir_move_to)
                 shutil.move(file_to_move, 
-                            os.path.join(dir_move_to, os.path.basename(file_to_move)))
+                    os.path.join(dir_move_to, os.path.basename(file_to_move)))
+        # 
+        # also rename files which have f'{output_name}_{asn_id}_{i}_outlierdetection.fits'
+        # as f'{output_name}_{i}_{asn_id}_outlierdetection.fits'
+        if asn_id is not None:
+            if os.path.isfile(f'{output_name}_{asn_id}_{i}_outlierdetection.fits'):
+                shutil.move(f'{output_name}_{asn_id}_{i}_outlierdetection.fits', 
+                            f'{output_name}_{i}_{asn_id}_outlierdetection.fits')
 
 
 def run_individual_steps_for_one_asn_file(
@@ -406,6 +413,7 @@ def run_individual_steps_for_image_files(
     pipeline_object.outlier_detection.search_output_file = False
     asn_id = 'a3001' # the default, see ...
     processing_image_files = processed_image_files
+    clean_up_intermediate_outlier_i2d_files(processing_image_files, output_name, asn_id=asn_id) #<TODO># temporary fix 20230110
     processed_image_files = [f'{output_name}_{i}_{asn_id}_outlierdetection.fits' for i in range(len(processing_image_files))]
     pipeline_object.log.info('Checking outlier_detection output file existence: {}'.format(repr(processed_image_files)))
     if not np.all(list(map(os.path.exists, processed_image_files))):
