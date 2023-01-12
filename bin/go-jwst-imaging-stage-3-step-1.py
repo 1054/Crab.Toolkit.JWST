@@ -394,7 +394,10 @@ def run_individual_steps_for_image_files(
     pipeline_object.skymatch.save_results = True # will save as '{output_name}_{index}_cal_skymatch.fits'
     pipeline_object.skymatch.search_output_file = False
     processing_image_files = processed_image_files
-    processed_image_files = [f'{output_name}_{i}_skymatch.fits' for i in range(len(processing_image_files))]
+    if len(processing_image_files) == 1:
+        processed_image_files = [f'{output_name}_skymatch.fits']
+    else:
+        processed_image_files = [f'{output_name}_{i}_skymatch.fits' for i in range(len(processing_image_files))]
     pipeline_object.log.info('Checking skymatch output file existence: {}'.format(repr(processed_image_files)))
     if not np.all(list(map(os.path.exists, processed_image_files))):
         asn_from_list_to_file(processing_image_files, 'asn_skymatch.json')
@@ -414,12 +417,14 @@ def run_individual_steps_for_image_files(
     asn_id = 'a3001' # the default, see ...
     processing_image_files = processed_image_files
     clean_up_intermediate_outlier_i2d_files(processing_image_files, output_name, asn_id=asn_id) #<TODO># temporary fix 20230110
-    processed_image_files = [f'{output_name}_{i}_{asn_id}_outlierdetection.fits' for i in range(len(processing_image_files))]
+    if len(processing_image_files) == 1:
+        processed_image_files = [f'{output_name}_{asn_id}_outlierdetection.fits']
+    else:
+        processed_image_files = [f'{output_name}_{i}_{asn_id}_outlierdetection.fits' for i in range(len(processing_image_files))]
     pipeline_object.log.info('Checking outlier_detection output file existence: {}'.format(repr(processed_image_files)))
     if not np.all(list(map(os.path.exists, processed_image_files))):
         asn_from_list_to_file(processing_image_files, 'asn_outlier_detection.json', asn_id=asn_id)
         asdf_from_step_to_file(pipeline_object.outlier_detection, 'asdf_outlier_detection.txt')
-        processed_image_files = [f'{output_name}_{i}_{asn_id}_outlierdetection.fits' for i in range(len(image_files))]
         image_models = pipeline_object.outlier_detection('asn_outlier_detection.json')
         clean_up_intermediate_outlier_i2d_files(image_models, output_name, asn_id=asn_id)
         del image_models
