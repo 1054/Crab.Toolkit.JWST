@@ -27,9 +27,10 @@ logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 logger = logging.getLogger()
 
 
+default_search_radius = 1.0 # arcsec
 default_output_suffix = '_new2dhist'
 default_outlier_sigma = 5.0
-default_initial_offset = [0.0, 0.0]
+default_initial_offset = [0.0, 0.0] # arcsec
 default_output_abs_refcat = None
 default_input_index_base = '1'
 default_output_index_base = '0'
@@ -41,6 +42,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
                   # Each FITS-image file must has an 'SCI' extension whose header contains WCS information. 
         abs_refcat, # The tweakreg.abs_refcat catalog file. 
                     # It must include 'RA', 'DEC', and 'ID' (or 'phot_id') columns. 
+        search_radius = default_search_radius, 
         output_suffix = default_output_suffix, 
         outlier_sigma = default_outlier_sigma, # filter out outliers of large offsets
         initial_offset = default_initial_offset, 
@@ -71,7 +73,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
 
     # make 2dhist plot
     ncats = len(cats)
-    maxsep = 0.7 * u.arcsec
+    maxsep = search_radius * u.arcsec
     ipanel = 0
     ncols = 2
     nrows = 5
@@ -365,7 +367,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
 @click.command()
 @click.argument('cat_file', type=click.Path(exists=True))
 @click.argument('abs_refcat', type=click.Path(exists=True))
-@click.option('--output-suffix', type=str, default=default_output_suffix)
+@click.option('--search-radius', type=float, default=default_search_radius, help='coordinate matching max search radius in arcsec.')
+@click.option('--output-suffix', type=str, default=default_output_suffix, help='output suffix.')
 @click.option('--outlier-sigma', type=float, default=default_outlier_sigma, help='filter outlier by large offsets, in sigma of the offset distribution.')
 @click.option('--initial-offset', type=float, nargs=2, default=default_initial_offset, help='initial offset (RA_offset, Dec_offset) in arcsec, increasing towards East and North, for all images in the input catfile.')
 @click.option('--output-abs-refcat', type=click.Path(exists=False), default=default_output_abs_refcat, help='also output the filtered abs_refcat.')
@@ -374,6 +377,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
 def main(
         cat_file,
         abs_refcat,
+        search_radius,
         output_suffix,
         outlier_sigma, 
         initial_offset, 
@@ -385,6 +389,7 @@ def main(
     match_cat_file_to_abs_refcat_with_2dhist(
         cat_file, 
         abs_refcat, 
+        search_radius, 
         output_suffix, 
         outlier_sigma, 
         initial_offset, 
