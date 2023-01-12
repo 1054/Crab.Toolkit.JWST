@@ -429,6 +429,11 @@ def run_individual_steps_for_image_files(
         clean_up_intermediate_outlier_i2d_files(image_models, output_name, asn_id=asn_id)
         del image_models
         gc.collect()
+        # if there is only a single file, make a copy
+        if len(processing_image_files) == 1:
+            pipeline_object.log.info('Step outlier_detection is skipped because there is only one file to process. '+\
+                                     'Copying {!r} -> {!r}'.format(processing_image_files[0], processed_image_files[0]))
+            shutil.copy2(processing_image_files[0], processed_image_files[0])
     else:
         pipeline_object.log.info('Step outlier_detection is skipped because all output files exist: {}'.format(repr(processed_image_files)))
     # 
