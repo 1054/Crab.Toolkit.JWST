@@ -249,17 +249,16 @@ def clean_up_intermediate_outlier_i2d_files(
     # for example the "outlier_i2d.fits", so that we do not find them when doing an `ls *_i2d.fits`
     for i in range(len(image_list)):
         image_file = image_list[i]
-        if asn_id is None:
-            name_base = f'{output_name}_{i}'
-            files_to_move = []
-            files_to_move.append(f'{name_base}_outlier_i2d.fits')
-            files_to_move.append(f'asn_{output_name}_{i}_blot.fits')
-        else:
-            name_base = f'{output_name}_{i}_{asn_id}'
-            files_to_move = []
-            files_to_move.append(f'{name_base}_outlier_i2d.fits')
+        # add all possible files to move
+        files_to_move = []
+        files_to_move.append(f'{output_name}_{i}_outlier_i2d.fits')
+        files_to_move.append(f'asn_{output_name}_{i}_blot.fits')
+        if asn_id is not None:
+            files_to_move.append(f'{output_name}_{i}_{asn_id}_outlier_i2d.fits')
+            files_to_move.append(f'{output_name}_{asn_id}_{i}_outlier_i2d.fits')
+            files_to_move.append(f'asn_{output_name}_{i}_{asn_id}_blot.fits')
             files_to_move.append(f'asn_{asn_id}_{output_name}_{i}_blot.fits')
-        dir_move_to = f'{name_base}_outlier'
+        dir_move_to = f'{output_name}_{i}_outlier'
         for file_to_move in files_to_move:
             if os.path.isfile(file_to_move):
                 if not os.path.isdir(dir_move_to):
