@@ -163,11 +163,18 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         exit 255
     fi
     if [[ "$exp_type" == "NRS_MSATA" ]]; then
-        msa_name=$(echo "$dataset_name" | perl -p -e 's/^(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)$/\1/g')
-        msa_file=$(find "auxiliary" -maxdepth 1 -mindepth 1 -name "${msa_name}_*_msa.fits" | tail -n 1)
-        proc_args+=(--msa-meta-file "$msa_file")
         echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
         python $script_dir/go-jwst-imaging-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    elif [[ "$exp_type" == "NRS_MSASPEC" ]]; then
+        msa_name=$(echo "$dataset_name" | perl -p -e 's/^(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)$/\1/g')
+        msa_file=$(find "auxiliary" -maxdepth 1 -mindepth 1 -name "${msa_name}_*_msa.fits" | tail -n 1)
+        if [[ x"$msa_file" == x"" ]]; then
+            echo "Error! Could not find \"auxiliary/${msa_name}_*_msa.fits\" which is needed and should be downloaded with the data!"
+            exit 255
+        fi
+        proc_args+=(--msa-meta-file "$msa_file")
+        echo "*** Running ***" python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+        python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
     else
         echo "*** Running ***" python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
         python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
