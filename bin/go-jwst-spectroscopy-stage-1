@@ -85,8 +85,8 @@ while [[ $iarg -le $# ]]; do
             use_ellipses="True"
             echo "use_ellipses = \"$use_ellipses\""
         elif [[ "$argstr" == "--overwrite" ]]; then
-            #overwrite=1
-            #echo "overwrite = \"$overwrite\""
+            overwrite=1
+            echo "overwrite = \"$overwrite\""
             echo "Setting --overwrite can be dangerous! If you really want to overwrite, please delete existing output files!"
             exit 255
         else

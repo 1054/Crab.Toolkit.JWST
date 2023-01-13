@@ -89,8 +89,8 @@ while [[ $iarg -le $# ]]; do
             destripe_tilted_angles="True"
             echo "destripe_tilted_angles = \"$destripe_tilted_angles\""
         elif [[ "$argstr" == "--overwrite" ]]; then
-            #overwrite=1
-            #echo "overwrite = \"$overwrite\""
+            overwrite=1
+            echo "overwrite = \"$overwrite\""
             echo "Setting --overwrite can be dangerous! If you really want to overwrite, please delete existing output files!"
             exit 255
         else
