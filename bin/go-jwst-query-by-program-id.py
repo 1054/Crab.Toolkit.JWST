@@ -87,6 +87,11 @@ def setup_logger():
     
     return logger, log_filepath
 
+def check_guide_star_data(product):
+    if re.match(r'^.*_gs-fg_.*$', product['productFilename']):
+        return True
+    return False
+
 
 
 @click.command()
@@ -96,6 +101,7 @@ def setup_logger():
 @click.option('--extension', type=str, default='fits', help='Selecting extension. Usually just "fits". Can be "fits,json,jpg,ecsv" if you want to get those files too.')
 @click.option('--preview', is_flag=True, default=False, help='Selecting preview files, e.g., i2d quicklook image in jpg format.')
 @click.option('--auxiliary', is_flag=True, default=False, help='Selecting auxiliary files, e.g., guide star data.')
+@click.option('--guide-star-data/--no-guide-star-data', is_flag=True, default=False, help='Keeping or de-selecting guide star data by name matching ".*_gs-fg_*"')
 @click.option('--download/--no-download', is_flag=True, default=False)
 @click.option('--download-dir', type=click.Path(exists=False), default='.')
 def main(
@@ -105,6 +111,7 @@ def main(
         extension, 
         preview, 
         auxiliary, 
+        guide_star_data, 
         download, 
         download_dir, 
     ):
@@ -216,6 +223,10 @@ def main(
                 extension = extension,
             )
             if len(products) > 0: 
+                # de-select guide star data
+                if not guide_star_data:
+                    products = [product for product in products if (not check_guide_star_data(product))]
+                # 
                 for iproduct, product in enumerate(products):
                     logger.info('        ({}/{}) {} {}'.format(
                         iproduct+1, len(products), 

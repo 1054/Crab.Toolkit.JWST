@@ -190,6 +190,7 @@ def main(
         os.symlink(os.path.relpath(input_rate_file, output_dir), linked_rate_file)
     elif exp_type == 'NRS_MSASPEC':
         asn_items = [(os.path.basename(input_rate_file), 'science'),
+                     # 'MSAMETFL'
                     ]
         linked_rate_file = os.path.join(output_dir, os.path.basename(input_rate_file))
         if os.path.isfile(linked_rate_file) or os.path.islink(linked_rate_file):
