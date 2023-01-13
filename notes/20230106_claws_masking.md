@@ -27,19 +27,11 @@ Then we run the following code:
 ```
 for expo in 00001 00002 00003 00004; do
 
-    # for each exposure, we first build a galaxy emission mask.
-    # we input the region file with the `--exclude-region` so that any emisison within 
-    # the input region area will not be detected. 
-    
-    util_detect_source_and_create_seed_image.py \
-        jw01727044001_04101_${expo}_nrcb1_cal.fits \
-        --exclude-region jw01727044001_04101_${expo}_nrcb1_cal_claws.pix.reg \
-        --minpixarea 4 --smooth 2 \
-        --overwrite
-
-    # then we run the script again but this time detect claw emission mask.
-    # the region file is input as `--include-region` so that emission will be 
-    # detected only within the input region area, that is, the claws emission. 
+    # We run the following script to detect the claw emission mask.
+    # The region file is input with the `--include-region` argument 
+    # so that emission will be detected only within the input region area, 
+    # that is, the claws emission. 
+    # A smoothing with sigma of 1 pixel is specifed by the `--smooth` argument. 
     
     util_detect_source_and_create_seed_image.py \
         jw01727044001_04101_${expo}_nrcb1_cal.fits \
@@ -49,10 +41,8 @@ for expo in 00001 00002 00003 00004; do
 
     # Let's open DS9 and have a look at the claws
     
-    ds9 -tile grid layout 3 2 -width 1200 -height 550 -lock frame image -scale zscale \
+    ds9 -tile grid layout 3 1 -width 1200 -height 350 -lock frame image -scale zscale \
         jw01727044001_04101_${expo}_nrcb1_cal.fits \
-        jw01727044001_04101_${expo}_nrcb1_cal_galaxy_seed_image.fits \
-        jw01727044001_04101_${expo}_nrcb1_cal_galaxy_seed_image_zeroonemask.fits \
         jw01727044001_04101_${expo}_nrcb1_cal_claws_seed_image.fits \
         jw01727044001_04101_${expo}_nrcb1_cal_claws_seed_image_zeroonemask.fits \
         -zoom to fit \
@@ -67,7 +57,7 @@ for expo in 00001 00002 00003 00004; do
 done
 ```
 
-A screenshot of the DS9 display above is as below. First panel is the input cal image. Second and third panels are the galaxy emission mask. Fourth and fifth panels are the claws emission mask. The mask with file name suffix "zeroonemask" means that it is a 0-1 mask, whereas the one without that suffix has a float value from 0 to 1 because of the `--smooth` parameter. Smoothing more will get the final claw mask bigger, but it depends. 
+A screenshot of the DS9 display above is as below. First panel is the input cal image. Second and third panels are the detected and smoothed claw emission mask. The mask file with a name suffix "zeroonemask" means that it is a 0-1 mask, whereas the one without that suffix has float pixel values from 0 to 1 because of the `--smooth` parameter. Smoothing more will get the final claw mask bigger, but it needs some trials. 
 
 ![claws masking screenshot](20230106_claws_masking.pic/jw01727044001_04101_00001_nrcb1_cal_claws.png)
 
