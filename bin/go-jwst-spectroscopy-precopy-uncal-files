@@ -156,8 +156,13 @@ for (( i = 0; i < ${#data_files[@]}; i++ )); do
             mkdir auxiliary
         fi
         
+        if [[ "$data_dirpath" != "/"* ]]; then
+            rel_dirpath="../$data_dirpath"
+        else
+            rel_dirpath="$data_dirpath"
+        fi
         msa_name=$(echo "$dataset_name" | perl -p -e 's/^(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)$/\1/g')
-        msa_files=$(find "$data_dirpath" -maxdepth 1 -mindepth 1 -name "${msa_name}_*_msa.fits")
+        msa_files=$(find "$rel_dirpath" -maxdepth 1 -mindepth 1 -name "${msa_name}_*_msa.fits")
         for (( k = 0; k < ${#msa_files[@]}; k++ )); do
             # copy/link "msa.fits" data file from the MAST_DOWNLOAD_DIR
             msa_name=$(basename "${msa_files[k]}")
