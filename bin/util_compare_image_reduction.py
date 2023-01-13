@@ -321,6 +321,8 @@ class ImageComparer(object):
                     wspace=panel_wspace/panel_width,
                     hspace=panel_hspace/panel_height)
             )
+            if np.isscalar(axes):
+                axes = [axes]
             # 
             fluxes_list = []
             pixsc_list = []
