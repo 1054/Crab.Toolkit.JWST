@@ -89,7 +89,7 @@ def setup_logger():
     return logger, log_filepath
 
 def check_guide_star_data(product):
-    if re.match(r'^.*_gs-(fg|track|acq[0-9])_.*$', product['productFilename']):
+    if re.match(r'^.*_gs-(fg|track|acq[0-9]|id)_.*$', product['productFilename']):
         return True
     return False
 
