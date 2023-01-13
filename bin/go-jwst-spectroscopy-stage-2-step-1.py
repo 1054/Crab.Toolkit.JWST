@@ -183,7 +183,7 @@ def main(
         os.symlink(os.path.relpath(input_sourcecat_file, output_dir), linked_sourcecat_file)
         os.symlink(os.path.relpath(input_segmap_file, output_dir), linked_segmap_file)
         os.symlink(os.path.relpath(input_direct_image_file, output_dir), linked_direct_image_file)
-    elif exp_type in 'NRS_MSATA':
+    elif exp_type in ['NRS_MSATA', 'NRS_TACONFIRM']:
         asn_items = [(os.path.basename(input_rate_file), 'science'),
                     ]
         linked_rate_file = os.path.join(output_dir, os.path.basename(input_rate_file))
