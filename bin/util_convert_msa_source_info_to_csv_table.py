@@ -34,6 +34,7 @@ def main(
         if os.path.isfile(output_source_info_table):
             shutil.move(output_source_info_table, output_source_info_table+'.backup')
         if re.match(r'^.*\.(txt|dat)$', output_source_info_table):
+            output_source_info_table['source_name'] = [str(t) for t in output_source_info_table['source_name']]
             table.write(output_source_info_table, format='ascii.fixed_width', delimiter=' ', bookend=True)
             with open(output_source_info_table, 'r+') as fp:
                 fp.seek(0)
@@ -41,7 +42,7 @@ def main(
         else:
             table.write(output_source_info_table)
     
-    print('Output to {!r}'.format(output_region_file))
+    print('Output to {!r}'.format(output_source_info_table))
 
 
 
