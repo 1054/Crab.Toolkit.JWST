@@ -162,7 +162,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         echo "Command executed: python -c \"from jwst import datamodels; print(datamodels.open(\'$file_in\').meta.exposure.type)\""
         exit 255
     fi
-    if [[ "$exp_type" == "NRS_MSATA" ]]; then
+    if [[ "$exp_type" == "NRS_MSATA" ]] || [[ "$exp_type" == "NRS_TACONFIRM" ]]; then
         echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
         python $script_dir/go-jwst-imaging-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
     elif [[ "$exp_type" == "NRS_MSASPEC" ]]; then
