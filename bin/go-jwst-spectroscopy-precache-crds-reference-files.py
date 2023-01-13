@@ -21,6 +21,7 @@ from stpipe import crds_client
 from jwst import datamodels
 from jwst.pipeline import calwebb_detector1
 from jwst.pipeline import calwebb_spec2
+from jwst.pipeline import calwebb_image2
 from jwst.pipeline import calwebb_spec3
 
 # Import click
@@ -129,64 +130,79 @@ def main(jwst_uncal_files):
         # #         observatory = 'jwst',
         # #     )
         
+        
+        with datamodels.open(input_rate_file) as model:
+            exp_type = model.meta.exposure.type
+        
         logger.info('Detector1Pipeline._precache_references: {!r}'.format(jwst_uncal_file))
         pipeline_object = calwebb_detector1.Detector1Pipeline()
         pipeline_object._precache_references(jwst_uncal_file)
         
         
         logger.info('Spec2Pipeline._precache_references: {!r}'.format(jwst_uncal_file))
-        pipeline_object = calwebb_spec2.Spec2Pipeline()
-        #pipeline_object._precache_references(jwst_uncal_file) # this will fail
-        shutil.copy2(jwst_uncal_file, jwst_uncal_file+'.tmp')
-        with datamodels.open(jwst_uncal_file+'.tmp') as model:
-            if model.meta.exposure.type in ['NRS_MSATA', 'NRS_TACONFIRM']:
-                model.meta.exposure.type = 'NRS_MSASPEC'
-            #pipeline_object._precache_references(model) # this will also fail
-            ovr_refs = {reftype: pipeline_object.get_ref_override(reftype) 
-                            for reftype in pipeline_object.reference_file_types 
-                            if pipeline_object.get_ref_override(reftype) is not None}
-            fetch_types = sorted(set(pipeline_object.reference_file_types) - set(ovr_refs.keys()))
-            for key in ['sflat', 'area']:
-                if key in fetch_types:
-                    fetch_types.remove(key)
-            logger.info("Prefetching reference files for dataset: " + repr(model.meta.filename) +
-                        " reftypes = " + repr(fetch_types)) # following "stpipe/pipeline.py"
-            crds_refs = crds_client.get_multiple_reference_paths(
-                model.get_crds_parameters(), 
-                fetch_types, 
-                model.crds_observatory
-            )
-        os.remove(jwst_uncal_file+'.tmp')
-        
-        
-        logger.info('Spec3Pipeline._precache_references: {!r}'.format(jwst_uncal_file))
-        pipeline_object = calwebb_spec3.Spec3Pipeline()
-        #pipeline_object._precache_references(jwst_uncal_file) # this will fail
-        shutil.copy2(jwst_uncal_file, jwst_uncal_file+'.tmp')
-        with datamodels.open(jwst_uncal_file+'.tmp') as model:
-            if model.meta.exposure.type in ['NRS_MSATA', 'NRS_TACONFIRM']:
-                model.meta.exposure.type = 'NRS_MSASPEC'
-            #pipeline_object._precache_references(model) # this will also fail
-            ovr_refs = {reftype: pipeline_object.get_ref_override(reftype) 
-                            for reftype in pipeline_object.reference_file_types 
-                            if pipeline_object.get_ref_override(reftype) is not None}
-            fetch_types = sorted(set(pipeline_object.reference_file_types) - set(ovr_refs.keys()))
-            for key in ['area']:
-                if key in fetch_types:
-                    fetch_types.remove(key)
-            logger.info("Prefetching reference files for dataset: " + repr(model.meta.filename) +
-                        " reftypes = " + repr(fetch_types)) # following "stpipe/pipeline.py"
-            crds_refs = crds_client.get_multiple_reference_paths(
-                model.get_crds_parameters(), 
-                fetch_types, 
-                model.crds_observatory
-            )
-            ref_path_map = dict(list(crds_refs.items()) + list(ovr_refs.items()))
-            for (reftype, refpath) in sorted(ref_path_map.items()):
-                how = "Override" if reftype in ovr_refs else "Prefetch"
-                logger.info(f"{how} for {reftype.upper()} reference file is '{refpath}'.")
-                crds_client.check_reference_open(refpath)
-        os.remove(jwst_uncal_file+'.tmp')
+        if exp_type in ['NRS_IMAGE', 'NRS_WATA', 'NRS_MSATA', 'NRS_TACONFIRM', 'NRS_CONFIRM', 'NRS_FOCUS', 'NRS_MIMF']:
+            pipeline_object = calwebb_image2.Image2Pipeline()
+            pipeline_object._precache_references(jwst_uncal_file)
+            
+            # No need stage 3
+            # see https://jwst-pipeline.readthedocs.io/_/downloads/en/stable/pdf/
+            # Table 4
+            
+        else:
+            pipeline_object = calwebb_spec2.Spec2Pipeline()
+            pipeline_object._precache_references(jwst_uncal_file)
+            # 
+            #shutil.copy2(jwst_uncal_file, jwst_uncal_file+'.tmp')
+            #with datamodels.open(jwst_uncal_file+'.tmp') as model:
+            #    if model.meta.exposure.type in ['NRS_MSATA', 'NRS_TACONFIRM']:
+            #        model.meta.exposure.type = 'NRS_MSASPEC'
+            #    #pipeline_object._precache_references(model) # this will also fail
+            #    ovr_refs = {reftype: pipeline_object.get_ref_override(reftype) 
+            #                    for reftype in pipeline_object.reference_file_types 
+            #                    if pipeline_object.get_ref_override(reftype) is not None}
+            #    fetch_types = sorted(set(pipeline_object.reference_file_types) - set(ovr_refs.keys()))
+            #    for key in ['sflat', 'area']:
+            #        if key in fetch_types:
+            #            fetch_types.remove(key)
+            #    logger.info("Prefetching reference files for dataset: " + repr(model.meta.filename) +
+            #                " reftypes = " + repr(fetch_types)) # following "stpipe/pipeline.py"
+            #    crds_refs = crds_client.get_multiple_reference_paths(
+            #        model.get_crds_parameters(), 
+            #        fetch_types, 
+            #        model.crds_observatory
+            #    )
+            #os.remove(jwst_uncal_file+'.tmp')
+            
+            
+            logger.info('Spec3Pipeline._precache_references: {!r}'.format(jwst_uncal_file))
+            pipeline_object = calwebb_spec3.Spec3Pipeline()
+            pipeline_object._precache_references(jwst_uncal_file) # this will fail
+            # 
+            #shutil.copy2(jwst_uncal_file, jwst_uncal_file+'.tmp')
+            # with datamodels.open(jwst_uncal_file+'.tmp') as model:
+            #     if model.meta.exposure.type in ['NRS_MSATA', 'NRS_TACONFIRM']:
+            #         model.meta.exposure.type = 'NRS_MSASPEC'
+            #     #pipeline_object._precache_references(model) # this will also fail
+            #     ovr_refs = {reftype: pipeline_object.get_ref_override(reftype) 
+            #                     for reftype in pipeline_object.reference_file_types 
+            #                     if pipeline_object.get_ref_override(reftype) is not None}
+            #     fetch_types = sorted(set(pipeline_object.reference_file_types) - set(ovr_refs.keys()))
+            #     for key in ['area']:
+            #         if key in fetch_types:
+            #             fetch_types.remove(key)
+            #     logger.info("Prefetching reference files for dataset: " + repr(model.meta.filename) +
+            #                 " reftypes = " + repr(fetch_types)) # following "stpipe/pipeline.py"
+            #     crds_refs = crds_client.get_multiple_reference_paths(
+            #         model.get_crds_parameters(), 
+            #         fetch_types, 
+            #         model.crds_observatory
+            #     )
+            #     ref_path_map = dict(list(crds_refs.items()) + list(ovr_refs.items()))
+            #     for (reftype, refpath) in sorted(ref_path_map.items()):
+            #         how = "Override" if reftype in ovr_refs else "Prefetch"
+            #         logger.info(f"{how} for {reftype.upper()} reference file is '{refpath}'.")
+            #         crds_client.check_reference_open(refpath)
+            # os.remove(jwst_uncal_file+'.tmp')
         
         
         

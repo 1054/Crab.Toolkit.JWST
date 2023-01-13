@@ -38,6 +38,7 @@ if not ('CRDS_SERVER_URL' in os.environ):
 # Import JWST pipeline-related modules
 import jwst
 from jwst.pipeline import calwebb_spec2
+from jwst.pipeline import calwebb_image2
 from jwst import datamodels
 from jwst.associations.asn_from_list import asn_from_list
 from jwst.associations.lib.rules_level2_base import DMSLevel2bBase

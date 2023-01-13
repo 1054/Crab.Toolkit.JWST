@@ -153,8 +153,15 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
     fi
-    echo "*** Running ***" python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
-    python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    #exp_type=$(python -c "from jwst import datamodels; with datamodels.open('$file_in') as model: print(model.meta.exposure.type)")
+    #if [[ "$exp_type" == "NRS_MSATA" ]]
+    if [[ "$dataset_name" == *"_nrs1" ]] || [[ "$dataset_name" == *"_nrs2" ]]; then
+        echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+        python $script_dir/go-jwst-imaging-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    else
+        echo "*** Running ***" python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+        python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    fi
     ret=$?
     if [[ $ret -ne 0 ]]; then
         echo "Error occurred?!"
