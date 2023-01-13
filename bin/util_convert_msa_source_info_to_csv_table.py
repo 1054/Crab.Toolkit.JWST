@@ -34,7 +34,9 @@ def main(
         if os.path.isfile(output_source_info_table):
             shutil.move(output_source_info_table, output_source_info_table+'.backup')
         if re.match(r'^.*\.(txt|dat)$', output_source_info_table):
-            output_source_info_table['source_name'] = [str(t) for t in output_source_info_table['source_name']]
+            for colname in ['alias', 'source_id', 'source_name']:
+                if np.any([t.find(' ')>=0 for t in table[colname]]):
+                    table[colname] = ['"{}"'.format(t) for t in table[colname]] # add quotes
             table.write(output_source_info_table, format='ascii.fixed_width', delimiter=' ', bookend=True)
             with open(output_source_info_table, 'r+') as fp:
                 fp.seek(0)
