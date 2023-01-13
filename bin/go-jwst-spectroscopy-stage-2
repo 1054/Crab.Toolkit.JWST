@@ -156,9 +156,10 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
     fi
-    #exp_type=$(python -c "from jwst import datamodels; print(datamodels.open('$file_in').meta.exposure.type)" 2>/dev/null)
+    exp_type=$(python -c "from jwst import datamodels; print(datamodels.open('$file_in').meta.exposure.type)" 2>/dev/null)
     if [[ x"$exp_type" == x"" ]]; then
         echo "Error! Could not get datamodel.meta.exposure.type for \"$file_in\"!"
+        echo "Command executed: python -c \"from jwst import datamodels; print(datamodels.open(\'$file_in\').meta.exposure.type)\""
         exit 255
     fi
     if [[ "$exp_type" == "NRS_MSATA" ]]; then
