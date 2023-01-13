@@ -62,6 +62,7 @@ argstr=""
 work_dir="."
 current_dir=$(pwd)
 maxcores="all" # "none", "quarter", "half", "all"
+use_ellipses=0
 overwrite=0
 dataset_names=()
 unused_args=()
@@ -80,6 +81,9 @@ while [[ $iarg -le $# ]]; do
                 maxcores=$(echo "${!iarg}" | perl -p -e 's%/$%%g')
                 echo "maxcores = \"$maxcores\""
             fi
+        elif [[ "$argstr" == "--use-ellipses" ]]; then
+            use_ellipses=1
+            echo "use_ellipses = \"$use_ellipses\""
         else
             unused_args+=("${!iarg}")
         fi
@@ -186,6 +190,9 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     kwargs=()
     if [[ ! -z "$maxcores" ]]; then
         kwargs+=(--maximum-cores "$maxcores")
+    fi
+    if [[ $use_ellipses -gt 0 ]]; then
+        kwargs+=(--use-ellipses)
     fi
     echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}
     python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}
