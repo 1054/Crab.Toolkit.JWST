@@ -129,6 +129,16 @@ Then process the rate data again with calwebb_image2 to get the cal data, then w
 
 
 
+## Example results
+
+Left image is the mosaic with claw mask applied to the rate data, and right image is the default mosaic: 
+
+![](20230106_claws_masking.pic/mosaic_after_and_before_masking_out_claws.png)
+
+Zoom-in of the previous figure: 
+
+![](20230106_claws_masking.pic/mosaic_after_and_before_masking_out_claws_zoomed_in.png)
+
 
 
 
