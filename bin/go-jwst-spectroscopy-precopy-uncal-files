@@ -129,21 +129,61 @@ for (( i = 0; i < ${#data_files[@]}; i++ )); do
     if [[ ! -f uncals/${dataset_name}_uncal.fits ]] && [[ ! -L uncals/${dataset_name}_uncal.fits ]]; then
         # make relative data path correct if it is not an absolute path
         if [[ "$data_dirpath" != "/"* ]]; then
-            data_dirpath="../../$data_dirpath"
+            rel_dirpath="../../$data_dirpath"
+        else
+            rel_dirpath="$data_dirpath"
         fi
         # make hardcopy or symlink
         if [[ $hardcopy -gt 0 ]]; then
-            echo cp "${data_dirpath}/${dataset_name}_uncal.fits" \
-                        uncals/${dataset_name}_uncal.fits
-            cp "${data_dirpath}/${dataset_name}_uncal.fits" \
-                    uncals/${dataset_name}_uncal.fits
+            echo cp "${rel_dirpath}/${dataset_name}_uncal.fits" \
+                            "uncals/${dataset_name}_uncal.fits"
+            cp "${rel_dirpath}/${dataset_name}_uncal.fits" \
+                       "uncals/${dataset_name}_uncal.fits"
         else
-            echo ln -fs "${data_dirpath}/${dataset_name}_uncal.fits" \
-                        uncals/${dataset_name}_uncal.fits
-            ln -fs "${data_dirpath}/${dataset_name}_uncal.fits" \
-                    uncals/${dataset_name}_uncal.fits
+            echo ln -fs "${rel_dirpath}/${dataset_name}_uncal.fits" \
+                                "uncals/${dataset_name}_uncal.fits"
+            ln -fs "${rel_dirpath}/${dataset_name}_uncal.fits" \
+                           "uncals/${dataset_name}_uncal.fits"
         fi
     fi
+    
+    # for "*_nrs" also copy "msa.fits"
+    if [[ "$dataset_name" == *"_nrs1" ]] || [[ "$dataset_name" == *"_nrs2" ]] || \
+       [[ "$dataset_name" == *"_nrs3" ]] || [[ "$dataset_name" == *"_nrs4" ]]; then
+        
+        if [[ ! -d auxiliary ]]; then
+            echo "mkdir auxiliary"
+            mkdir auxiliary
+        fi
+        
+        msa_name=$(echo "$dataset_name" | perl -p -e 's/^jw([0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)$/\1/g')
+        msa_files=$(find "$data_dirpath" -maxdepth 1 -mindepth 1 -name "${msa_name}_*_msa.fits")
+        for (( k = 0; k < ${#msa_files[@]}; k++ )); do
+            # copy/link "msa.fits" data file from the MAST_DOWNLOAD_DIR
+            msa_name=$(basename "${msa_files[k]}")
+            if [[ ! -f "auxiliary/$msa_name" ]] && [[ ! -L "auxiliary/$msa_name" ]]; then
+                # make relative data path correct if it is not an absolute path
+                if [[ "$data_dirpath" != "/"* ]]; then
+                    rel_dirpath="../../$data_dirpath"
+                else
+                    rel_dirpath="$data_dirpath"
+                fi
+                # make hardcopy or symlink
+                if [[ $hardcopy -gt 0 ]]; then
+                    echo cp "${rel_dirpath}/$msa_name" \
+                                 "auxiliary/$msa_name"
+                    cp "${rel_dirpath}/$msa_name" \
+                             "auxiliary/$msa_name"
+                else
+                    echo ln -fs "${rel_dirpath}/$msa_name" \
+                                     "auxiliary/$msa_name"
+                    ln -fs "${rel_dirpath}/$msa_name" \
+                                 "auxiliary/$msa_name"
+                fi
+            fi
+        done
+    fi
+    
     
     echo cd ../
     cd ../
