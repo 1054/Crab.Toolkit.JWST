@@ -83,13 +83,16 @@ while [[ $iarg -le $# ]]; do
                 echo "maxcores = \"$maxcores\""
             fi
         elif [[ "$argstr" == "--use-ellipses" ]]; then
-            iarg=$((iarg+1))
             use_ellipses="True"
             echo "use_ellipses = \"$use_ellipses\""
         elif [[ "$argstr" == "--destripe-tilted-angles" ]]; then
-            iarg=$((iarg+1))
             destripe_tilted_angles="True"
             echo "destripe_tilted_angles = \"$destripe_tilted_angles\""
+        elif [[ "$argstr" == "--overwrite" ]]; then
+            #overwrite=1
+            #echo "overwrite = \"$overwrite\""
+            echo "Setting --overwrite can be dangerous! If you really want to overwrite, please delete existing output files!"
+            exit 255
         else
             unused_args+=("${!iarg}")
         fi

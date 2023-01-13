@@ -62,7 +62,7 @@ argstr=""
 work_dir="."
 current_dir=$(pwd)
 maxcores="all" # "none", "quarter", "half", "all"
-use_ellipses=0
+use_ellipses="False"
 overwrite=0
 dataset_names=()
 unused_args=()
@@ -82,8 +82,13 @@ while [[ $iarg -le $# ]]; do
                 echo "maxcores = \"$maxcores\""
             fi
         elif [[ "$argstr" == "--use-ellipses" ]]; then
-            use_ellipses=1
+            use_ellipses="True"
             echo "use_ellipses = \"$use_ellipses\""
+        elif [[ "$argstr" == "--overwrite" ]]; then
+            #overwrite=1
+            #echo "overwrite = \"$overwrite\""
+            echo "Setting --overwrite can be dangerous! If you really want to overwrite, please delete existing output files!"
+            exit 255
         else
             unused_args+=("${!iarg}")
         fi
@@ -191,7 +196,9 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     if [[ ! -z "$maxcores" ]]; then
         kwargs+=(--maximum-cores "$maxcores")
     fi
-    if [[ $use_ellipses -gt 0 ]]; then
+    if [[ "$use_ellipses" == "False" ]]; then
+        kwargs+=(--no-use-ellipses)
+    else
         kwargs+=(--use-ellipses)
     fi
     echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-1-step-1.py "$file_in" "$file_out" ${kwargs[@]}

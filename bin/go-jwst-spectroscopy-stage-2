@@ -63,6 +63,9 @@ while [[ $iarg -le $# ]]; do
         elif [[ "$argstr" == "--no-sextractor" ]]; then
             no_sextractor=1
             echo "no_sextractor = \"$no_sextractor\""
+        elif [[ "$argstr" == "--overwrite" ]]; then
+            overwrite=1
+            echo "overwrite = \"$overwrite\""
         else
             echo "Unkonwn argument: ${!iarg}"
         fi
