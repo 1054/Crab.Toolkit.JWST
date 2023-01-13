@@ -84,9 +84,10 @@ def setup_logger():
 @click.command()
 @click.argument('input_rate_file', type=click.Path(exists=True))
 @click.argument('output_cal_file', type=click.Path(exists=False))
-@click.option('--sourcecat', 'input_sourcecat_file', type=click.Path(exists=True))
-@click.option('--segmap', 'input_segmap_file', type=click.Path(exists=True))
-@click.option('--direct-image', 'input_direct_image_file', type=click.Path(exists=True))
+@click.option('--sourcecat', 'input_sourcecat_file', type=click.Path(exists=True), default=None)
+@click.option('--segmap', 'input_segmap_file', type=click.Path(exists=True), default=None)
+@click.option('--direct-image', 'input_direct_image_file', type=click.Path(exists=True), default=None)
+@click.option('--msa-meta-file', 'input_msa_meta_file', type=click.Path(exists=True), default=None, help='The auxiliary data shipped with the NRS_MSASPEC data.')
 @click.option('--user-flat-file', type=click.Path(exists=True), default=None, help='A user-specified flat file, FITS format.')
 @click.option('--user-flat-dir', type=click.Path(exists=True), default=None, help='A directory to find user-specified flat file e.g. "*{filter}*.fits".')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
@@ -96,6 +97,7 @@ def main(
         input_sourcecat_file, 
         input_segmap_file, 
         input_direct_image_file, 
+        input_msa_meta_file, 
         user_flat_file, 
         user_flat_dir, 
         overwrite = False, 
@@ -189,13 +191,19 @@ def main(
             os.remove(linked_rate_file)
         os.symlink(os.path.relpath(input_rate_file, output_dir), linked_rate_file)
     elif exp_type == 'NRS_MSASPEC':
+        if input_msa_meta_file is None:
+            logger.info('Error! We need a --msa-meta-file!')
+            raise Exception('Error! We need a --msa-meta-file!')
         asn_items = [(os.path.basename(input_rate_file), 'science'),
-                     # 'MSAMETFL'
                     ]
         linked_rate_file = os.path.join(output_dir, os.path.basename(input_rate_file))
+        linked_msa_meta_file = os.path.join(output_dir, os.path.basename(input_msa_meta_file))
         if os.path.isfile(linked_rate_file) or os.path.islink(linked_rate_file):
             os.remove(linked_rate_file)
+        if os.path.isfile(linked_msa_meta_file) or os.path.islink(linked_msa_meta_file):
+            os.remove(linked_msa_meta_file)
         os.symlink(os.path.relpath(input_rate_file, output_dir), linked_rate_file)
+        os.symlink(os.path.relpath(input_msa_meta_file, output_dir), linked_msa_meta_file)
     else:
         raise NotImplementedError('Not implemented for the exp_type {!r} of data file {!r}!'.format(exp_type, input_rate_file))
     
