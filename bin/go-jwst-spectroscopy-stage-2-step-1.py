@@ -158,6 +158,7 @@ def main(
     with datamodels.open(input_rate_file) as model:
         exp_type = model.meta.exposure.type
     if exp_type in calwebb_spec2.WFSS_TYPES:
+        # see calwebb_spec2.py `if exp_type in WFSS_TYPES:`
         asn_items = [(os.path.basename(input_rate_file), 'science'),
                      (os.path.basename(input_sourcecat_file), 'sourcecat'),
                      (os.path.basename(input_segmap_file), 'segmap'),
@@ -179,6 +180,13 @@ def main(
         os.symlink(os.path.relpath(input_sourcecat_file, output_dir), linked_sourcecat_file)
         os.symlink(os.path.relpath(input_segmap_file, output_dir), linked_segmap_file)
         os.symlink(os.path.relpath(input_direct_image_file, output_dir), linked_direct_image_file)
+    elif exp_type == 'NRS_MSATA':
+        asn_items = [(os.path.basename(input_rate_file), 'science'),
+                    ]
+        linked_rate_file = os.path.join(output_dir, os.path.basename(input_rate_file))
+        if os.path.isfile(linked_rate_file) or os.path.islink(linked_rate_file):
+            os.remove(linked_rate_file)
+        os.symlink(os.path.relpath(input_rate_file, output_dir), linked_rate_file)
     else:
         raise NotImplementedError('Not implemented for the exp_type {!r} of data file {!r}!'.format(exp_type, input_rate_file))
     

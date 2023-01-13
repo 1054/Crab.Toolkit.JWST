@@ -541,7 +541,7 @@ DEFAULT_PIXEL_SCALE = None
                                       default=False, 
                                       help='Set enforce_user_order to True for tweakreg_step. Align images in user specified order.')
 @click.option('--grid-step', type=float, 
-                             default=10.0, 
+                             default=3.0, 
                              help='If `--very-big-mosaic` is set, this will be the box size to divide the full mosaic into. In arcminutes.')
 @click.option('--combine-program/--no-combine-program', is_flag=True, default=False, help='Combine all programs into one.')
 @click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
