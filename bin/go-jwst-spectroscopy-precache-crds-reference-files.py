@@ -131,7 +131,7 @@ def main(jwst_uncal_files):
         # #     )
         
         
-        with datamodels.open(input_rate_file) as model:
+        with datamodels.open(jwst_uncal_file) as model:
             exp_type = model.meta.exposure.type
         
         logger.info('Detector1Pipeline._precache_references: {!r}'.format(jwst_uncal_file))
