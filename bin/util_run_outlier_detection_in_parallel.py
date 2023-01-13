@@ -148,6 +148,7 @@ def run_outlier_detection_in_parallel(
         max_cores = 'all', 
         save_group_table_file = '', 
         return_group_table = False, 
+        overwrite = False, 
         verbose = True, 
     ):
     """
@@ -182,6 +183,165 @@ def run_outlier_detection_in_parallel(
     else:
         this_logger = logger
     
+    
+    # load existing 'save_group_table_file'
+    group_table = None
+    if save_group_table_file != '':
+        if os.path.isfile(save_group_table_file) and not overwrite: 
+            this_logger.info('Loading existing group table file {!r}'.format(save_group_table_file))
+            if re.match(r'^.*\.(txt|dat)', save_group_table_file):
+                group_table = Table.read(save_group_table_file, format='ascii.commented_header')
+            else:
+                group_table = Table.read(save_group_table_file)
+            if 'core_indices' not in group_table.colnames or \
+               'main_indices' not in group_table.colnames or \
+               'edge_indices' not in group_table.colnames or \
+               'full_indices' not in group_table.colnames:
+                group_table = None
+            group_core_indices = [list(map(int, t.split(','))) for t in group_table['core_indices']]
+            group_main_indices = [list(map(int, t.split(','))) for t in group_table['main_indices']]
+            group_edge_indices = [list(map(int, t.split(','))) for t in group_table['edge_indices']]
+            group_full_indices = [list(map(int, t.split(','))) for t in group_table['full_indices']]
+    
+    if group_table is None:
+        
+        # make footprints
+        image_footprints = []
+        for i in range(len(image_models)):
+            message_str = ('Extracting image_models[{}] @{} {!r} footprint'
+                           .format(
+                             i, hex(id(image_models[i])), image_models[i].meta.filename, 
+                           )
+                          )
+            this_logger.info(message_str)
+            image_footprint = Polygon(image_models[i].meta.wcs.footprint())
+            image_footprints.append(image_footprint)
+        
+        # determine groups of images
+        # We start from the first index of the image list, go through the list to take 
+        # 'core_image_per_group'-number of overlapping images, and build a 'core_footprint'.
+        # Then we go over the remain image list to find all overlapping images, and
+        # put images that are >50% overlaped also into a main-image list. 
+        # Then we base on the main image footprint and go over again the remain image list
+        # to find all overlapped images, thus building a full-image list to process in this group. 
+        # Then we will call the outlier_detection, but we will only update the results
+        # for images in the main-image list. 
+        group_core_indices = []
+        group_main_indices = []
+        group_edge_indices = []
+        group_full_indices = []
+        all_indices = np.arange(len(image_models)).tolist()
+        g = 0
+        while len(all_indices) > 0:
+            first_index = all_indices.pop(0)
+            core_indices = []
+            core_indices.append(first_index)
+            core_footprint = copy.copy(image_footprints[first_index])
+            k = 0
+            while k < len(all_indices) and len(all_indices) > 0 and len(core_indices) < core_image_per_group:
+                next_index = all_indices[k]
+                next_footprint = image_footprints[next_index]
+                if core_footprint.intersects(next_footprint):
+                    all_indices.pop(k)
+                    core_indices.append(next_index)
+                    core_footprint = core_footprint.union(next_footprint)
+                else:
+                    k+=1
+            # 
+            # now we have core_indices and core_footprint for this group
+            # we need to find all other overlapped images
+            if len(core_indices) > 0:
+                # 
+                # go through the remain `all_indices` list to sort out main overlapped images
+                # whose overlapping fraction with the `core_footprint` is larger than the `main_image_min_overlap` fraction.
+                main_indices = copy.copy(core_indices)
+                main_footprint = copy.copy(core_footprint)
+                k = 0
+                while k < len(all_indices) and len(all_indices) > 0:
+                    next_index = all_indices[k]
+                    next_footprint = image_footprints[next_index]
+                    overlap_fraction = core_footprint.intersection(next_footprint).area / next_footprint.area
+                    this_logger.info('checking overlap fraction between core_footprint ({}) and next_footprint ({}): {}'.format(
+                        repr(core_indices), next_index, overlap_fraction))
+                    if overlap_fraction >= main_image_min_overlap:
+                        all_indices.pop(k)
+                        main_indices.append(next_index)
+                        main_footprint = main_footprint.union(next_footprint)
+                        this_logger.info('growing main indices ({}): {}'.format(len(main_indices), repr(main_indices)))
+                    else:
+                        k+=1
+                # 
+                # go through the remain `all_indices` list to sort out edge overlapped images
+                # which overlap with the `main_footprint`.
+                edge_indices = []
+                full_indices = copy.copy(main_indices)
+                k = 0
+                while k < len(all_indices) and len(all_indices) > 0:
+                    next_index = all_indices[k]
+                    next_footprint = image_footprints[next_index]
+                    if main_footprint.intersects(next_footprint):
+                        all_indices.pop(k)
+                        edge_indices.append(next_index)
+                        full_indices.append(next_index)
+                    else:
+                        k+=1
+                # 
+                group_core_indices.append(core_indices)
+                group_main_indices.append(main_indices)
+                group_edge_indices.append(edge_indices)
+                group_full_indices.append(full_indices)
+                # 
+                if verbose:
+                    this_logger.info('group_core_indices[{}] = {}'.format(g, repr(core_indices)))
+                    this_logger.info('group_main_indices[{}] = {}'.format(g, repr(main_indices)))
+                    this_logger.info('group_full_indices[{}] = {}'.format(g, repr(full_indices)))
+                # 
+                g+=1
+        
+        
+        # if return_group_table then do not run any processing but just return the group table
+        group_table_dict = OrderedDict()
+        group_table_dict['group_id'] = []
+        group_table_dict['core_indices'] = []
+        group_table_dict['main_indices'] = []
+        group_table_dict['main_filenames'] = []
+        group_table_dict['edge_indices'] = []
+        group_table_dict['edge_filenames'] = []
+        group_table_dict['full_indices'] = []
+        for k in range(len(group_full_indices)):
+            core_indices = group_core_indices[k]
+            main_indices = group_main_indices[k]
+            edge_indices = group_edge_indices[k]
+            full_indices = group_full_indices[k]
+            main_filenames = [image_models[t].meta.filename for t in main_indices]
+            edge_filenames = [image_models[t].meta.filename for t in edge_indices]
+            group_table_dict['group_id'].append(k+1)
+            group_table_dict['core_indices'].append(','.join(map(str,core_indices)))
+            group_table_dict['main_indices'].append(','.join(map(str,main_indices)))
+            group_table_dict['main_filenames'].append(','.join(main_filenames))
+            group_table_dict['edge_indices'].append(','.join(map(str,edge_indices)))
+            group_table_dict['edge_filenames'].append(','.join(edge_filenames))
+            group_table_dict['full_indices'].append(','.join(map(str,full_indices)))
+        group_table = Table(group_table_dict)
+        if save_group_table_file != '':
+            if os.path.isfile(save_group_table_file):
+                if overwrite:
+                    shutil.move(save_group_table_file, save_group_table_file+'.backup')
+            else:
+                save_group_table_dir = os.path.dirname(save_group_table_file)
+                if save_group_table_dir != '' and not os.path.isdir(save_group_table_dir):
+                    os.makedirs(save_group_table_dir)
+            this_logger.info('Building outlier_detection group table and saving it to {!r}.'.format(save_group_table_file))
+            if re.match(r'^.*\.(txt|dat)', save_group_table_file):
+                group_table.write(save_group_table_file, format='ascii.commented_header')
+            else:
+                group_table.write(save_group_table_file)
+    
+    if return_group_table:
+        this_logger.info('Building outlier_detection group table and returning it without actually running outlier_detection.')
+        return group_table
+    
+    
     # determine number of parallel processes
     n_parallel = mp.cpu_count()
     if isinstance(max_cores, int):
@@ -200,143 +360,14 @@ def run_outlier_detection_in_parallel(
         n_parallel = 1
     this_logger.info('Running outlier_detection in parallel with n_parallel = {}'.format(n_parallel))
     
-    # make footprints
-    image_footprints = []
-    for i in range(len(image_models)):
-        message_str = ('Extracting image_models[{}] @{} {!r} footprint'
-                       .format(
-                         i, hex(id(image_models[i])), image_models[i].meta.filename, 
-                       )
-                      )
-        this_logger.info(message_str)
-        image_footprint = Polygon(image_models[i].meta.wcs.footprint())
-        image_footprints.append(image_footprint)
     
-    # determine groups of images
-    # We start from the first index of the image list, go through the list to take 
-    # 'core_image_per_group'-number of overlapping images, and build a 'core_footprint'.
-    # Then we go over the remain image list to find all overlapping images, and
-    # put images that are >50% overlaped also into a main-image list. 
-    # Then we base on the main image footprint and go over again the remain image list
-    # to find all overlapped images, thus building a full-image list to process in this group. 
-    # Then we will call the outlier_detection, but we will only update the results
-    # for images in the main-image list. 
-    group_core_indices = []
-    group_main_indices = []
-    group_edge_indices = []
-    group_full_indices = []
-    all_indices = np.arange(len(image_models)).tolist()
-    g = 0
-    while len(all_indices) > 0:
-        first_index = all_indices.pop(0)
-        core_indices = []
-        core_indices.append(first_index)
-        core_footprint = copy.copy(image_footprints[first_index])
-        k = 0
-        while k < len(all_indices) and len(all_indices) > 0 and len(core_indices) < core_image_per_group:
-            next_index = all_indices[k]
-            next_footprint = image_footprints[next_index]
-            if core_footprint.intersects(next_footprint):
-                all_indices.pop(k)
-                core_indices.append(next_index)
-                core_footprint = core_footprint.union(next_footprint)
-            else:
-                k+=1
-        # 
-        # now we have core_indices and core_footprint for this group
-        # we need to find all other overlapped images
-        if len(core_indices) > 0:
-            # 
-            # go through the remain `all_indices` list to sort out main overlapped images
-            # whose overlapping fraction with the `core_footprint` is larger than the `main_image_min_overlap` fraction.
-            main_indices = copy.copy(core_indices)
-            main_footprint = copy.copy(core_footprint)
-            k = 0
-            while k < len(all_indices) and len(all_indices) > 0:
-                next_index = all_indices[k]
-                next_footprint = image_footprints[next_index]
-                overlap_fraction = core_footprint.intersection(next_footprint).area / next_footprint.area
-                this_logger.info('checking overlap fraction between core_footprint ({}) and next_footprint ({}): {}'.format(
-                    repr(core_indices), next_index, overlap_fraction))
-                if overlap_fraction >= main_image_min_overlap:
-                    all_indices.pop(k)
-                    main_indices.append(next_index)
-                    main_footprint = main_footprint.union(next_footprint)
-                    this_logger.info('growing main indices ({}): {}'.format(len(main_indices), repr(main_indices)))
-                else:
-                    k+=1
-            # 
-            # go through the remain `all_indices` list to sort out edge overlapped images
-            # which overlap with the `main_footprint`.
-            edge_indices = []
-            full_indices = copy.copy(main_indices)
-            k = 0
-            while k < len(all_indices) and len(all_indices) > 0:
-                next_index = all_indices[k]
-                next_footprint = image_footprints[next_index]
-                if main_footprint.intersects(next_footprint):
-                    all_indices.pop(k)
-                    edge_indices.append(next_index)
-                    full_indices.append(next_index)
-                else:
-                    k+=1
-            # 
-            group_core_indices.append(core_indices)
-            group_main_indices.append(main_indices)
-            group_edge_indices.append(edge_indices)
-            group_full_indices.append(full_indices)
-            # 
-            if verbose:
-                this_logger.info('group_core_indices[{}] = {}'.format(g, repr(core_indices)))
-                this_logger.info('group_main_indices[{}] = {}'.format(g, repr(main_indices)))
-                this_logger.info('group_full_indices[{}] = {}'.format(g, repr(full_indices)))
-            # 
-            g+=1
-    
-    # 
-    # if return_group_table then do not run any processing but just return the group table
-    group_table_dict = OrderedDict()
-    group_table_dict['group_id'] = []
-    group_table_dict['main_indices'] = []
-    group_table_dict['main_filenames'] = []
-    group_table_dict['edge_indices'] = []
-    group_table_dict['edge_filenames'] = []
-    for k in range(len(group_full_indices)):
-        core_indices = group_core_indices[k]
-        main_indices = group_main_indices[k]
-        edge_indices = group_edge_indices[k]
-        full_indices = group_full_indices[k]
-        main_filenames = [image_models[t].meta.filename for t in main_indices]
-        edge_filenames = [image_models[t].meta.filename for t in edge_indices]
-        group_table_dict['group_id'].append(k+1)
-        group_table_dict['main_indices'].append(','.join(map(str,main_indices)))
-        group_table_dict['main_filenames'].append(','.join(main_filenames))
-        group_table_dict['edge_indices'].append(','.join(map(str,edge_indices)))
-        group_table_dict['edge_filenames'].append(','.join(edge_filenames))
-        group_table = Table(group_table_dict)
-    if save_group_table_file != '':
-        if os.path.isfile(save_group_table_file):
-            shutil.move(save_group_table_file, save_group_table_file+'.backup')
-        else: 
-            save_group_table_dir = os.path.dirname(save_group_table_file)
-            if save_group_table_dir != '' and not os.path.isdir(save_group_table_dir):
-                os.makedirs(save_group_table_dir)
-        this_logger.info('Building outlier_detection group table and saving it to {!r}.'.format(save_group_table_file))
-        if re.match(r'^.*\.(txt|dat)', save_group_table_file):
-            group_table.write(save_group_table_file, format='ascii.commented_header')
-        else:
-            group_table.write(save_group_table_file)
-    if return_group_table:
-        this_logger.info('Building outlier_detection group table and returning it without actually running outlier_detection.')
-        return group_table
-    
-    # 
+    # iterate run_one_outlier_detection_group
     using_multiprocessing = False # TODO can not be True because something can not be pickled -- CANNOT DO PARALLEL!
     if using_multiprocessing:
         pool = mp.Pool(n_parallel)
         k = 0
         rets = []
-        for k in range(len(group_full_indices)):
+        for k in range(len(group_table)):
             core_indices = group_core_indices[k]
             main_indices = group_main_indices[k]
             edge_indices = group_edge_indices[k]
@@ -344,7 +375,7 @@ def run_outlier_detection_in_parallel(
             message_str = ('Running outlier_detection group {}/{} '
                            '(main indices: {}, edge indices: {})'
                            .format(
-                             k+1, len(group_full_indices), 
+                             k+1, len(group_table), 
                              main_indices, edge_indices,
                            )
                           )
@@ -359,20 +390,20 @@ def run_outlier_detection_in_parallel(
             rets.append(ret)
         pool.close()
         pool.join()
-        for k in range(len(group_full_indices)):
+        for k in range(len(group_table)):
             updated_image_models = rets[k].get()
             for kk in range(len(main_indices)):
                 message_str = ('Updating image_models[{}] @{} {!r} from outlier_detection group {}/{}'
                                .format(
                                  main_indices[kk], hex(id(image_models[main_indices[kk]])), 
                                  image_models[main_indices[kk]].meta.filename, 
-                                 k+1, len(group_full_indices), 
+                                 k+1, len(group_table), 
                                )
                               )
                 this_logger.info(message_str)
                 image_models[main_indices[kk]] = updated_image_models[kk]
     else:
-        for k in range(len(group_full_indices)):
+        for k in range(len(group_table)):
             core_indices = group_core_indices[k]
             main_indices = group_main_indices[k]
             edge_indices = group_edge_indices[k]
@@ -380,7 +411,7 @@ def run_outlier_detection_in_parallel(
             message_str = ('Running outlier_detection group {}/{} '
                            '(main indices: {}, edge indices: {})'
                            .format(
-                             k+1, len(group_full_indices), 
+                             k+1, len(group_table), 
                              main_indices, edge_indices,
                            )
                           )
@@ -397,7 +428,7 @@ def run_outlier_detection_in_parallel(
                                .format(
                                  main_indices[kk], hex(id(image_models[main_indices[kk]])), 
                                  image_models[main_indices[kk]].meta.filename, 
-                                 k+1, len(group_full_indices), 
+                                 k+1, len(group_table), 
                                )
                               )
                 this_logger.info(message_str)
@@ -418,6 +449,7 @@ def run_outlier_detection_in_parallel(
 @click.option('--max-cores', type=str, default='none', help='This parameter is not used because multiprocessing does not work. Something cannot be pickled.')
 @click.option('--save-group-table-file', type=click.Path(exists=False), default='run_outlier_detection_group_table.txt', help='An output table listing the determined groups of images.')
 @click.option('--return-group-table', is_flag=True, default=False, help='Only return the group table then exit. Will not actually run the outlier_detection step.')
+@click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite existing files.')
 @click.option('--verbose/--no-verbose', is_flag=True, default=True, help='Verbose screen output.')
 def main(
         input_asn_file, 
@@ -427,6 +459,7 @@ def main(
         max_cores, 
         save_group_table_file, 
         return_group_table, 
+        overwrite, 
         verbose, 
     ):
 
@@ -450,6 +483,7 @@ def main(
             max_cores = max_cores, 
             save_group_table_file = save_group_table_file, 
             return_group_table = return_group_table, 
+            overwrite = overwrite, 
             verbose = verbose, 
         )
 

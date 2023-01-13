@@ -321,6 +321,10 @@ class ImageComparer(object):
                     wspace=panel_wspace/panel_width,
                     hspace=panel_hspace/panel_height)
             )
+            try:
+                axes[0]
+            except:
+                axes = [axes]
             # 
             fluxes_list = []
             pixsc_list = []

@@ -63,6 +63,9 @@ while [[ $iarg -le $# ]]; do
         elif [[ "$argstr" == "--no-sextractor" ]]; then
             no_sextractor=1
             echo "no_sextractor = \"$no_sextractor\""
+        elif [[ "$argstr" == "--overwrite" ]]; then
+            overwrite=1
+            echo "overwrite = \"$overwrite\""
         else
             echo "Unkonwn argument: ${!iarg}"
         fi
@@ -153,8 +156,29 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
     fi
-    echo "*** Running ***" python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
-    python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    exp_type=$(python -c "from jwst import datamodels; print(datamodels.open('$file_in').meta.exposure.type)" 2>/dev/null)
+    if [[ x"$exp_type" == x"" ]]; then
+        echo "Error! Could not get datamodel.meta.exposure.type for \"$file_in\"!"
+        echo "Command executed: python -c \"from jwst import datamodels; print(datamodels.open(\'$file_in\').meta.exposure.type)\""
+        exit 255
+    fi
+    if [[ "$exp_type" == "NRS_MSATA" ]] || [[ "$exp_type" == "NRS_TACONFIRM" ]]; then
+        echo "*** Running ***" python $script_dir/go-jwst-imaging-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+        python $script_dir/go-jwst-imaging-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    elif [[ "$exp_type" == "NRS_MSASPEC" ]]; then
+        msa_name=$(echo "$dataset_name" | perl -p -e 's/^(jw[0-9]+)_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)$/\1/g')
+        msa_file=$(find "auxiliary" -maxdepth 1 -mindepth 1 -name "${msa_name}_*_msa.fits" | tail -n 1)
+        if [[ x"$msa_file" == x"" ]]; then
+            echo "Error! Could not find \"auxiliary/${msa_name}_*_msa.fits\" which is needed and should be downloaded with the data!"
+            exit 255
+        fi
+        proc_args+=(--msa-meta-file "$msa_file")
+        echo "*** Running ***" python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+        python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    else
+        echo "*** Running ***" python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+        python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+    fi
     ret=$?
     if [[ $ret -ne 0 ]]; then
         echo "Error occurred?!"
