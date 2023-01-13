@@ -12,6 +12,7 @@ The default download dir is
 
 import os, sys, re, datetime
 import click
+import numpy as np
 from collections import namedtuple
 from astroquery.mast import Observations
 
@@ -224,8 +225,8 @@ def main(
             )
             if len(products) > 0: 
                 # de-select guide star data
-                if not guide_star_data:
-                    products = [product for product in products if (not check_guide_star_data(product))]
+                if auxiliary and (not guide_star_data):
+                    products = products[np.array([not check_guide_star_data(product) for product in products])]
                 # 
                 for iproduct, product in enumerate(products):
                     logger.info('        ({}/{}) {} {}'.format(
