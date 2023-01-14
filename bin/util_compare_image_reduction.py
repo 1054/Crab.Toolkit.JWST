@@ -444,7 +444,7 @@ class ImageComparer(object):
 @click.command()
 @click.argument('input_images', type=click.Path(exists=True), nargs=-1)
 @click.argument('output_name', type=str, nargs=1)
-@click.option('--aperture-size', type=float, default=default_aperture_size, help='aperture diameter in arcsec.')
+@click.option('--aperture-size', '--aperture-diameter', 'aperture_size', type=float, default=default_aperture_size, help='aperture diameter in arcsec.')
 @click.option('--aperture-number', type=int, default=default_aperture_number, help='aperture number.')
 @click.option('--input-labels', type=str, default=None, help='a string for the labels of the input images, using comma to separate.')
 @click.option('--plot-orders', type=str, default=None, help='orders for plotting, from 0 to N-1, using comma to separate.')

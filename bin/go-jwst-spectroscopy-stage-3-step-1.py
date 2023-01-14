@@ -345,7 +345,7 @@ def main(
         )
         
         output_subdir = os.path.join(output_dir, output_name)
-        output_file = output_name + '_i2d.fits'
+        output_file = output_name + '_all_sources.csv' # here we output a source table
         output_filepath = os.path.join(output_subdir, output_file)
         
         # add to lookup dict
@@ -485,6 +485,47 @@ def main(
         
         # run
         pipeline_object.run(asn_filename)
+        
+        
+        # here we output source table
+        x1d_files = glob.glob(f'{output_name}_s*_x1d.fits')
+        x1d_table = OrderedDict()
+        x1d_table['source_id'] = []
+        x1d_table['source_ra'] = []
+        x1d_table['source_dec'] = []
+        x1d_table['source_xpos'] = []
+        x1d_table['source_ypos'] = []
+        x1d_table['source_name'] = []
+        x1d_table['source_alias'] = []
+        x1d_table['x1d_fits_file'] = []
+        x1d_table['x1d_ascii_file'] = []
+        #with datamodels.open(cal_file) as model:
+        #    [slit.source_id for slit in model.slits]
+        for x1d_file in x1d_files:
+            with fits.open(x1d_file) as hdul:
+                x1d_table['source_id'].append(hdul[1].header['SOURCEID'])
+                x1d_table['source_ra'].append(hdul[1].header['SRCRA'])
+                x1d_table['source_dec'].append(hdul[1].header['SRCDEC'])
+                x1d_table['source_xpos'].append(hdul[1].header['SRCXPOS'])
+                x1d_table['source_ypos'].append(hdul[1].header['SRCYPOS'])
+                x1d_table['source_name'].append(hdul[1].header['SRCNAME'])
+                x1d_table['source_alias'].append(hdul[1].header['SRCALIAS'])
+                x1d_ascii_file = os.path.splitext(x1d_file)[0] + '.dat'
+                Table(hdul[1].data).write(x1d_ascii_file, format='ascii.fixed_width', 
+                                          delimiter=' ', bookend=True, overwrite=True)
+                with open(x1d_ascii_file, 'r+') as ofp:
+                    ofp.seek(0)
+                    ofp.write('#')
+                x1d_table['x1d_fits_file'].append(x1d_file)
+                x1d_table['x1d_ascii_file'].append(x1d_ascii_file)
+        Table(x1d_table).write(output_file, overwrite=True)
+        if not output_file.endswith('.dat'):
+            output_file2 = os.path.splitext(output_file)[0] + '.dat'
+            Table(x1d_table).write(output_file2, format='ascii.fixed_width', 
+                                   delimiter=' ', bookend=True, overwrite=True)
+            with open(output_file2, 'r+') as ofp:
+                ofp.seek(0)
+                ofp.write('#')
         
         
         # chdir back
