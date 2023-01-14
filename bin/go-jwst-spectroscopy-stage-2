@@ -136,7 +136,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     
     # check input directory: calibrated1_rates
     if [[ ! -d calibrated1_rates ]]; then
-        echo "Error! Dataset directory does not exist: \"$calibrated1_rates\"! Current directory: \"$(pwd)\"."
+        echo "Error! Dataset directory does not exist: \"calibrated1_rates\"! Current directory: \"$(pwd)\"."
         exit 255
     fi
 
