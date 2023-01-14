@@ -348,7 +348,7 @@ def main(
         output_subdir = os.path.join(output_dir, output_name)
         
         # check meta.exposure.type and set output file name
-        with datamodels.open(subgroup_file[0]) as model:
+        with datamodels.open(subgroup_files[0]) as model:
             exp_type = model.meta.exposure.type
         if exp_type in ['NRS_MSATA', 'NRS_TACONFIRM']:
             target_acquisition_mode = True
