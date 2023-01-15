@@ -27,6 +27,10 @@ from shapely.geometry import Point, Polygon
 from jwst.associations.asn_from_list import asn_from_list
 from jwst.associations import load_asn
 
+import warnings
+from astropy.wcs import FITSFixedWarning
+warnings.filterwarnings('ignore', category=FITSFixedWarning)
+
 # code name and version
 CODE_NAME = 'util_get_image_footprint_as_ds9_region.py'
 CODE_AUTHOR = 'Daizhong Liu'
@@ -125,7 +129,7 @@ def get_image_footprint_as_ds9_region(
         footprints,
         output_region_file,
     )
-    print('Output to {!r}'.format(region_file))
+    print('Output to {!r}'.format(output_region_file))
     
     # return
     return

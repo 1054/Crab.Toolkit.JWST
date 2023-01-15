@@ -486,6 +486,7 @@ def main(
         # check meta.exposure.type and prepare to run
         if target_acquisition_mode:
             pipeline_object = calwebb_image3.Image3Pipeline()
+            pipeline_object.source_catalog.skip = True # 'apcorr' in pipeline_object.source_catalog.reference_file_types
         else:
             pipeline_object = calwebb_spec3.Spec3Pipeline()
         
