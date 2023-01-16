@@ -1182,6 +1182,7 @@ def main(
                                 output_file, out_y1, out_y2, out_x1, out_x2, 
                             ))
                             out_hdul[0].data[out_y1:out_y2,out_x1:out_x2] = in_hdul['SCI'].data[in_y1:in_y2,in_x1:in_x2]
+                            #<TODO><20230116># also copy 'ERR' 'CON'
                     out_hdul.flush()
                 
                 # 
