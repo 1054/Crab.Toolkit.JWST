@@ -391,7 +391,7 @@ class ImageComparer(object):
                 logger.debug('label: {!r}, xpeak: {}, xhalf: {}, fitmask: x < {}, pixsc: {}'.format(
                     labels[ii], xpeak, xhalf, xpeak+(xpeak-xhalf), pixsc))
                 # 
-                mod = models.Gaussian1D(amplitude=ypeak, mean=0.0, stddev=init_sigma)
+                mod = models.Gaussian1D(amplitude=ypeak, mean=xpeak, stddev=init_sigma)
                 fit = fitting.LevMarLSQFitter()
                 fitted_line = fit(mod, x[fitmask], y[fitmask])
                 ax.plot(x, fitted_line(x), color=colors[i], ls='dashed', alpha=0.8,
