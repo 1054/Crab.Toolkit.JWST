@@ -490,7 +490,7 @@ def join_a_string_list_with_omitted_parts(str_list, sep='+', omit='many', maxN=4
     if len(str_list) <= maxN:
         return sep.join(str_list)
     else:
-        return sep.join(str_list[0:maxN-1])+sep+omit+sep+[str_list-1]
+        return sep.join(str_list[0:maxN-1])+sep+omit+sep+str_list[-1]
 
 
 
