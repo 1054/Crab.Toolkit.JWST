@@ -998,7 +998,7 @@ def main(
         
         # OutlierDetectionStep
         pipeline_object.outlier_detection.pixfrac = pixfrac
-        pipeline_object.outlier_detection.in_memory = False
+        pipeline_object.outlier_detection.in_memory = True
         #pipeline_object.outlier_detection.suffix = 'crf' # just use the default
         #pipeline_object.outlier_detection.save_results = True # will save as '*_crf.fits'
         
