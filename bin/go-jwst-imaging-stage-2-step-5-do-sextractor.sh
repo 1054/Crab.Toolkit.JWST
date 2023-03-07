@@ -39,8 +39,8 @@ if [[ $# -eq 0 ]]; then
     exit 255
 fi
 if [[ "$1" == *"nrca"* ]] || [[ "$1" == *"nrcb"* ]] || [[ "$1" == *"nrclong"* ]] || [[ "$1" == *"miri"* ]]; then
-    echo sextractor_classic_go_find_sources.py $@
-    sextractor_classic_go_find_sources.py $@
+    echo sextractor_classic_go_find_sources.py --detect-thresh 4.0 $@
+    sextractor_classic_go_find_sources.py --detect-thresh 4.0 $@
     if [[ $? -ne 0 ]]; then
         echo "Error?! Please check previous messages."
         exit 255
