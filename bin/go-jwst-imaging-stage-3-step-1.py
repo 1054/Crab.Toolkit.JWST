@@ -409,7 +409,7 @@ def run_individual_steps_for_image_files(
     # 
     # 3. outlier detection
     pipeline_object.outlier_detection.output_file = output_name
-    pipeline_object.outlier_detection.save_intermediate_results = False
+    pipeline_object.outlier_detection.save_intermediate_results = True # False
     pipeline_object.outlier_detection.save_results = True # will save as '{output_name}_{index}_{asn_id}_outlierdetection.fits'
     pipeline_object.outlier_detection.suffix = 'outlierdetection' # default is crf
     pipeline_object.outlier_detection.search_output_file = False
@@ -548,7 +548,7 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite?')
 @click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
-@click.option('--very-big-mosaic/--no-very-big-mosaic', is_flag=True, default=False, help='Big mosaic mode! If Ture, we will divide images into boxes with size set by `grid_step` in arcmin.')
+@click.option('--very-big-mosaic/--no-very-big-mosaic', is_flag=True, default=False, help='Very big mosaic mode! If Ture, we will divide images into boxes with size set by `grid_step` in arcmin.')
 def main(
         input_cal_files, 
         output_dir, 
@@ -1002,6 +1002,10 @@ def main(
         #pipeline_object.outlier_detection.suffix = 'crf' # just use the default
         #pipeline_object.outlier_detection.save_results = True # will save as '*_crf.fits'
         
+        # 20230307
+        pipeline_object.outlier_detection.snr = '3.0 2.5'
+        pipeline_object.outlier_detection.scale = '10. 5'
+        
         
         # ResampleStep
         # Set the ratio of input to output pixels to create an output mosaic 
@@ -1030,10 +1034,10 @@ def main(
         # we can also run individual steps following "jwst/pipeline/calwebb_image3.py" `process()`
         else: # TODO
             
-            # 20230109 big mosaic
+            # 20230109 very big mosaic
             
             if very_big_mosaic:
-                pipeline_object.log.info('*-*-*\n*-*-* Big mosaic mode! *-*-*\n*-*-*')
+                pipeline_object.log.info('*-*-*\n*-*-* Very big mosaic mode! *-*-*\n*-*-*')
                 
                 # get pixel_size if only pixel_scale_ratio is given
                 # and pa_v3 # no need 
@@ -1096,7 +1100,7 @@ def main(
                     mosaic_group_dir = mosaic_group_table['group_dir'][mosaic_group_idx]
                     mosaic_group_images = mosaic_group_table['image_files'][mosaic_group_idx].split(',')
                     pipeline_object_copy.log.info(
-                        '*-*-*\n*-*-* Processing big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
+                        '*-*-*\n*-*-* Processing very big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
                         mosaic_group_dir, 
                         pipeline_object_copy.resample.output_shape[0], 
                         pipeline_object_copy.resample.output_shape[1], 
@@ -1111,7 +1115,7 @@ def main(
                     )
                     os.chdir(mosaic_parent_dir)
                     pipeline_object_copy.log.info(
-                        '*-*-*\n*-*-* Processed big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
+                        '*-*-*\n*-*-* Processed very big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
                         mosaic_group_dir, 
                         pipeline_object_copy.resample.output_shape[0], 
                         pipeline_object_copy.resample.output_shape[1], 
@@ -1121,7 +1125,7 @@ def main(
                 # 
                 gc.collect()
                 
-                # initialize the output big mosaic fits file using memmap
+                # initialize the output very big mosaic fits file using memmap
                 imagefile1 = os.path.join(mosaic_group_table['group_dir'][first_valid_idx], 
                                           mosaic_group_table['group_dir'][first_valid_idx]+'_i2d.fits')
                 header1 = fits.getheader(imagefile1, 0)
@@ -1153,7 +1157,7 @@ def main(
                 header.append('', useblanks=False, end=True)
                 while (len(header))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
                     header.append('', useblanks=False, end=True)
-                pipeline_object.log.info('Building final big mosaic {!r}'.format(output_file))
+                pipeline_object.log.info('Building final very big mosaic {!r}'.format(output_file))
                 if not os.path.isfile(output_file) or overwrite:
                     header.tofile(output_file, overwrite=overwrite)
                     with open(output_file, 'rb+') as fobj:

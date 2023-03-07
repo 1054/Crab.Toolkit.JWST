@@ -46,7 +46,10 @@ def main(
     ):
     
     print('Reading catalog file {!r}'.format(input_catalog_file))
-    table = Table.read(input_catalog_file)
+    if re.match(r'.*\.(txt|dat|lis)$', input_catalog_file): 
+        table = Table.read(input_catalog_file, format='ascii')
+    else:
+        table = Table.read(input_catalog_file)
     
     print('Reading columns ...')
     
