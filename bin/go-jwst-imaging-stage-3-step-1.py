@@ -998,7 +998,7 @@ def main(
         
         # OutlierDetectionStep
         pipeline_object.outlier_detection.pixfrac = pixfrac
-        pipeline_object.outlier_detection.in_memory = True
+        pipeline_object.outlier_detection.in_memory = True # must be True otherwise outlier_detection flag_cr sci_image.dq updates are not saved to the same object! 20230307
         #pipeline_object.outlier_detection.suffix = 'crf' # just use the default
         #pipeline_object.outlier_detection.save_results = True # will save as '*_crf.fits'
         
