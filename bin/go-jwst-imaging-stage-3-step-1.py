@@ -486,6 +486,15 @@ def run_individual_steps_for_image_files(
 
 
 
+def join_a_string_list_with_omitted_parts(str_list, sep='+', omit='many', maxN=4):
+    if len(str_list) <= maxN:
+        return sep.join(str_list)
+    else:
+        return sep.join(str_list[0:maxN-1])+sep+omit+sep+[str_list-1]
+
+
+
+
 
 
 # Defaults
@@ -753,22 +762,22 @@ def main(
     for subgroup_key, subgroup_table in zip(groupped_table.groups.keys, groupped_table.groups):
         
         unique_programs = np.unique(subgroup_table['program'])
-        groupped_program_str = '+'.join(unique_programs)
+        groupped_program_str = join_a_string_list_with_omitted_parts(unique_programs) # = '+'.join(unique_programs)
         
         unique_obsnums = np.unique(subgroup_table['obs_num'])
-        groupped_obsnum_str = '+'.join(unique_obsnums)
+        groupped_obsnum_str = join_a_string_list_with_omitted_parts(unique_obsnums) # '+'.join(unique_obsnums)
         
         unique_visitnums = np.unique(subgroup_table['visit_num'])
-        groupped_visitnum_str = '+'.join(unique_visitnums)
+        groupped_visitnum_str = join_a_string_list_with_omitted_parts(unique_visitnums) # = '+'.join(unique_visitnums)
         
         unique_instruments = np.unique(subgroup_table['instrument'])
-        groupped_instrument_str = '+'.join(unique_instruments)
+        groupped_instrument_str = join_a_string_list_with_omitted_parts(unique_instruments) # = '+'.join(unique_instruments)
         
         unique_filters = np.unique(subgroup_table['filter'])
-        groupped_filter_str = '+'.join(unique_filters)
+        groupped_filter_str = join_a_string_list_with_omitted_parts(unique_filters) # = '+'.join(unique_filters)
         
         #unique_obsnums = np.unique(subgroup_table['obs_num'])
-        #groupped_obsnum_str = '+'.join(unique_obsnums)
+        #groupped_obsnum_str = join_a_string_list_with_omitted_parts(unique_obsnums) # = '+'.join(unique_obsnums)
         
         #subgroup_files = subgroup_table['file_path'].data.tolist()
         subgroup_files = [os.path.abspath(t) for t in subgroup_table['file_path']]
