@@ -1183,9 +1183,9 @@ def main(
                     while (len(header))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
                         header.append('', useblanks=False, end=True)
                     # 
-                    #header.tofile(output_file, overwrite=overwrite)
+                    header.tofile(output_file, overwrite=overwrite)
                     with open(output_file, 'rb+') as fobj:
-                        header.tofile(fobj, endcard=True, padding=False) # manually control the padding to Nx2880
+                        #header.tofile(fobj, endcard=True, padding=False) # manually control the padding to Nx2880
                         last_byte = len(header.tostring()) + (header['NAXIS1'] * header['NAXIS2'] * np.abs(header['BITPIX']//8))
                         last_byte_padded = int(np.ceil(float(last_byte)/2880))*2880 # fits data blocks are padded to 2880 by standard
                         fobj.seek(last_byte-1)
