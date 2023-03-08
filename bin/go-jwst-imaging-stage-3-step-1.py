@@ -1155,8 +1155,6 @@ def main(
                     data = np.zeros((100, 100), dtype=np.float32)
                     hdu = fits.PrimaryHDU(data=data, header=header1.copy())
                     header = hdu.header
-                    header['EXTEND'] = True
-                    header['EXTNAME'] = 'SCI'
                     header['BITPIX'] = -32
                     header['NAXIS1'] = mosaic_group_meta['naxis1']
                     header['NAXIS2'] = mosaic_group_meta['naxis2']
@@ -1180,6 +1178,8 @@ def main(
                     header.append('', useblanks=False, end=True)
                     header.append(('HISTORY', 'Mosaic made with Crab.Toolkit.JWST/bin/go-jwst-imaging-stage-3-step-1.py'), useblanks=False, end=True)
                     header.append('', useblanks=False, end=True)
+                    header['EXTEND'] = True
+                    header['EXTNAME'] = 'SCI'
                     #while (len(header))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
                     #    header.append('', useblanks=False, end=True)
                     # 
@@ -1196,13 +1196,15 @@ def main(
                         # write extension 2
                         header2 = fits.Header()
                         header2['XTENSION'] = 'IMAGE'
-                        header2['EXTNAME'] = 'ERR'
                         header2['BITPIX'] = -32
                         header2['NAXIS1'] = mosaic_group_meta['naxis1']
                         header2['NAXIS2'] = mosaic_group_meta['naxis2']
-                        for key in ['RADESYS', 'EQUINOX', 'CTYPE1', 'CTYPE2', 'CUNIT1', 'CUNIT2', 
+                        for key in ['NAXIS', 'NAXIS1', 'NAXIS2', 'RADESYS', 'EQUINOX', 'CTYPE1', 'CTYPE2', 'CUNIT1', 'CUNIT2', 
                                     'CRVAL1', 'CRVAL2', 'CRPIX1', 'CRPIX2', 'CDELT1', 'CDELT2', 'CROTA2']:
                             header2[key] = header[key]
+                        header2['PCOUNT'] = 0
+                        header2['GCOUNT'] = 1
+                        header2['EXTNAME'] = 'ERR'
                         #while (len(header2))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
                         #    header2.append('', useblanks=False, end=True)
                         # 
