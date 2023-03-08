@@ -1207,7 +1207,7 @@ def main(
                         #    header2.append('', useblanks=False, end=True)
                         # 
                         header2str = header2.tostring(sep='', endcard=True, padding=True) # manually control the padding to Nx2880
-                        fobj.write(header2str)
+                        fobj.write(header2str.encode())
                         last_byte = len(header2str) + (header2['NAXIS1'] * header2['NAXIS2'] * np.abs(header2['BITPIX']//8))
                         last_byte_padded = int(np.ceil(float(last_byte)/2880))*2880 # fits data blocks are padded to 2880 by standard
                         fobj.seek(fpos + last_byte-1)
