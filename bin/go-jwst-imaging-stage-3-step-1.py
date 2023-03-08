@@ -1089,92 +1089,135 @@ def main(
                     if first_valid_idx is None:
                         first_valid_idx = mosaic_group_idx
                     
-                    pipeline_object_copy = copy.deepcopy(pipeline_object)
-                    pipeline_object_copy.tweakreg.catfile = os.path.basename(group_cat_files[mosaic_group_idx])
-                    pipeline_object_copy.resample.crpix = (
-                        mosaic_group_table['crpix1'][mosaic_group_idx],
-                        mosaic_group_table['crpix2'][mosaic_group_idx]
-                    ) # IMPORTANT: resample crpix is 0-based according to ...
-                    pipeline_object_copy.resample.crval = (
-                        mosaic_group_table['crval1'][mosaic_group_idx],
-                        mosaic_group_table['crval2'][mosaic_group_idx]
-                    )
-                    pipeline_object_copy.resample.rotation = 0.0 # A value of 0.0 would orient the final output image to be North up. 
-                    #pipeline_object_copy.resample.rotation = ref_pa_v3-360. # A value of 0.0 would orient the final output image to be North up. 
-                    pipeline_object_copy.resample.output_shape = (
-                        int(mosaic_group_table['naxis1'][mosaic_group_idx]),
-                        int(mosaic_group_table['naxis2'][mosaic_group_idx])
-                    )
-                    pipeline_object_copy.resample.pixel_scale = ref_pixel_size
                     mosaic_group_dir = mosaic_group_table['group_dir'][mosaic_group_idx]
                     mosaic_group_images = mosaic_group_table['image_files'][mosaic_group_idx].split(',')
-                    pipeline_object_copy.log.info(
-                        '*-*-*\n*-*-* Processing very big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
-                        mosaic_group_dir, 
-                        pipeline_object_copy.resample.output_shape[0], 
-                        pipeline_object_copy.resample.output_shape[1], 
-                        ref_pixel_size*1000.0)
-                    )
-                    mosaic_parent_dir = os.getcwd()
-                    os.chdir(mosaic_group_dir)
-                    run_individual_steps_for_image_files(
-                        pipeline_object_copy, 
-                        mosaic_group_images,
-                        mosaic_group_dir, # use this as output file name
-                    )
-                    os.chdir(mosaic_parent_dir)
-                    pipeline_object_copy.log.info(
-                        '*-*-*\n*-*-* Processed very big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
-                        mosaic_group_dir, 
-                        pipeline_object_copy.resample.output_shape[0], 
-                        pipeline_object_copy.resample.output_shape[1], 
-                        ref_pixel_size*1000.0)
-                    )
+                    mosaic_group_output_file = os.path.join(mosaic_group_dir, 
+                                                            mosaic_group_dir+'_i2d.fits')
+                    if os.path.isfile(mosaic_group_output_file) and not overwrite:
+                        logger.warning(f"Found processed very big mosaic tile {mosaic_group_output_file!r} and overwrite is set to False. " + 
+                                        "We will skip the processing.")
+                        pass
+                    else:
+                        pipeline_object_copy = copy.deepcopy(pipeline_object)
+                        pipeline_object_copy.tweakreg.catfile = os.path.basename(group_cat_files[mosaic_group_idx])
+                        pipeline_object_copy.resample.crpix = (
+                            mosaic_group_table['crpix1'][mosaic_group_idx],
+                            mosaic_group_table['crpix2'][mosaic_group_idx]
+                        ) # IMPORTANT: resample crpix is 0-based according to ...
+                        pipeline_object_copy.resample.crval = (
+                            mosaic_group_table['crval1'][mosaic_group_idx],
+                            mosaic_group_table['crval2'][mosaic_group_idx]
+                        )
+                        pipeline_object_copy.resample.rotation = 0.0 # A value of 0.0 would orient the final output image to be North up. 
+                        #pipeline_object_copy.resample.rotation = ref_pa_v3-360. # A value of 0.0 would orient the final output image to be North up. 
+                        pipeline_object_copy.resample.output_shape = (
+                            int(mosaic_group_table['naxis1'][mosaic_group_idx]),
+                            int(mosaic_group_table['naxis2'][mosaic_group_idx])
+                        )
+                        pipeline_object_copy.resample.pixel_scale = ref_pixel_size
+                        # 
+                        pipeline_object_copy.log.info(
+                            '*-*-*\n*-*-* Processing very big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
+                            mosaic_group_dir, 
+                            pipeline_object_copy.resample.output_shape[0], 
+                            pipeline_object_copy.resample.output_shape[1], 
+                            ref_pixel_size*1000.0)
+                        )
+                        mosaic_parent_dir = os.getcwd()
+                        os.chdir(mosaic_group_dir)
+                        run_individual_steps_for_image_files(
+                            pipeline_object_copy, 
+                            mosaic_group_images,
+                            mosaic_group_dir, # use this as output file name
+                        )
+                        os.chdir(mosaic_parent_dir)
+                        pipeline_object_copy.log.info(
+                            '*-*-*\n*-*-* Processed very big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
+                            mosaic_group_dir, 
+                            pipeline_object_copy.resample.output_shape[0], 
+                            pipeline_object_copy.resample.output_shape[1], 
+                            ref_pixel_size*1000.0)
+                        )
+                        # 
+                        del pipeline_object_copy
                 
                 # 
                 gc.collect()
                 
                 # initialize the output very big mosaic fits file using memmap
-                imagefile1 = os.path.join(mosaic_group_table['group_dir'][first_valid_idx], 
-                                          mosaic_group_table['group_dir'][first_valid_idx]+'_i2d.fits')
-                header1 = fits.getheader(imagefile1, 0)
-                data = np.zeros((100, 100), dtype=np.float32)
-                hdu = fits.PrimaryHDU(data=data, header=header1.copy())
-                header = hdu.header
-                header['BITPIX'] = -32
-                header['NAXIS1'] = mosaic_group_meta['naxis1']
-                header['NAXIS2'] = mosaic_group_meta['naxis2']
-                header.append('', useblanks=False, end=True)
-                header.append(('', 'Mosaic WCS Information'), useblanks=False, end=True)
-                header.append('', useblanks=False, end=True)
-                header.append(('RADESYS', 'FK5'), useblanks=False, end=True)
-                header.append(('EQUINOX', 2000.0), useblanks=False, end=True)
-                header.append(('CTYPE1', 'RA---TAN'), useblanks=False, end=True)
-                header.append(('CTYPE2', 'DEC--TAN'), useblanks=False, end=True)
-                header.append(('CUNIT1', 'deg'), useblanks=False, end=True)
-                header.append(('CUNIT2', 'deg'), useblanks=False, end=True)
-                header.append(('CRVAL1', mosaic_group_meta['crval1'], 'In degrees.'), useblanks=False, end=True)
-                header.append(('CRVAL2', mosaic_group_meta['crval2'], 'In degrees.'), useblanks=False, end=True)
-                header.append(('CRPIX1', mosaic_group_meta['crpix1']), useblanks=False, end=True)
-                header.append(('CRPIX2', mosaic_group_meta['crpix2']), useblanks=False, end=True)
-                header.append(('CDELT1', mosaic_group_meta['cdelt1'], 'In degrees.'), useblanks=False, end=True)
-                header.append(('CDELT2', mosaic_group_meta['cdelt2'], 'In degrees.'), useblanks=False, end=True)
-                header.append(('CROTA2', mosaic_group_meta['crota2'], 'In degrees.'), useblanks=False, end=True)
-                header.append(('PIXSCALE', ref_pixel_size, 'In arcsec.'), useblanks=False, end=True)
-                header.append('', useblanks=False, end=True)
-                header.append(('HISTORY', 'Mosaic made with Crab.Toolkit.JWST/bin/go-jwst-imaging-stage-3-step-1.py'), useblanks=False, end=True)
-                header.append('', useblanks=False, end=True)
-                while (len(header))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
-                    header.append('', useblanks=False, end=True)
                 pipeline_object.log.info('Building final very big mosaic {!r}'.format(output_file))
                 if not os.path.isfile(output_file) or overwrite:
-                    header.tofile(output_file, overwrite=overwrite)
+                    # read first valid tile image
+                    imagefile1 = os.path.join(mosaic_group_table['group_dir'][first_valid_idx], 
+                                              mosaic_group_table['group_dir'][first_valid_idx]+'_i2d.fits')
+                    header1 = fits.getheader(imagefile1, 0)
+                    # initialize with a small data array
+                    data = np.zeros((100, 100), dtype=np.float32)
+                    hdu = fits.PrimaryHDU(data=data, header=header1.copy())
+                    header = hdu.header
+                    header['EXTEND'] = True
+                    header['EXTNAME'] = 'SCI'
+                    header['BITPIX'] = -32
+                    header['NAXIS1'] = mosaic_group_meta['naxis1']
+                    header['NAXIS2'] = mosaic_group_meta['naxis2']
+                    header.append('', useblanks=False, end=True)
+                    header.append(('', 'Mosaic WCS Information'), useblanks=False, end=True)
+                    header.append('', useblanks=False, end=True)
+                    header.append(('RADESYS', 'FK5'), useblanks=False, end=True)
+                    header.append(('EQUINOX', 2000.0), useblanks=False, end=True)
+                    header.append(('CTYPE1', 'RA---TAN'), useblanks=False, end=True)
+                    header.append(('CTYPE2', 'DEC--TAN'), useblanks=False, end=True)
+                    header.append(('CUNIT1', 'deg'), useblanks=False, end=True)
+                    header.append(('CUNIT2', 'deg'), useblanks=False, end=True)
+                    header.append(('CRVAL1', mosaic_group_meta['crval1'], 'In degrees.'), useblanks=False, end=True)
+                    header.append(('CRVAL2', mosaic_group_meta['crval2'], 'In degrees.'), useblanks=False, end=True)
+                    header.append(('CRPIX1', mosaic_group_meta['crpix1']), useblanks=False, end=True)
+                    header.append(('CRPIX2', mosaic_group_meta['crpix2']), useblanks=False, end=True)
+                    header.append(('CDELT1', mosaic_group_meta['cdelt1'], 'In degrees.'), useblanks=False, end=True)
+                    header.append(('CDELT2', mosaic_group_meta['cdelt2'], 'In degrees.'), useblanks=False, end=True)
+                    header.append(('CROTA2', mosaic_group_meta['crota2'], 'In degrees.'), useblanks=False, end=True)
+                    header.append(('PIXSCALE', ref_pixel_size, 'In arcsec.'), useblanks=False, end=True)
+                    header.append('', useblanks=False, end=True)
+                    header.append(('HISTORY', 'Mosaic made with Crab.Toolkit.JWST/bin/go-jwst-imaging-stage-3-step-1.py'), useblanks=False, end=True)
+                    header.append('', useblanks=False, end=True)
+                    while (len(header))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
+                        header.append('', useblanks=False, end=True)
+                    # 
+                    #header.tofile(output_file, overwrite=overwrite)
                     with open(output_file, 'rb+') as fobj:
+                        header.tofile(fobj, endcard=True, padding=False) # manually control the padding to Nx2880
                         last_byte = len(header.tostring()) + (header['NAXIS1'] * header['NAXIS2'] * np.abs(header['BITPIX']//8))
                         last_byte_padded = int(np.ceil(float(last_byte)/2880))*2880 # fits data blocks are padded to 2880 by standard
                         fobj.seek(last_byte-1)
                         for iter_byte in range(last_byte-1, last_byte_padded):
                             fobj.write(b'\0')
+                        fpos = fobj.tell()
+                        # 
+                        # write extension 2
+                        header2 = fits.Header()
+                        header2['XTENSION'] = 'IMAGE'
+                        header2['EXTNAME'] = 'ERR'
+                        header2['BITPIX'] = -32
+                        header2['NAXIS1'] = mosaic_group_meta['naxis1']
+                        header2['NAXIS2'] = mosaic_group_meta['naxis2']
+                        for key in ['RADESYS', 'EQUINOX', 'CTYPE1', 'CTYPE2', 'CUNIT1', 'CUNIT2', 
+                                    'CRVAL1', 'CRVAL2', 'CRPIX1', 'CRPIX2', 'CDELT1', 'CDELT2', 'CROTA2']:
+                            header2[key] = header[key]
+                        while (len(header2))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
+                            header2.append('', useblanks=False, end=True)
+                        header2.tofile(fobj, endcard=True, padding=False) # manually control the padding to Nx2880
+                        last_byte = len(header2.tostring()) + (header2['NAXIS1'] * header2['NAXIS2'] * np.abs(header2['BITPIX']//8))
+                        last_byte_padded = int(np.ceil(float(last_byte)/2880))*2880 # fits data blocks are padded to 2880 by standard
+                        fobj.seek(fpos + last_byte-1)
+                        for iter_byte in range(last_byte-1, last_byte_padded):
+                            fobj.write(b'\0')
+                    # 
+                    del header2
+                    del header1
+                    del header
+                    del data
+                    del hdu
+                    
                 with fits.open(output_file, mode='update', memmap=True) as out_hdul:
                     for mosaic_group_idx in range(len(mosaic_group_table)):
                         if mosaic_group_table['n_images'][mosaic_group_idx] == 0:
@@ -1194,8 +1237,12 @@ def main(
                                 imagefile1, in_y1, in_y2, in_x1, in_x2, 
                                 output_file, out_y1, out_y2, out_x1, out_x2, 
                             ))
-                            out_hdul[0].data[out_y1:out_y2,out_x1:out_x2] = in_hdul['SCI'].data[in_y1:in_y2,in_x1:in_x2]
+                            #out_hdul[0].data[out_y1:out_y2,out_x1:out_x2] = in_hdul['SCI'].data[in_y1:in_y2,in_x1:in_x2]
                             #<TODO><20230116># also copy 'ERR' 'CON'
+                            
+                            out_hdul['SCI'].data[out_y1:out_y2,out_x1:out_x2] = in_hdul['SCI'].data[in_y1:in_y2,in_x1:in_x2]
+                            out_hdul['ERR'].data[out_y1:out_y2,out_x1:out_x2] = in_hdul['ERR'].data[in_y1:in_y2,in_x1:in_x2]
+                            
                     out_hdul.flush()
                 
                 # 
