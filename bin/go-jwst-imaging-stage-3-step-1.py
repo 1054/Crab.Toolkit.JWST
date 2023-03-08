@@ -1192,23 +1192,24 @@ def main(
                         for iter_byte in range(last_byte-1, last_byte_padded):
                             fobj.write(b'\0')
                         fpos = fobj.tell()
-                        # 
-                        # write extension 2
-                        header2 = fits.Header()
-                        header2['XTENSION'] = 'IMAGE'
-                        header2['EXTNAME'] = 'ERR'
-                        header2['BITPIX'] = -32
-                        header2['NAXIS1'] = mosaic_group_meta['naxis1']
-                        header2['NAXIS2'] = mosaic_group_meta['naxis2']
-                        for key in ['RADESYS', 'EQUINOX', 'CTYPE1', 'CTYPE2', 'CUNIT1', 'CUNIT2', 
-                                    'CRVAL1', 'CRVAL2', 'CRPIX1', 'CRPIX2', 'CDELT1', 'CDELT2', 'CROTA2']:
-                            header2[key] = header[key]
-                        while (len(header2))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
-                            header2.append('', useblanks=False, end=True)
+                    # 
+                    # write extension 2
+                    header2 = fits.Header()
+                    header2['XTENSION'] = 'IMAGE'
+                    header2['EXTNAME'] = 'ERR'
+                    header2['BITPIX'] = -32
+                    header2['NAXIS1'] = mosaic_group_meta['naxis1']
+                    header2['NAXIS2'] = mosaic_group_meta['naxis2']
+                    for key in ['RADESYS', 'EQUINOX', 'CTYPE1', 'CTYPE2', 'CUNIT1', 'CUNIT2', 
+                                'CRVAL1', 'CRVAL2', 'CRPIX1', 'CRPIX2', 'CDELT1', 'CDELT2', 'CROTA2']:
+                        header2[key] = header[key]
+                    while (len(header2))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
+                        header2.append('', useblanks=False, end=True)
+                    with open(output_file, 'ab') as fobj:
                         header2.tofile(fobj, endcard=True, padding=False) # manually control the padding to Nx2880
                         last_byte = len(header2.tostring()) + (header2['NAXIS1'] * header2['NAXIS2'] * np.abs(header2['BITPIX']//8))
                         last_byte_padded = int(np.ceil(float(last_byte)/2880))*2880 # fits data blocks are padded to 2880 by standard
-                        fobj.seek(fpos + last_byte-1)
+                        #fobj.seek(fpos + last_byte-1)
                         for iter_byte in range(last_byte-1, last_byte_padded):
                             fobj.write(b'\0')
                     # 
