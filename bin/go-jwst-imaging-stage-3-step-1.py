@@ -214,6 +214,14 @@ def asdf_from_step_to_file(
     if os.path.isfile(asdf_file):
         shutil.move(asdf_file, asdf_file+'.backup')
     asdf_object.write_to(asdf_file)
+    
+    # 20230318
+    # see -- https://jwst-pipeline.readthedocs.io/en/latest/jwst/stpipe/config_asdf.html#config-asdf-files
+    asdf_file2 = os.path.splitext(asdf_file)[0] + '_export_config.asdf'
+    if os.path.isfile(asdf_file2):
+        shutil.move(asdf_file2, asdf_file2+'.backup')
+    asdf_object.export_config(asdf_file2, include_meta=True)
+    
     return asdf_file
 
 
@@ -345,6 +353,14 @@ def run_individual_steps_for_one_asn_file(
     asdf_object = AsdfFile(pipeline_object.get_pars())
     asdf_object.write_to(asdf_filepath)
     pipeline_object.log.info('Parameters are saved into {}'.format(asdf_filepath))
+    
+    # 20230318
+    #asdf_filepath = output_name + '_calwebb_image3_export_config.asdf'
+    #if os.path.isfile(asdf_filepath):
+    #    shutil.move(asdf_filepath, asdf_filepath+'.backup')
+    #pipeline_object.export_config('cube_build.asdf')
+    #pipeline_object.log.info('Parameters are saved into {}'.format(asdf_filepath))
+    
 
 
 def run_individual_steps_for_image_files(
@@ -385,6 +401,23 @@ def run_individual_steps_for_image_files(
         pipeline_object.tweakreg.save_model(image_models, 
             idx=None, suffix='tweakreg', # will save as '{dataset_name}_tweakreg.fits' (without '_cal')
             format=pipeline_object.tweakreg.name_format, force=True)
+        # 
+        # Notes:
+        #   dzliu fixing a potential tweak_step bug "images.from_asn(input)" --> "images.from_asn(asn_data)"
+        # 
+        # 
+        # TODO: 20230318: 
+        #   tweakreg was skipped for some images, error messages as below:
+        #     ERROR - Number of output coordinates exceeded allocation
+        #     ERROR - Multiple sources within specified tolerance matched to a single reference source. 
+        #             Try to adjust 'tolerance' and/or 'separation' parameters.
+        #   which will make tweakreg to skip the action at the step of aligning JWST images relatively
+        #     (this is even before doing the absolute alignment to the absrefcat, i.e., 
+        #       before `if align_to_abs_refcat` in "tweakreg_step.py"), 
+        #     marking `model.meta.cal_step.tweakreg = "SKIPPED"`, 
+        #     and leaving a log message `Skipping 'TweakRegStep'`.
+        #   After extensive testing, it seems changing `tolerance` from 1.0 to 0.7 will do the trick...
+        # 
     else:
         pipeline_object.log.info('Step tweakreg is skipped because all output files exist: {}'.format(repr(processed_image_files)))
     # 
@@ -966,7 +999,7 @@ def main(
         pipeline_object.tweakreg.minobj = 7 # default is 15
         pipeline_object.tweakreg.searchrad = 1.0 # default is 2.0
         pipeline_object.tweakreg.separation = 1.0 # default is 0.1 arcsec
-        pipeline_object.tweakreg.tolerance = 1.0 # default is 0.7 arcsec
+        pipeline_object.tweakreg.tolerance = 0.7 #<20230318># 0.7 # 1.0 # default is 0.7 arcsec
         pipeline_object.tweakreg.save_catalogs = True # will save as "./*_cal_cat.ecsv", but always in current directory, see "tweakreg_step.py"
         pipeline_object.tweakreg.save_results = True # will save as "{output_subdir}/*_cal_tweakreg.fits"
         pipeline_object.tweakreg.search_output_file = False # do not use output_file define in parent step
