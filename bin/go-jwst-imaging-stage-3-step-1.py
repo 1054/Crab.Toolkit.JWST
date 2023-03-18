@@ -1027,7 +1027,7 @@ def main(
             from util_match_cat_file_to_abs_refcat_with_2dhist import match_cat_file_to_abs_refcat_with_2dhist
             pipeline_object.tweakreg.catfile, pipeline_object.tweakreg.abs_refcat = \
                 match_cat_file_to_abs_refcat_with_2dhist(catfile, abs_refcat,
-                    output_dir = '.')
+                    output_dir = os.path.getcwd())
         
         
         # SkyMatchStep
