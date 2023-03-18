@@ -983,7 +983,8 @@ def main(
             pipeline_object.tweakreg.abs_searchrad = 1.0 # default is 6.0
             pipeline_object.tweakreg.abs_separation = 1.0 # default is 0.1 arcsec
             pipeline_object.tweakreg.abs_tolerance = 1.0 # default is 0.7 arcsec
-            pipeline_object.tweakreg.abs_use2dhist = False # default is True, but ...
+            #pipeline_object.tweakreg.abs_use2dhist = False # default is True, but ...
+            pipeline_object.tweakreg.abs_use2dhist = True # default is True, but ...
             #pipeline_object.tweakreg.abs_fitgeometry = 'shift' # 'rshift'
             pipeline_object.tweakreg.save_abs_catalog = True
             #pipeline_object.tweakreg.save_abs_catalog = True # only if abs_refcat `gaia_cat_name in SINGLE_GROUP_REFCAT`

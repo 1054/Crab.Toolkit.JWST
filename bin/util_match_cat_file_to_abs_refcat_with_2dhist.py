@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # 
+# 2023-03-17 fixed ds9 region bug, not affecting csv files.
+# 
 import os, sys, re, copy, json, shutil
 import numpy as np
 import matplotlib as mpl
@@ -283,6 +285,9 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         newcatpaths[imfile] = newcatpath
         logger.info('Output to {!r}'.format(newcatpath))
         # 
+        # get matched refcat -- already got this above
+        #chkcat = Table({'x': matched_abs_refcat_x[imfile], 'y': matched_abs_refcat_y[imfile]})
+        # 
         # output matched refcat ds9 pix region
         chkcatpath = os.path.splitext(catpath)[0] + output_suffix + '_matched_refcat.ds9.pix.reg'
         if os.path.isfile(chkcatpath):
@@ -291,18 +296,17 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             fp.write('# DS9 region file\n')
             fp.write('global color=yellow\n')
             fp.write('image\n')
-            for k in range(len(newcat)):
-                fp.write('circle({}, {}, {}")\n'.format(newcat['x'][k], newcat['y'][k],0.35))
+            for k in range(len(chkcat)):
+                fp.write('circle({}, {}, {}")\n'.format(chkcat['x'][k], chkcat['y'][k],0.35))
         logger.info('Output to {!r}'.format(chkcatpath))
         # 
         # output matched refcat
-        chkcatpath = os.path.splitext(catpath)[0] + output_suffix + '_matched_refcat.csv'
-        if os.path.isfile(chkcatpath):
-            shutil.move(chkcatpath, chkcatpath+'.backup')
-        chkcat = Table({'x': matched_abs_refcat_x[imfile], 'y': matched_abs_refcat_y[imfile]})
         if str(output_index_base) == '0':
             chkcat['x'] -= 1 # jwst tweakreg tweakwcs uses 0-indices, see "tweakwcs/correctors.py" `ra, dec = self._wcs.all_pix2world(x, y, 0)`
             chkcat['y'] -= 1 # jwst tweakreg tweakwcs uses 0-indices, see "tweakwcs/correctors.py" `ra, dec = self._wcs.all_pix2world(x, y, 0)`
+        chkcatpath = os.path.splitext(catpath)[0] + output_suffix + '_matched_refcat.csv'
+        if os.path.isfile(chkcatpath):
+            shutil.move(chkcatpath, chkcatpath+'.backup')
         chkcat.write(chkcatpath, format='csv', overwrite=True)
         logger.info('Output to {!r}'.format(chkcatpath))
     
