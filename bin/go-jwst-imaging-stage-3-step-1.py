@@ -220,7 +220,7 @@ def asdf_from_step_to_file(
     asdf_file2 = os.path.splitext(asdf_file)[0] + '_export_config.asdf'
     if os.path.isfile(asdf_file2):
         shutil.move(asdf_file2, asdf_file2+'.backup')
-    step_object.export_config(asdf_file2, include_meta=True)
+    step_object.export_config(asdf_file2) # include_meta=True
     
     return asdf_file
 
