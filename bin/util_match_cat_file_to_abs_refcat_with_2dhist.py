@@ -33,6 +33,7 @@ default_search_radius = 1.0 # arcsec
 default_output_suffix = '_new2dhist'
 default_outlier_sigma = 5.0
 default_initial_offset = [0.0, 0.0] # arcsec
+default_output_dir = None
 default_output_abs_refcat = None
 default_input_index_base = '1'
 default_output_index_base = '0'
@@ -48,6 +49,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         output_suffix = default_output_suffix, 
         outlier_sigma = default_outlier_sigma, # filter out outliers of large offsets
         initial_offset = default_initial_offset, 
+        output_dir = default_output_dir, 
         output_abs_refcat = default_output_abs_refcat, # also output the filtered abs_refcat
         input_index_base = default_input_index_base, # the input image catalog listed in catfile should have 1-based x y coordinates
         output_index_base = default_output_index_base, # the output catalog x y coordinate base, default is 0 because jwst pipeline tweakwcs uses that.
@@ -350,8 +352,11 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     logger.info('Output to {!r}'.format(out_file))
     
     # save optimized abs_refcat
+    if output_dir is None:
+        output_dir = os.path.dirname(abs_refcat)
     if output_abs_refcat is None:
-        output_abs_refcat = os.path.splitext(abs_refcat)[0] + output_suffix + '.fits' # FITS-format catalog
+        output_abs_refcat = os.path.join(output_dir, 
+            os.path.splitext(os.path.basename(abs_refcat))[0] + output_suffix + '.fits') # FITS-format catalog
     if output_abs_refcat != '':
         if 'name' not in refcat.meta: 
             refcat.meta['name'] = os.path.splitext(os.path.basename(abs_refcat))[0]
