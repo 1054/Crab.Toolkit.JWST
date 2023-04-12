@@ -93,6 +93,7 @@ from jwst.source_catalog import SourceCatalogStep
 from jwst import datamodels
 from jwst.associations.asn_from_list import asn_from_list
 from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
+from jwst.associations import load_asn
 
 # Import jwst package itself
 import jwst
