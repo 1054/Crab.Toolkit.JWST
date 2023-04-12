@@ -252,9 +252,11 @@ def clean_up_intermediate_outlier_i2d_files(
         image_list, 
         output_name, 
         asn_id = None, 
+        reload_image_models = False, 
     ):
     # move some output files to subdirectories
     # for example the "outlier_i2d.fits", so that we do not find them when doing an `ls *_i2d.fits`
+    reloading_image_model_files = []
     for i in range(len(image_list)):
         image_file = image_list[i]
         # add all possible files to move
@@ -280,6 +282,14 @@ def clean_up_intermediate_outlier_i2d_files(
             if os.path.isfile(f'{output_name}_{asn_id}_{i}_outlierdetection.fits'):
                 shutil.move(f'{output_name}_{asn_id}_{i}_outlierdetection.fits', 
                             f'{output_name}_{i}_{asn_id}_outlierdetection.fits')
+        if reload_image_models:
+            reloading_image_model_files.append(f'{output_name}_{i}_{asn_id}_outlierdetection.fits')
+    if reload_image_models: # not tested 20230412
+        asn_from_list_to_file(reloading_image_model_files, 'asn_outlier_detection_reloading.json')
+        reloaded_image_models = datamodels.ModelContainer()
+        asn_data = reloaded_image_models.read_asn('asn_outlier_detection_reloading.json')
+        reloaded_image_models.from_asn(asn_data)
+        return reloaded_image_models
 
 
 def run_individual_steps_for_one_asn_file(
@@ -326,11 +336,15 @@ def run_individual_steps_for_one_asn_file(
         # 
         # 3. outlier detection
         pipeline_object.outlier_detection.output_file = output_name
+        pipeline_object.outlier_detection.save_intermediate_results = True # False
         pipeline_object.outlier_detection.save_results = True # will save to '{asn_name}_{i}_{asn_id}_crf.fits'
-        pipeline_object.outlier_detection.suffix = 'crf'
+        pipeline_object.outlier_detection.suffix = 'outlierdetection' # default is crf
         pipeline_object.outlier_detection.search_output_file = False
+        asn_id = 'a3001' # the default, see ...
         image_models = pipeline_object.outlier_detection(image_models)
-        clean_up_intermediate_outlier_i2d_files(image_models, output_name)
+        clean_up_intermediate_outlier_i2d_files(image_models, output_name, asn_id = asn_id, reload_image_models = True)
+        # 20230412 it seems pipeline does not return the outlier-detected-pixel-masked image models
+        #          have to reload image_models
         # 
         # 4. resample
         pipeline_object.resample.output_file = output_name
@@ -1289,9 +1303,19 @@ def main(
                 
             else:
                 
-                run_individual_steps_for_one_asn_file(
+                # 20230412 still has outlier detection pixel issue, already set in_memory = True
+                #          it must be that calling `` does not return the updated image models.
+                # run_individual_steps_for_one_asn_file(
+                #     pipeline_object, 
+                #     asn_filename,
+                #     output_name, 
+                # )
+                
+                asn_dict_tmp = load_asn(fp)
+                image_files_tmp = [t['expname'] for t in asn_dict_tmp['products'][0]['members'] if t['exptype']=='science']
+                run_individual_steps_for_image_files(
                     pipeline_object, 
-                    asn_filename,
+                    image_files_tmp,
                     output_name, 
                 )
             
