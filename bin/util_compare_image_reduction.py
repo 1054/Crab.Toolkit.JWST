@@ -507,6 +507,7 @@ def main(
                 plot_colors.split(','), 
                 output_name+'_flux_histograms',
                 aperture_psf_fraction = aper_corr,
+                save_statistics_to_json = output_name+'_stats', 
                 title = title, 
             )
     
