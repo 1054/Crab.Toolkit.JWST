@@ -36,7 +36,7 @@ Last updates:
     2022-12-19 
 
 """
-import os, sys, re, shutil
+import os, sys, re, json, shutil
 import astropy.units as u
 import astropy.constants as const
 import click
@@ -295,6 +295,7 @@ class ImageComparer(object):
             colors, # a list, e.g., ['red', 'blue', 'orange', 'cyan']
             output_figure, 
             aperture_psf_fraction = 1.0, 
+            save_statistics_to_json = '', 
             title = '', 
         ):
         # 
@@ -364,6 +365,7 @@ class ImageComparer(object):
                 bin_max = bin_max.value
             nbins = 151
             # 
+            result_statistics = []
             for i in range(len(labels)):
                 # 
                 ii = orders.index(i)
@@ -423,6 +425,25 @@ class ImageComparer(object):
                     ax.set_xlabel('flux in aperture [nanoJy]')
                 ax.set_ylabel('N')
                 ax.legend()
+                # 
+                # append to results
+                result_statistics.append({
+                        'label': labels[ii], 
+                        'aperture diameter [arcsec]': aperture_size, 
+                        'pixel size [arcsec]': pixsc, 
+                        'mean [nanoJy]': mean, 
+                        'sigma [nanoJy]': sigma, 
+                        'aper corr': aperture_psf_fraction, 
+                        '1-sigma [magAB]': sigma_mag, 
+                        '5-sigma [magAB]': five_sigma_mag, 
+                })
+            # 
+            # save statistics to json
+            if save_statistics_to_json != '':
+                if not save_statistics_to_json.endswith('.json'):
+                    save_statistics_to_json += '.json'
+                with open(save_statistics_to_json, 'w') as fp:
+                    json.dump(result_statistics, fp, indent=4)
             # 
             # title
             if title != '':
