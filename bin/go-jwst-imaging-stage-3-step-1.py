@@ -342,7 +342,8 @@ def run_individual_steps_for_one_asn_file(
         pipeline_object.outlier_detection.search_output_file = False
         asn_id = 'a3001' # the default, see ...
         image_models = pipeline_object.outlier_detection(image_models)
-        clean_up_intermediate_outlier_i2d_files(image_models, output_name, asn_id = asn_id, reload_image_models = True)
+        image_models = clean_up_intermediate_outlier_i2d_files(image_models, output_name, asn_id = asn_id, 
+            reload_image_models = True)
         # 20230412 it seems pipeline does not return the outlier-detected-pixel-masked image models
         #          have to reload image_models
         # 
