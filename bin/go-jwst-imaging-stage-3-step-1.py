@@ -1313,7 +1313,8 @@ def main(
                 #     output_name, 
                 # )
                 
-                asn_dict_tmp = load_asn(fp)
+                with open(asn_filename, 'r') as fp:
+                    asn_dict_tmp = load_asn(fp)
                 image_files_tmp = [t['expname'] for t in asn_dict_tmp['products'][0]['members'] if t['exptype']=='science']
                 run_individual_steps_for_image_files(
                     pipeline_object, 
