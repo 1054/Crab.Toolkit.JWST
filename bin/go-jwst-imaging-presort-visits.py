@@ -194,6 +194,15 @@ def main(
     # 
     all_jwst_dataset_table = Table(all_jwst_dataset_dict)
     
+    # double check
+    failed_datasets = []
+    for i in range(len(all_jwst_dataset_table)):
+        if all_jwst_dataset_table['proposal_id'][i] is None:
+            failed_datasets.append(all_jwst_uncal_files[i])
+    if len(failed_datasets) > 0:
+        raise Exception('Error! {} corrupted data sets?\n'.format(len(failed_datasets)) + 
+                        '\n'.join(['  '+t for t in failed_datasets]))
+    
     # 
     all_jwst_dataset_table.sort(['proposal_id', 'obs_num', 'visit_num', 'parallel', 'instrument', 'filter', 'detector'])
     

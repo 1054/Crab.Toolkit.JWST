@@ -6,6 +6,7 @@ source $(dirname $CONDA_EXE)/activate $conda_env
 pip install jwst==1.9.6 stcal==1.3.4 # 2023-03-10, stcal cannot be newer than this
 pip install click tqdm astroquery lmfit reproject shapely regions
 pip install opencv-python # jwst pipeline snowball needs it
+conda install -y astromatic-source-extractor
 [ ! -d $CONDA_PREFIX/etc/conda/activate.d ] && mkdir -p $CONDA_PREFIX/etc/conda/activate.d
 echo "export CRDS_CONTEXT=\"$crds_context\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
 echo "export CRDS_PATH=\"\$HOME/jwst_crds_cache\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
