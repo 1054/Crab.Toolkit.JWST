@@ -8,6 +8,8 @@ This is an exmaple of reducing one dataset, taking the dataset `jw01345002001_14
 
 ### Stage 0: Preparation
 
+#### Download the software
+
 Download the toolkit into a local directory, for example `$HOME/Cloud/Github/Crab.Toolkit.JWST`.
 
 Add the toolkit bin path into system PATH
@@ -15,6 +17,8 @@ Add the toolkit bin path into system PATH
 ```
 export PATH=$PATH:$HOME/Cloud/Github/Crab.Toolkit.JWST/bin
 ```
+
+#### Setup system variables
 
 Setup CRDS and NIRCam wisp templates. The latter should be obtained from [https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-features-and-caveats/nircam-claws-and-wisps](https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-features-and-caveats/nircam-claws-and-wisps), and stored in a local directory, for example `$HOME/jwst_nircam_wisp_templates`. 
 
@@ -25,11 +29,28 @@ export CRDS_CONTEXT=jwst_0995.pmap
 export NIRCAM_WISP_TEMPLATES=$HOME/jwst_nircam_wisp_templates
 ```
 
+#### Create Conda Environment
+
+```
+conda create -n jwst python=3.9
+pip install jwst crds
+```
+
+#### Download JWST raw data
+
 Download JWST data into a local directory, for example `$HOME/mast_download_dir`
 
+<!--
 ```
 go-jwst-download-by-proposal-id.py 01345 --dataset jw01345002001_14201_00001_nrcb4 --calib-level 1 --download-dir $HOME/mast_download_dir
 ```
+-->
+
+```
+go-jwst-query-by-program-id.py 01345 --obsnum 002 --download
+```
+
+#### Copy raw data files to a working directory
 
 Setup per-dataset subdirectories in your working directory
 
@@ -39,17 +60,23 @@ go-jwst-imaging-precopy-uncal-files $HOME/mast_download_dir/mastDownload/JWST/jw
 
 this will create a subdirectory `jw01345002001_14201_00001_nrcb4 ` under current directory, and the uncal file will be copied to `jw01345002001_14201_00001_nrcb4/uncals/jw01345002001_14201_00001_nrcb4_uncal.fits`. 
 
+#### Precache CRDS files
+
 Precache CRDS files
 
 ```
 go-jwst-imaging-precache-crds-reference-files
 ```
 
+#### Sort visits into a table
+
 Presort visit gropus (optional, for parallel run on cluster)
 
 ```
 go-jwst-imaging-presort-visits.py
 ```
+
+#### Create a qsub script to run the process for all datasets
 
 Create qsub script (optional, for parallel run on cluster)
 
@@ -132,6 +159,7 @@ go-jwst-imaging-stage-3-step-1.py \
 
 ## Last updates: 
 
+- 2023-04-27 Daizhong Liu
 - 2022-11-14 Daizhong Liu
 
 
