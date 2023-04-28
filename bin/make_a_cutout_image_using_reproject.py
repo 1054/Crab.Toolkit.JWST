@@ -155,6 +155,7 @@ if regex_match:
     input_image_file_path = regex_match.group(1)
     input_image_extension = regex_match.group(2)
     with fits.open(input_image_file_path) as hdulist:
+        main_header = copy.copy(hdulist[0].header)
         try:
             ihdu = int(input_image_extension)
             print('read ihdu %d'%(ihdu))
