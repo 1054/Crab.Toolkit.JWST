@@ -157,7 +157,7 @@ if regex_match:
 else:
     input_image_file_path = input_image_file
     input_image_extension = None
-with fits.open(input_image_file) as hdulist:
+with fits.open(input_image_file_path) as hdulist:
     ihdu = 0
     while ihdu < len(hdulist):
         #print(type(hdulist[ihdu]))
