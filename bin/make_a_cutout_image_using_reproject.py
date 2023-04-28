@@ -150,40 +150,36 @@ if input_image_file is None or center_RA is None or center_Dec is None or FoV_RA
 
 
 # read input fits image
-regex_match = re.match(r'^(.*.fits)\[(.+)\]$', input_image_file, re.IGNORECASE)
+regex_match = re.match(r'^(.*.fits)\[(.+)\]$', input_image_file, re.IGNORECASE) # 20230428: input IRAF style fits with extension
 if regex_match:
     input_image_file_path = regex_match.group(1)
     input_image_extension = regex_match.group(2)
-    with fits.open(input_image_file_path) as hdulist:
-        main_header = copy.copy(hdulist[0].header)
-        try:
-            ihdu = int(input_image_extension)
-            print('read ihdu %d'%(ihdu))
-        except:
-            ihdu = str(input_image_extension).replace('"','').replace("'","")
-            print('read ihdu %s'%(ihdu))
-        hdu = copy.copy(hdulist[ihdu])
-        image = copy.copy(hdu.data)
-        header = copy.copy(hdu.header)
 else:
-    with fits.open(input_image_file) as hdulist:
-        ihdu = 0
-        while ihdu < len(hdulist):
-            print(type(hdulist[ihdu]))
-            if isinstance(hdulist[ihdu], fits.hdu.image.PrimaryHDU):
-                main_header = copy.copy(hdulist[ihdu].header)
-            if isinstance(hdulist[ihdu], fits.ImageHDU) or isinstance(hdulist[ihdu], fits.hdu.image.PrimaryHDU):
-                if hdulist[ihdu].header['NAXIS'] > 0:
-                    hdu = copy.copy(hdulist[ihdu])
-                    image = copy.copy(hdu.data)
-                    header = copy.copy(hdu.header)
-                    print('read ihdu %d'%(ihdu))
-                    break
-            ihdu += 1
+    input_image_file_path = input_image_file
+    input_image_extension = None
+with fits.open(input_image_file) as hdulist:
+    ihdu = 0
+    while ihdu < len(hdulist):
+        #print(type(hdulist[ihdu]))
+        if isinstance(hdulist[ihdu], fits.hdu.image.PrimaryHDU):
+            main_header = copy.copy(hdulist[ihdu].header)
+        if isinstance(hdulist[ihdu], fits.ImageHDU) or isinstance(hdulist[ihdu], fits.hdu.image.PrimaryHDU):
+            if hdulist[ihdu].header['NAXIS'] >= 2:
+                print('reading ihdu %d header'%(ihdu))
+                header = copy.copy(hdulist[ihdu].header)
+                break
+        ihdu += 1
+    if input_image_extension is None:
+        ihdu = input_image_extension
+    print('reading ihdu %d data'%(ihdu))
+    image = copy.copy(hdulist[ihdu].data)
+    for key in hdulist[ihdu].header:
+        header[key] = hdulist[ihdu].header[key] # some cases extensions do not have wcs header, this solves that issue.
 
 
 # determine wcs, pixscale, x_size y_size
 wcs = WCS(header, naxis=2)
+wcs.sip = None
 if pixel_size is None:
     pixscales = proj_plane_pixel_scales(wcs) * 3600.0
     print('pixscales', pixscales)
@@ -238,12 +234,8 @@ cutout_header['HISTORY'] = 'Created cutout image at center RA Dec %s %s with FoV
 cutout_header['HISTORY'] = ''
 #print(cutout_header)
 
-try:
-    cutout_image, cutout_footprint = reproject_interp(hdu, cutout_header)
-except:
-    #cutout_image, cutout_footprint = reproject_interp((image, wcs), cutout_header)
-    wcs.sip = None
-    cutout_image, cutout_footprint = reproject_interp((image, wcs), cutout_header)
+
+cutout_image, cutout_footprint = reproject_interp((image, wcs), cutout_header)
 
 
 # generate fits HDU
