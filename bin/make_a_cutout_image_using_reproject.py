@@ -3,7 +3,7 @@
 import os, sys, re, shutil, time, datetime, copy
 import numpy as np
 import astropy.units as u
-from astropy.coordinates import SkyCoord, FK5
+from astropy.coordinates import SkyCoord, ICRS
 from astropy.io import fits # fits.ImageHDU
 #from astropy.modeling import rotations # rotations.Rotation2D
 from astropy.wcs import WCS
@@ -150,20 +150,34 @@ if input_image_file is None or center_RA is None or center_Dec is None or FoV_RA
 
 
 # read input fits image
-with fits.open(input_image_file) as hdulist:
-    ihdu = 0
-    while ihdu < len(hdulist):
-        print(type(hdulist[ihdu]))
-        if isinstance(hdulist[ihdu], fits.hdu.image.PrimaryHDU):
-            main_header = copy.copy(hdulist[ihdu].header)
-        if isinstance(hdulist[ihdu], fits.ImageHDU) or isinstance(hdulist[ihdu], fits.hdu.image.PrimaryHDU):
-            if hdulist[ihdu].header['NAXIS'] > 0:
-                hdu = copy.copy(hdulist[ihdu])
-                image = copy.copy(hdu.data)
-                header = copy.copy(hdu.header)
-                print('read ihdu %d'%(ihdu))
-                break
-        ihdu += 1
+regex_match = re.match(r'^(.*.fits)\[(.+)\]$', input_image_file, re.IGNORECASE)
+if regex_match:
+    input_image_file_path = regex_match.group(1)
+    input_image_extension = regex_match.group(2)
+    with fits.open(input_image_file_path) as hdulist:
+        try:
+            ihdu = int(input_image_extension)
+        except:
+            ihdu = str(input_image_extension).replace('"','').replace("'","")
+        hdu = copy.copy(hdulist[ihdu])
+        image = copy.copy(hdu.data)
+        header = copy.copy(hdu.header)
+        print('read ihdu %d'%(ihdu))
+else:
+    with fits.open(input_image_file) as hdulist:
+        ihdu = 0
+        while ihdu < len(hdulist):
+            print(type(hdulist[ihdu]))
+            if isinstance(hdulist[ihdu], fits.hdu.image.PrimaryHDU):
+                main_header = copy.copy(hdulist[ihdu].header)
+            if isinstance(hdulist[ihdu], fits.ImageHDU) or isinstance(hdulist[ihdu], fits.hdu.image.PrimaryHDU):
+                if hdulist[ihdu].header['NAXIS'] > 0:
+                    hdu = copy.copy(hdulist[ihdu])
+                    image = copy.copy(hdu.data)
+                    header = copy.copy(hdu.header)
+                    print('read ihdu %d'%(ihdu))
+                    break
+            ihdu += 1
 
 
 # determine wcs, pixscale, x_size y_size
@@ -206,10 +220,10 @@ cutout_header['CRPIX1'] = (x_size+1)/2. # 1-based number
 cutout_header['CRPIX2'] = (y_size+1)/2. # 1-based number
 cutout_header['CRVAL1'] = center_RA
 cutout_header['CRVAL2'] = center_Dec
-cutout_header['RADESYS'] = 'FK5'
+cutout_header['RADESYS'] = 'ICRS'
 cutout_header['EQUINOX'] = 2000
 #'NAXIS','NAXIS1','NAXIS2','CDELT1','CDELT2','CRPIX1','CRPIX2','CRVAL1','CRVAL2',
-for key in ['BUNIT','BMAJ','BMIN','BPA','TELESCOP','INSTRUME','EXPTIME',
+for key in ['BUNIT','BMAJ','BMIN','BPA','TELESCOP','INSTRUME','FILTER','EXPTIME',
             'DATE-OBS','TIME-OBS','PHOTMODE','PHOTFLAM','PHTFLAM1','PHTFLAM2','PHTRATIO','PHOTFNU','PHOTZPT','PHOTPLAM','PHOTBW']:
     if key in main_header:
         cutout_header[key] = main_header[key]
