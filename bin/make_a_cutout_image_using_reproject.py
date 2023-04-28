@@ -157,12 +157,13 @@ if regex_match:
     with fits.open(input_image_file_path) as hdulist:
         try:
             ihdu = int(input_image_extension)
+            print('read ihdu %d'%(ihdu))
         except:
             ihdu = str(input_image_extension).replace('"','').replace("'","")
+            print('read ihdu %s'%(ihdu))
         hdu = copy.copy(hdulist[ihdu])
         image = copy.copy(hdu.data)
         header = copy.copy(hdu.header)
-        print('read ihdu %d'%(ihdu))
 else:
     with fits.open(input_image_file) as hdulist:
         ihdu = 0
