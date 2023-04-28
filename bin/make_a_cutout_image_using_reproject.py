@@ -153,7 +153,7 @@ if input_image_file is None or center_RA is None or center_Dec is None or FoV_RA
 regex_match = re.match(r'^(.*.fits)\[(.+)\]$', input_image_file, re.IGNORECASE) # 20230428: input IRAF style fits with extension
 if regex_match:
     input_image_file_path = regex_match.group(1)
-    input_image_extension = regex_match.group(2)
+    input_image_extension = re.sub(r'[\"\']', r'', regex_match.group(2))
 else:
     input_image_file_path = input_image_file
     input_image_extension = None
