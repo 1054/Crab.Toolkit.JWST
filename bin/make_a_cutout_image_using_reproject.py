@@ -174,7 +174,10 @@ with fits.open(input_image_file_path) as hdulist:
     print('reading ihdu %d data'%(ihdu))
     image = copy.copy(hdulist[ihdu].data)
     for key in hdulist[ihdu].header:
-        header[key] = hdulist[ihdu].header[key] # some cases extensions do not have wcs header, this solves that issue.
+        try:
+            header[key] = hdulist[ihdu].header[key] # some cases extensions do not have wcs header, this solves that issue.
+        except:
+            pass
 
 
 # determine wcs, pixscale, x_size y_size
