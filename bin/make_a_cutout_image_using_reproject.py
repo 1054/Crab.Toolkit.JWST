@@ -171,7 +171,7 @@ with fits.open(input_image_file_path) as hdulist:
         ihdu += 1
     if input_image_extension is None:
         ihdu = input_image_extension
-    print('reading ihdu %d data'%(ihdu))
+    print('reading ihdu %s data'%(ihdu))
     image = copy.copy(hdulist[ihdu].data)
     for key in hdulist[ihdu].header:
         try:
