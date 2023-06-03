@@ -1,0 +1,20 @@
+--- Software/CONDA/miniconda3/envs/miragepmap1009/lib/python3.9/site-packages/jwst/outlier_detection/outlier_detection.py 2022-10-26 16:55:59.700789038 +0200
++++ modified/outlier_detection.py   2022-11-18 18:53:18.950122475 +0100
+@@ -79,7 +79,7 @@
+         # Define how file names are created
+         self.make_output_path = pars.get(
+             'make_output_path',
+-            partial(Step._make_output_path, None)
++            partial(Step._make_output_path, self) #<DZLIU># "partial(Step._make_output_path, None)" -> "partial(Step._make_output_path, self)"
+         )
+
+     def _convert_inputs(self):
+@@ -325,7 +325,8 @@
+             blot_root = '_'.join(model.meta.filename.replace(
+                 '.fits', '').split('_')[:-1])
+             model_path = self.make_output_path(
+-                basename=blot_root,
++                basepath=blot_root, #<DZLIU># "basename=blot_root," -> "basepath=blot_root,"
++                ext='fits', #<DZLIU># added this line
+                 suffix='blot'
+             )

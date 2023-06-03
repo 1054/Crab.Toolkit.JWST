@@ -1,0 +1,35 @@
+--- /home/dzliu/Software/CONDA/miniconda3/envs/miragepmap1075/lib/python3.9/site-packages/mirage/dark/dark_prep.py.ori	2023-05-17 14:54:45.280669292 +0200
++++ /home/dzliu/Software/CONDA/miniconda3/envs/miragepmap1075/lib/python3.9/site-packages/mirage/dark/dark_prep.py	2023-05-17 14:53:46.704902996 +0200
+@@ -916,10 +916,10 @@
+                 if file_index == 0:
+                     #print('self.linDark shape is {}. Expecting it to be 4D'.format(self.linDark.data.shape))
+                     junk, num_grps, ydim, xdim = self.linDark.data.shape
+-                    final_dark = np.zeros((number_of_ints, num_grps, ydim, xdim), dtype=np.float)
+-                    final_sbandrefpix = np.zeros((number_of_ints, num_grps, ydim, xdim), dtype=np.float)
+-                    final_zerodata = np.zeros((number_of_ints, ydim, xdim), dtype=np.float)
+-                    final_zero_sbandrefpix = np.zeros((number_of_ints, ydim, xdim), dtype=np.float)
++                    final_dark = np.zeros((number_of_ints, num_grps, ydim, xdim), dtype=np.float32)
++                    final_sbandrefpix = np.zeros((number_of_ints, num_grps, ydim, xdim), dtype=np.float32)
++                    final_zerodata = np.zeros((number_of_ints, ydim, xdim), dtype=np.float32)
++                    final_zero_sbandrefpix = np.zeros((number_of_ints, ydim, xdim), dtype=np.float32)
+ 
+                 if not use_all_files:
+                     self.logger.info('Setting integration {} to use file {}\n'.format(file_index, os.path.split(filename)[1]))
+@@ -1123,7 +1123,7 @@
+             because averaging for non-RAPID readout patterns will destroy the frame
+         """
+         if self.params['Reffiles']['linearized_darkfile']:
+-            datatype = np.float
++            datatype = np.float32
+         else:
+             datatype = np.int32
+ 
+@@ -1174,7 +1174,7 @@
+             accumimage = np.zeros_like(outdark[0, 0, :, :], dtype=datatype)
+ 
+             if dark.sbAndRefpix is not None:
+-                zeroaccumimage = np.zeros_like(outdark[0, 0, :, :], dtype=np.float)
++                zeroaccumimage = np.zeros_like(outdark[0, 0, :, :], dtype=np.float32)
+ 
+             # Loop over integrations
+             #for integ in range(self.params['Readout']['nint']):

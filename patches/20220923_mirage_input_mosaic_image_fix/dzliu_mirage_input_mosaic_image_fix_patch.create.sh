@@ -18,3 +18,8 @@ Software/CONDA/miniconda3/envs/jwstpmap1009/lib/python3.9/site-packages/jwst/out
 outlier_detection.py \
 > dzliu_mirage_input_mosaic_image_fix_patch4.txt
 
+diff -u \
+Software/CONDA/miniconda3/envs/jwstpmap1009/lib/python3.9/site-packages/mirage/seed_image/crop_mosaic.py \
+crop_mosaic.py \
+> dzliu_mirage_input_mosaic_image_fix_patch5.txt
+
