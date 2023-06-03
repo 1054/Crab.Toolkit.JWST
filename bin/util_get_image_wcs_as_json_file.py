@@ -112,9 +112,9 @@ def get_image_wcs_as_json(
     # write json file
     with open(output_json_file, 'w') as fp:
         if len(wcs_dicts) == 1:
-            json.dump(wcs_dicts[0], indent=4)
+            json.dump(wcs_dicts[0], fp, indent=4)
         else:
-            json.dump(wcs_dicts, indent=4)
+            json.dump(wcs_dicts, fp, indent=4)
     
     print('Output to {!r}'.format(output_json_file))
     
