@@ -72,7 +72,7 @@ def get_one_image_wcs(
     wcs_dict['FILENAME'] = image_file
     for key in wcs_header:
         wcs_dict[key] = wcs_header[key]
-    wcs_dict['S_REGION'] = 'poylgon ' + ' '.join(['{:.8f}'.format(t) for t in footprint])
+    wcs_dict['S_REGION'] = 'polygon ' + ' '.join(['{:.8f}'.format(t) for t in footprint])
     return wcs_dict
 
 
