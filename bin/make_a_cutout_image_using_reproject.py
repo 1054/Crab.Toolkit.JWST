@@ -224,8 +224,9 @@ cutout_header['CRVAL2'] = center_Dec
 cutout_header['RADESYS'] = 'ICRS'
 cutout_header['EQUINOX'] = 2000
 #'NAXIS','NAXIS1','NAXIS2','CDELT1','CDELT2','CRPIX1','CRPIX2','CRVAL1','CRVAL2',
-for key in ['BUNIT','BMAJ','BMIN','BPA','TELESCOP','INSTRUME','FILTER','EXPTIME',
-            'DATE-OBS','TIME-OBS','PHOTMODE','PHOTFLAM','PHTFLAM1','PHTFLAM2','PHTRATIO','PHOTFNU','PHOTZPT','PHOTPLAM','PHOTBW']:
+for key in ['BUNIT','BMAJ','BMIN','BPA','TELESCOP','INSTRUME','FILTER','EXPTIME','PA_V3',
+            'DATE-OBS','TIME-OBS','PHOTMODE','PHOTFLAM','PHTFLAM1','PHTFLAM2','PHTRATIO','PHOTFNU','PHOTZPT','PHOTPLAM','PHOTBW',
+            'S_REGION',]:
     if key in main_header:
         cutout_header[key] = main_header[key]
     if key in header:

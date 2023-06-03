@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # 
 """
-Get footprints of images as DS9 region file.
+Get WCS keywords of images as json file.
 
 By Daizhong Liu @MPE. 
 
 Last updates: 
-    2023-01-08
+    2023-06-03
 
 """
-import os, sys, re, copy, shutil
+import os, sys, re, copy, json, shutil
 import click
 import itertools
 import numpy as np
@@ -32,9 +32,9 @@ from astropy.wcs import FITSFixedWarning
 warnings.filterwarnings('ignore', category=FITSFixedWarning)
 
 # code name and version
-CODE_NAME = 'util_get_image_footprint_as_ds9_region.py'
+CODE_NAME = 'util_get_image_wcs_as_json_file.py'
 CODE_AUTHOR = 'Daizhong Liu'
-CODE_VERSION = '20230108'
+CODE_VERSION = '20230603'
 CODE_HOMEPAGE = ''
 
 # logging
@@ -45,30 +45,10 @@ logger.setLevel(logging.DEBUG)
 
 
 
-COLOR_CYCLER = itertools.cycle(cm.rainbow(np.linspace(0, 1, 7)))
 
 
-def write_ds9_region_file(
-        filenames:list, 
-        footprints:list, 
-        region_file:str = 'ds9.reg',
-    ):
-    with open(region_file, 'w') as fp:
-        fp.write('# Region file format: DS9 version 4.1\n')
-        fp.write('global color=green\n')
-        fp.write('fk5\n')
-        for i in range(len(footprints)):
-            color = mpl_colors.to_hex(next(COLOR_CYCLER))
-            vertices = footprints[i]
-            #vertices.extend([vertices[0], vertices[1]])
-            fp.write('polygon({}) # text={{[{}]{}}} color={}\n'.format(
-                    ', '.join(map(str, vertices)),
-                    i, filenames[i], 
-                    color
-                )
-            )
 
-def get_one_image_footprint(
+def get_one_image_wcs(
         image_file,
     ):
     with fits.open(image_file) as hdul:
@@ -86,13 +66,19 @@ def get_one_image_footprint(
     wcs.sip = None
     nx, ny = header['NAXIS1'], header['NAXIS2']
     ra, dec = wcs.wcs_pix2world([1, nx, nx, 1, 1], [1, 1, ny, ny, 1], 1)
-    footprint = np.column_stack((ra, dec)).ravel().tolist()
-    return footprint
+    footprint = np.column_stack((ra, dec)).ravel()
+    wcs_header = wcs.to_header()
+    wcs_dict = {}
+    wcs_dict['FILENAME'] = image_file
+    for key in wcs_header:
+        wcs_dict[key] = wcs_header[key]
+    wcs_dict['S_REGION'] = 'poylgon ' + np.array2string(footprint, precision=8, floatmode='fixed')[1:-1]
+    return wcs_dict
 
 
-def get_image_footprint_as_ds9_region(
+def get_image_wcs_as_json(
         image_files, 
-        output_region_file, 
+        output_json_file, 
         asn_file = None, 
     ):
     
@@ -111,25 +97,26 @@ def get_image_footprint_as_ds9_region(
     k = 0
     rets = []
     for k in range(len(image_files)):
-        ret = pool.apply_async(get_one_image_footprint, 
+        ret = pool.apply_async(get_one_image_wcs, 
                                args = (image_files[k],
                                       ),
         )
         rets.append(ret)
     pool.close()
     pool.join()
-    footprints = []
+    wcs_dicts = []
     for k in range(len(image_files)):
-        footprint = rets[k].get()
-        footprints.append(footprint)
+        wcs_dict = rets[k].get()
+        wcs_dicts.append(wcs_dict)
     
-    # write ds9 region file
-    write_ds9_region_file(
-        image_files,
-        footprints,
-        output_region_file,
-    )
-    print('Output to {!r}'.format(output_region_file))
+    # write json file
+    with open(output_json_file, 'w') as fp:
+        if len(wcs_dicts) == 1:
+            json.dump(wcs_dicts[0], indent=4)
+        else:
+            json.dump(wcs_dicts, indent=4)
+    
+    print('Output to {!r}'.format(output_json_file))
     
     # return
     return
@@ -139,20 +126,20 @@ def get_image_footprint_as_ds9_region(
 
 @click.command()
 @click.argument('image_files', nargs=-1, required=True, type=click.Path(exists=True))
-@click.argument('output_region_file', nargs=1, type=click.Path(exists=False))
+@click.argument('output_json_file', nargs=1, type=click.Path(exists=False))
 @click.option('--asn-file', type=click.Path(exists=True), default=None, help='We can input an asn file instead of image files.')
 def main(
         image_files, 
-        output_region_file, 
+        output_json_file, 
         asn_file, 
     ):
 
     if len(image_files) == 0:
         raise Exception('Please input image_files!')
 
-    get_image_footprint_as_ds9_region(
+    get_image_wcs_as_json(
         image_files, 
-        output_region_file, 
+        output_json_file, 
         asn_file = asn_file, 
     )
 
