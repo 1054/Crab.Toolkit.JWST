@@ -195,7 +195,7 @@ def main(
     
     # prepare mask_seed_emission_dq -- a specific combination of flags for the masked bad pixels
     mask_seed_emission_dq = interpret_bit_flags(
-        'JUMP_DET',
+        'DO_NOT_USE+JUMP_DET',
         flag_name_map=dqflags_pixel
     )
     
