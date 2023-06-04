@@ -2,7 +2,7 @@
 # 
 
 """
-Remove claws for specific data sets. 
+Remove snowballs for specific data sets. 
 
 We need some region files under the `CODE_DATADIR` directory with the 
 same name as the data set file, e.g., 'jw01837022001_02201_00002_nrca1_rate.reg'. 
@@ -63,12 +63,12 @@ import warnings
 warnings.filterwarnings('ignore', category=FITSFixedWarning)
 
 # code name and version
-CODE_NAME = 'util_remove_claws_for_specific_data_sets.py'
+CODE_NAME = 'util_remove_snowballs_for_specific_data_sets.py'
 CODE_AUTHOR = 'Daizhong Liu'
 CODE_VERSION = '20230105'
 CODE_HOMEPAGE = 'https://github.com/1054/Crab.Toolkit.JWST'
 CODE_DATADIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
-                            'util_remove_claws_for_specific_data_sets_region_and_mask_files')
+                            'util_remove_snowballs_for_specific_data_sets_region_and_mask_files')
 
 # logging
 import logging
@@ -83,8 +83,8 @@ logger.setLevel(logging.DEBUG)
 @click.command()
 @click.argument('input_file', type=click.Path(exists=True))
 @click.argument('output_file', required=False, type=click.Path(exists=False), default=None)
-@click.option('--template-dir', type=click.Path(exists=True), default=CODE_DATADIR, help='Where to find the custom claws region files.')
-@click.option('--fill-value', type=float, default=0.0, help='Fill the data pixel value in the mask area. Default is 0.0. Their DQ will be updated anyway.')
+@click.option('--template-dir', type=click.Path(exists=True), default=CODE_DATADIR, help='Where to find the custom snowballs region files.')
+@click.option('--fill-value', type=float, default=None, help='Fill the data pixel value in the mask area. Default is None. Their DQ will be updated anyway.')
 def main(
         input_file, 
         output_file, 
@@ -127,8 +127,8 @@ def main(
         # check if already processed
         for entry in model.history:
             for k,v in entry.items():
-                if v.startswith('Removed claws'):
-                    logger.info('{!r} already had claws removed. Skipping!'.format(input_file))
+                if v.startswith(f'Removed snowballs with {CODE_NAME}'):
+                    logger.info(f'{input_file!r} already had snowballs removed with {CODE_NAME}. Skipping!')
                     return
         
         # get image
@@ -137,7 +137,7 @@ def main(
         # check instrument_name
         instrument_name = model.meta.instrument.name
         if instrument_name.upper() != 'NIRCAM':
-            logger.warning('The input is not NIRCam data, cannot remove claws.')
+            logger.warning('The input is not NIRCam data, cannot remove snowballs.')
             return
     
     # read fits header (I don't know how to get the header from model.meta)
@@ -195,7 +195,7 @@ def main(
     
     # prepare mask_seed_emission_dq -- a specific combination of flags for the masked bad pixels
     mask_seed_emission_dq = interpret_bit_flags(
-        'DO_NOT_USE+SATURATED+NO_FLAT_FIELD+UNRELIABLE_DARK+UNRELIABLE_FLAT+OTHER_BAD_PIXEL',
+        'JUMP_DET',
         flag_name_map=dqflags_pixel
     )
     
@@ -205,7 +205,7 @@ def main(
         output_file = input_file
     if os.path.abspath(output_file) == os.path.abspath(input_file):
         logger.info('Updating the input file in-place!')
-        output_orig = re.sub(r'\.fits$', r'', output_file) + '_before_removing_claws.fits'
+        output_orig = re.sub(r'\.fits$', r'', output_file) + '_before_removing_snowballs.fits'
         if not os.path.isfile(output_orig):
             shutil.copy2(output_file, output_orig) # do not overwrite
     else:
@@ -225,10 +225,11 @@ def main(
             mask_seed_emission_dq
         )
         
-        out_model.data[seed_masks] = fill_value
+        if fill_value is not None:
+            out_model.data[seed_masks] = fill_value
         
         # add history entry following CEERS
-        stepdescription = f'Removed claws with {CODE_NAME} ({out_timestamp})'
+        stepdescription = f'Removed snowballs with {CODE_NAME} ({out_timestamp})'
         software_dict = {'name':CODE_NAME,
                          'author':CODE_AUTHOR,
                          'version':CODE_VERSION,
@@ -237,7 +238,7 @@ def main(
         out_model.history.append(substr)
         #print('out_model.history', out_model.history)
         out_model.save(output_file)
-        logger.info('Saved claws-removed data into {!r}'.format(output_file))
+        logger.info('Saved snowballs-removed data into {!r}'.format(output_file))
     
     
     
