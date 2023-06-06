@@ -369,10 +369,10 @@ class ImageComparer(object):
             bin_min = (p84_flux+p16_flux)/2.0 - init_sigma * 3.0
             bin_max = (p84_flux+p16_flux)/2.0 + init_sigma * 5.0
             logger.debug('bin_min, bin_max: {}, {}'.format(bin_min, bin_max))
-            if isinstance(bin_min, u.Quantity):
-                bin_min = bin_min.value
-            if isinstance(bin_max, u.Quantity):
-                bin_max = bin_max.value
+            #if isinstance(bin_min, u.Quantity):
+            #    bin_min = bin_min.value
+            #if isinstance(bin_max, u.Quantity):
+            #    bin_max = bin_max.value
             nbins = 151
             # 
             result_statistics = []
@@ -384,7 +384,14 @@ class ImageComparer(object):
                 fluxes = fluxes_list[i]
                 pixsc = pixsc_list[i]
                 # 
-                hist, bin_edges = np.histogram(fluxes, bins=nbins, range=(bin_min, bin_max))
+                #if isinstance(fluxes, u.Quantity):
+                #    fluxes = fluxes.value
+                logger.debug('type(fluxes): {}'.format(type(fluxes)))
+                try:
+                    hist, bin_edges = np.histogram(fluxes, bins=nbins, range=(bin_min, bin_max))
+                except:
+                    hist, bin_edges = np.histogram(fluxes, bins=nbins, range=(bin_min.value, bin_max.value))
+                logger.debug('type(hist): {}'.format(type(hist)))
                 # 
                 x = (bin_edges[0:-1]+bin_edges[1:])/2.0
                 y = hist

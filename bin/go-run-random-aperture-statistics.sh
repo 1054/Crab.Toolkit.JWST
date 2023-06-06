@@ -37,6 +37,7 @@ n_images=()
 input_images=()
 total_n_images=0
 aperture_diameter=0.30 # arcsec
+do_individual_image=0
 output_dir="output_random_aperture_statistics"
 while [[ $iarg -le $# ]]; do
     argstr="${!iarg}"
@@ -53,6 +54,9 @@ while [[ $iarg -le $# ]]; do
             argmode="outdir"
         elif [[ "$argstr2" == "-images" ]]; then
             argmode="images"
+        elif [[ "$argstr2" == "-do-individual"* ]]; then
+            argmode="none"
+            do_individual_image=1
         else
             argmode="none"
             echo "Unrecognized option: $argstr"
@@ -116,9 +120,6 @@ for (( igroup=0; igroup<${#group_names[@]}; igroup++ )); do
     done
     
     out_dir="${output_dir}/${group_name2}"
-    out_pdf="${output_dir}_${group_name2}.pdf"
-    
-    do_individual_image=0
     
     if [[ $do_individual_image -gt 0 ]]; then
         for (( k=0; k<${#image_files[@]}; k++ )); do
@@ -147,10 +148,11 @@ for (( igroup=0; igroup<${#group_names[@]}; igroup++ )); do
                 --no-legend \
                 "$out_path"
         done
-
+        
+        out_pdf="${output_dir}/${group_name2}/all_individual_images.pdf"
         echo "gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile=${out_pdf}  ${out_dir}/*.pdf"
         gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile=${out_pdf}  ${out_dir}/*.pdf
-    
+        
     else
         
         labels=""
@@ -192,12 +194,21 @@ for (( igroup=0; igroup<${#group_names[@]}; igroup++ )); do
 done
 
 
-echo "Running: $script_dir/go-run-random-aperture-statistics-collect-result-table.py \\"
-echo "    $output_dir/*/*_stats.json \\"
-echo "    $output_dir/output_rand_aper_stats.csv"
-go-run-random-aperture-statistics-collect-result-table.py \
-    $output_dir/*/*_stats.json \
-    $output_dir/output_rand_aper_stats.csv
+if [[ $do_individual_image -gt 0 ]]; then
+    echo "Running: $script_dir/go-run-random-aperture-statistics-collect-result-table.py \\"
+    echo "    $output_dir/*/[0-9]*_stats.json \\"
+    echo "    $output_dir/output_rand_aper_stats.csv"
+    go-run-random-aperture-statistics-collect-result-table.py \
+        $output_dir/*/[0-9]*_stats.json \
+        $output_dir/output_rand_aper_stats_all_individual_images.csv
+else
+    echo "Running: $script_dir/go-run-random-aperture-statistics-collect-result-table.py \\"
+    echo "    $output_dir/*/all_stats.json \\"
+    echo "    $output_dir/output_rand_aper_stats.csv"
+    go-run-random-aperture-statistics-collect-result-table.py \
+        $output_dir/*/all_stats.json \
+        $output_dir/output_rand_aper_stats.csv
+fi
 
 
 
