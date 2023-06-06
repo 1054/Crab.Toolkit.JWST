@@ -34,24 +34,27 @@ def main(
         with open(json_file, 'r') as fp:
             statdict = json.load(fp)
             if isinstance(statdict, list):
-                statdict = statdict[0]
+                statdicts = statdict
+            else:
+                statdicts = statdict
             
-            if not has_all_keys:
-                for key in statdict:
-                    if key not in ['label']:
-                        result_dict[key] = []
-                has_all_keys = True
-            
-            dataset = statdict['image']
-            
-            result_dict['dataset'].append(dataset)
-            result_dict['filter'].append(filter_name)
-            for key in result_dict:
-                if key not in ['dataset', 'filter']:
-                    if key in result_dict:
-                        result_dict[key].append(statdict[key])
-                    else:
-                        result_dict[key].append(np.nan)
+            for statdict in statdicts:
+                if not has_all_keys:
+                    for key in statdict:
+                        if key not in ['label']:
+                            result_dict[key] = []
+                    has_all_keys = True
+                
+                dataset = statdict['image']
+                
+                result_dict['dataset'].append(dataset)
+                result_dict['filter'].append(filter_name)
+                for key in result_dict:
+                    if key not in ['dataset', 'filter']:
+                        if key in result_dict:
+                            result_dict[key].append(statdict[key])
+                        else:
+                            result_dict[key].append(np.nan)
 
     result_table = Table(result_dict)
     result_table.write(output_csv, format='csv', overwrite=True)
