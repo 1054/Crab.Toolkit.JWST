@@ -337,6 +337,7 @@ def run_individual_steps_for_one_asn_file(
         # 
         # 3. outlier detection
         pipeline_object.outlier_detection.output_file = output_name
+        pipeline_object.outlier_detection.maskpt = 0.2 # default is 0.7
         pipeline_object.outlier_detection.save_intermediate_results = True # False
         pipeline_object.outlier_detection.save_results = True # will save to '{asn_name}_{i}_{asn_id}_crf.fits'
         pipeline_object.outlier_detection.suffix = 'outlierdetection' # default is crf
