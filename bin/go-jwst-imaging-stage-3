@@ -53,6 +53,7 @@ tweakreg_argnames=("--abs-refcat" "--use-custom-catalogs" "--enforce-user-order"
 tweakreg_optnames=("--use-catfile" "--no-use-catfile")
 tweakreg_kwargs=()
 resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
+resample_optnames=("--outlier-detection-discard-highest")
 resample_kwargs=()
 combine_argnames=("--grid-step" "--filter")
 combine_optnames=("--combine-obsnum" "--no-combine-obsnum" "--combine-visitnum" "--no-combine-visitnum" "--combine-program" "--run-individual-steps" "--very-big-mosaic")
@@ -121,6 +122,9 @@ while [[ $iarg -le $# ]]; do
                 resample_kwargs+=("${!iarg}")
                 echo "\"${!iarg}\""
             fi
+        elif [[ " ${resample_optnames[@]} " == *" $argstr "* ]]; then
+            resample_kwargs+=("${!iarg}")
+            echo "${!iarg}"
         # combine
         elif [[ " ${combine_argnames[@]} " == *" $argstr "* ]]; then
             combine_kwargs+=("${!iarg}")

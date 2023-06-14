@@ -587,6 +587,9 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--abs-refcat', type=click.Path(exists=True), 
                               default=None, 
                               help='Absolute reference catalog, must contain `RA` and `DEC` columns, optionally `weight`. See `tweakwcs/imalign.py` `align_wcs`.')
+@click.option('--outlier-detection-discard-highest', type=bool, 
+                              default=False, 
+                              help='Outlier detection discard the highest frame when making the median.')
 @click.option('--save-info-table-dir', type=click.Path(exists=False), 
                                        default=None, 
                                        help='Save the dataset-grouped info table to disk. Default directory is the `output_dir`.')
@@ -622,6 +625,7 @@ def main(
         pixel_scale_ratio, 
         pixel_scale, 
         abs_refcat, 
+        outlier_detection_discard_highest, 
         save_info_table_dir, 
         save_info_table_name, 
         use_custom_catalogs, 
@@ -1070,6 +1074,8 @@ def main(
         
         # 20230614
         pipeline_object.outlier_detection.maskpt = 0.2 # default is 0.7
+        if outlier_detection_discard_highest:
+            pipeline_object.outlier_detection.nhigh = 1 # default is 0
         
         
         # ResampleStep
