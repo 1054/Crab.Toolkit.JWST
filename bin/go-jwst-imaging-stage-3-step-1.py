@@ -587,9 +587,6 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--abs-refcat', type=click.Path(exists=True), 
                               default=None, 
                               help='Absolute reference catalog, must contain `RA` and `DEC` columns, optionally `weight`. See `tweakwcs/imalign.py` `align_wcs`.')
-@click.option('--outlier-detection-discard-highest', type=bool, 
-                              default=False, 
-                              help='Outlier detection discard the highest frame when making the median.')
 @click.option('--save-info-table-dir', type=click.Path(exists=False), 
                                        default=None, 
                                        help='Save the dataset-grouped info table to disk. Default directory is the `output_dir`.')
@@ -612,6 +609,7 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite?')
 @click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
 @click.option('--very-big-mosaic/--no-very-big-mosaic', is_flag=True, default=False, help='Very big mosaic mode! If Ture, we will divide images into boxes with size set by `grid_step` in arcmin.')
+@click.option('--outlier-detection-discard-highest', is_flag=True, default=False, help='Outlier detection discard the highest frame when making the median.')
 def main(
         input_cal_files, 
         output_dir, 
@@ -625,7 +623,6 @@ def main(
         pixel_scale_ratio, 
         pixel_scale, 
         abs_refcat, 
-        outlier_detection_discard_highest, 
         save_info_table_dir, 
         save_info_table_name, 
         use_custom_catalogs, 
@@ -638,6 +635,7 @@ def main(
         overwrite, 
         run_individual_steps,
         very_big_mosaic, 
+        outlier_detection_discard_highest, 
     ):
     
     # Add script dir to sys path
