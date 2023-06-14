@@ -337,7 +337,7 @@ def run_individual_steps_for_one_asn_file(
         # 
         # 3. outlier detection
         pipeline_object.outlier_detection.output_file = output_name
-        pipeline_object.outlier_detection.maskpt = 0.2 # default is 0.7
+        pipeline_object.outlier_detection.maskpt = 0.2 # default is 0.7. The 0.2 means we only need 20% valid to get a valid median.
         pipeline_object.outlier_detection.save_intermediate_results = True # False
         pipeline_object.outlier_detection.save_results = True # will save to '{asn_name}_{i}_{asn_id}_crf.fits'
         pipeline_object.outlier_detection.suffix = 'outlierdetection' # default is crf
@@ -459,6 +459,7 @@ def run_individual_steps_for_image_files(
     # 
     # 3. outlier detection
     pipeline_object.outlier_detection.output_file = output_name
+    pipeline_object.outlier_detection.maskpt = 0.2 # default is 0.7
     pipeline_object.outlier_detection.save_intermediate_results = True # False
     pipeline_object.outlier_detection.save_results = True # will save as '{output_name}_{index}_{asn_id}_outlierdetection.fits'
     pipeline_object.outlier_detection.suffix = 'outlierdetection' # default is crf
@@ -1066,6 +1067,9 @@ def main(
         # 20230307
         pipeline_object.outlier_detection.snr = '3.0 2.5'
         pipeline_object.outlier_detection.scale = '10. 5'
+        
+        # 20230614
+        pipeline_object.outlier_detection.maskpt = 0.2 # default is 0.7
         
         
         # ResampleStep
