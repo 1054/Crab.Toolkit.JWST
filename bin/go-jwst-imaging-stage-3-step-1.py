@@ -610,6 +610,7 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
 @click.option('--very-big-mosaic/--no-very-big-mosaic', is_flag=True, default=False, help='Very big mosaic mode! If Ture, we will divide images into boxes with size set by `grid_step` in arcmin.')
 @click.option('--outlier-detection-discard-highest', is_flag=True, default=False, help='Outlier detection discard the highest frame when making the median.')
+@click.option('--north-up', is_flag=True, default=False, help='Make image north-up.')
 def main(
         input_cal_files, 
         output_dir, 
@@ -636,6 +637,7 @@ def main(
         run_individual_steps,
         very_big_mosaic, 
         outlier_detection_discard_highest, 
+        north_up, 
     ):
     
     # Add script dir to sys path
@@ -1087,6 +1089,10 @@ def main(
         pipeline_object.resample.pixel_scale = pixel_scale
         #pipeline_object.resample.suffix = 'i2d' # just use the default
         #pipeline_object.resample.save_results = True
+        
+        # 20230616
+        if north_up:
+            pipeline_object.resample.rotation = 0.0 # A value of 0.0 would orient the final output image to be North up. 
         
         
         # SourceCatalogStep
