@@ -65,6 +65,8 @@ def parse_angle_str(angle_str, default_unit='degree', output_unit='arcsec'):
 input_image_file = None
 center_RA = None
 center_Dec = None
+recenter_to_RA = None
+recenter_to_Dec = None
 FoV_RA = None
 FoV_Dec = None
 pixel_size = None
@@ -115,6 +117,20 @@ while iarg < len(sys.argv):
             except:
                 center_Dec = str(sys.argv[iarg])
             print('Setting center_Dec = %s [degree]'%(center_Dec))
+    elif arg_str == '-recenter' or arg_str == '-recenter-to':
+        if iarg+2 < len(sys.argv):
+            iarg += 1
+            try:
+                recenter_to_RA = float(sys.argv[iarg])
+            except:
+                recenter_to_RA = str(sys.argv[iarg])
+            print('Setting recenter_to_RA = %s [degree]'%(recenter_to_RA))
+            iarg += 1
+            try:
+                recenter_to_Dec = float(sys.argv[iarg])
+            except:
+                recenter_to_Dec = str(sys.argv[iarg])
+            print('Setting recenter_to_Dec = %s [degree]'%(recenter_to_Dec))
     else:
         if input_image_file is None:
             input_image_file = sys.argv[iarg]
@@ -240,6 +256,12 @@ cutout_header['HISTORY'] = ''
 
 
 cutout_image, cutout_footprint = reproject_interp((image, wcs), cutout_header)
+
+
+# optionally recenter the image to some RA Dec for astrometry correction
+if recenter_to_RA is not None and recenter_to_Dec is not None:
+    cutout_header['CRVAL1'] = recenter_to_RA
+    cutout_header['CRVAL2'] = recenter_to_Dec
 
 
 # generate fits HDU
