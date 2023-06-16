@@ -127,8 +127,8 @@ def main(
         # check if already processed
         for entry in model.history:
             for k,v in entry.items():
-                if v.startswith('Removed claws'):
-                    logger.info('{!r} already had claws removed. Skipping!'.format(input_file))
+                if v.startswith('Removed claws with {CODE_NAME}'):
+                    logger.info(f'{input_file!r} already had claws removed with {CODE_NAME}. Skipping!')
                     return
         
         # get image
