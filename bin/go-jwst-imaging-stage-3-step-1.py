@@ -18,6 +18,7 @@ Last update:
     
     2022-09-10 DZLIU.
     2022-12-03 DZLIU. tweakreg with "*_cat_for_tweakreg.csv".
+    2023-06-28 DZLIU. In some cases abs_fitgeometry 'general' might be needed.
 
 
 More notes from CEERS in "ceers_nircam_reduction.ipynb":
@@ -554,6 +555,7 @@ DEFAULT_KERNEL = 'square'
 DEFAULT_PIXFRAC = 1.0 # 0.5
 DEFAULT_PIXEL_SCALE_RATIO = 0.48
 DEFAULT_PIXEL_SCALE = None
+DEFAULT_ABS_FITGEOMETRY = 'rshift' # rotate and shift only
 
 
 
@@ -587,6 +589,9 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--abs-refcat', type=click.Path(exists=True), 
                               default=None, 
                               help='Absolute reference catalog, must contain `RA` and `DEC` columns, optionally `weight`. See `tweakwcs/imalign.py` `align_wcs`.')
+@click.option('--abs-fitgeometry', type=click.Choice(['shift', 'rshift', 'rscale', 'general']), 
+                              default=DEFAULT_ABS_FITGEOMETRY, 
+                              help='Type of affine transformation to fit the abs_refcat astrometry correction. Default is \'rshift\' but sometimes it is not perfect.')
 @click.option('--save-info-table-dir', type=click.Path(exists=False), 
                                        default=None, 
                                        help='Save the dataset-grouped info table to disk. Default directory is the `output_dir`.')
@@ -624,6 +629,7 @@ def main(
         pixel_scale_ratio, 
         pixel_scale, 
         abs_refcat, 
+        abs_fitgeometry, 
         save_info_table_dir, 
         save_info_table_name, 
         use_custom_catalogs, 
@@ -1033,14 +1039,13 @@ def main(
         # set abs_refcat if user has input that
         if abs_refcat is not None and abs_refcat != '':
             pipeline_object.tweakreg.abs_refcat = abs_refcat
-            #pipeline_object.abs_fitgeometry = 'rshift' # 'shift', 'rshift', 'rscale', 'general' (shift, rotation, and scale)
             pipeline_object.tweakreg.abs_minobj = 1 # default is 15
             pipeline_object.tweakreg.abs_searchrad = 1.0 # default is 6.0
             pipeline_object.tweakreg.abs_separation = 1.0 # default is 0.1 arcsec
             pipeline_object.tweakreg.abs_tolerance = 1.0 # default is 0.7 arcsec
             #pipeline_object.tweakreg.abs_use2dhist = False # default is True, but ...
             pipeline_object.tweakreg.abs_use2dhist = True # default is True, but ...
-            #pipeline_object.tweakreg.abs_fitgeometry = 'shift' # 'rshift'
+            pipeline_object.tweakreg.abs_fitgeometry = abs_fitgeometry # 'shift', 'rshift', 'rscale', 'general' (shift, rotation, and scale)
             pipeline_object.tweakreg.save_abs_catalog = True
             #pipeline_object.tweakreg.save_abs_catalog = True # only if abs_refcat `gaia_cat_name in SINGLE_GROUP_REFCAT`
         # do manual 2dhist for a better tweakreg
