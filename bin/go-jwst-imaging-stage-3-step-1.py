@@ -95,6 +95,7 @@ from jwst import datamodels
 from jwst.associations.asn_from_list import asn_from_list
 from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
 from jwst.associations import load_asn
+from jwst.assign_wcs.util import update_fits_wcsinfo
 
 # Import jwst package itself
 import jwst
@@ -321,7 +322,7 @@ def run_individual_steps_for_one_asn_file(
         image_models = pipeline_object.tweakreg(input_models)
         # TODO: sometimes tweakreg update_fits_wcsinfo fails because `max_pix_error` is too small, 
         # we can run this manually with a larger `max_pix_error`, then save_model.
-        from jwst.assign_wcs.util import update_fits_wcsinfo
+        #from jwst.assign_wcs.util import update_fits_wcsinfo
         for image_model in image_models:
             update_fits_wcsinfo(image_model,
                 max_pix_error=1.,
@@ -406,25 +407,49 @@ def run_individual_steps_for_image_files(
     processed_image_files = [re.sub(r'_cal(\.fits|)$', r'', t)+'_tweakreg.fits' for t in processing_image_files] # (without '_cal')
     pipeline_object.log.info('Checking tweakreg output file existence: {}'.format(repr(processed_image_files)))
     if not np.all(list(map(os.path.exists, processed_image_files))):
-        asn_from_list_to_file(processing_image_files, 'asn_tweakreg.json')
-        asdf_from_step_to_file(pipeline_object.tweakreg, 'asdf_tweakreg.txt')
-        image_models = pipeline_object.tweakreg('asn_tweakreg.json')
-        # TODO: sometimes tweakreg update_fits_wcsinfo fails because `max_pix_error` is too small, 
-        # we can run this manually with a larger `max_pix_error`, then save_model.
-        from jwst.assign_wcs.util import update_fits_wcsinfo
-        for image_model in image_models:
-            update_fits_wcsinfo(image_model,
-                max_pix_error=1.,
-                npoints=16)
-        pipeline_object.tweakreg.save_model(image_models, 
-            idx=None, suffix='tweakreg', # will save as '{dataset_name}_tweakreg.fits' (without '_cal')
-            format=pipeline_object.tweakreg.name_format, force=True)
+        # 20230628: do images one by one with 'shift' only
+        temp_abs_fitgeometry = pipeline_object.tweakreg.abs_fitgeometry
+        temp_catfile = pipeline_object.tweakreg.catfile
+        temp_catdict = {}
+        with open(temp_catfile, 'r') as fp:
+            for line in fp:
+                line_split = line.split()
+                if line_split == 2:
+                    temp_catdict[line_split[0]] = line_split[1]
+        for i in range(len(processed_image_files)):
+            one_image_name = re.sub(r'_cal(\.fits|)$', r'', os.path.basename(processing_image_files[i]))
+            one_image_catfile = 'catfile_tweakreg_{}_{}.txt'.format(i, one_image_name)
+            one_image_catcsv = temp_catdict[processing_image_files[i]]
+            one_image_cattable = Table.read(one_image_catcsv, format='csv')
+            with open(one_image_catfile, 'w') as fp:
+                fp.write('{} {}\n'.format(processing_image_files[i], one_image_catcsv))
+            if len(one_image_cattable) >= 4: #<20230628># how many points for 'rshift'
+                pipeline_object.tweakreg.abs_fitgeometry = 'rshift'
+            else:
+                pipeline_object.tweakreg.abs_fitgeometry = 'shift'
+            pipeline_object.tweakreg.catfile = one_image_catfile
+            asn_from_list_to_file([processing_image_files[i]], 'asn_tweakreg_{}_{}.json'.format(i, one_image_name))
+            asdf_from_step_to_file(pipeline_object.tweakreg, 'asdf_tweakreg_{}_{}.txt'.format(i, one_image_name))
+            image_models = pipeline_object.tweakreg('asn_tweakreg_{}_{}.json'.format(i, one_image_name))
+            # TODO: sometimes tweakreg update_fits_wcsinfo fails because `max_pix_error` is too small, 
+            # we can run this manually with a larger `max_pix_error`, then save_model.
+            #from jwst.assign_wcs.util import update_fits_wcsinfo
+            for image_model in image_models:
+                update_fits_wcsinfo(image_model,
+                    max_pix_error=1.,
+                    npoints=16)
+            pipeline_object.tweakreg.save_model(image_models, 
+                idx=None, suffix='tweakreg', # will save as '{dataset_name}_tweakreg.fits' (without '_cal')
+                format=pipeline_object.tweakreg.name_format, force=True)
+        pipeline_object.tweakreg.abs_fitgeometry = temp_abs_fitgeometry
+        pipeline_object.tweakreg.catfile = temp_catfile
+        del temp_catdict
         # 
         # Notes:
         #   dzliu fixing a potential tweak_step bug "images.from_asn(input)" --> "images.from_asn(asn_data)"
         # 
         # 
-        # TODO: 20230318: 
+        # DONE: 20230318: 
         #   tweakreg was skipped for some images, error messages as below:
         #     ERROR - Number of output coordinates exceeded allocation
         #     ERROR - Multiple sources within specified tolerance matched to a single reference source. 
@@ -435,6 +460,13 @@ def run_individual_steps_for_image_files(
         #     marking `model.meta.cal_step.tweakreg = "SKIPPED"`, 
         #     and leaving a log message `Skipping 'TweakRegStep'`.
         #   After extensive testing, it seems changing `tolerance` from 1.0 to 0.7 will do the trick...
+        # 
+        # 
+        # DONE: 20230628: 
+        #   tweakreg with abs_refcat does not work
+        #   now do tweakreg for each detector image individually with rshift
+        #   TODO: do another global tweakreg? probably not
+        # 
         # 
     else:
         pipeline_object.log.info('Step tweakreg is skipped because all output files exist: {}'.format(repr(processed_image_files)))
