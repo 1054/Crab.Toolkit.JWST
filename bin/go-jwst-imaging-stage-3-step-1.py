@@ -419,7 +419,7 @@ def run_individual_steps_for_image_files(
         with open(temp_catfile, 'r') as fp:
             for line in fp:
                 line_split = line.strip().split()
-                if line_split == 2:
+                if len(line_split) >= 2:
                     temp_catdict[line_split[0]] = line_split[1]
         for i in range(len(processed_image_files)):
             one_image_name = re.sub(r'_cal(\.fits|)$', r'', os.path.basename(processing_image_files[i]))
