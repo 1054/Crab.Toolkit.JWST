@@ -45,7 +45,7 @@ if [[ "$1" == *"nrca"* ]] || [[ "$1" == *"nrcb"* ]] || [[ "$1" == *"nrclong"* ]]
     infile="$1"
     args=()
     iarg=2
-    detect_thresh=4.0
+    detect_thresh=3.0
     while [[ $iarg -le $# ]]; do
         if [[ "${!iarg}" == "--detect-thresh" ]]; then
             iarg=$((iarg+1))
