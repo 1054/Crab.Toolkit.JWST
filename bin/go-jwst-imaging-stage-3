@@ -49,6 +49,8 @@ info_table_argnames=("--save-info-table-dir" "--save-info-table-name")
 info_table_kwargs=()
 info_table_dir=""
 info_table_name="mosaic_info_table" # must match the default in "go-jwst-imaging-stage-3-step-1.py"
+sextractor_argnames=("--detect-thresh")
+sextractor_kwargs=()
 tweakreg_argnames=("--abs-refcat" "--abs-fitgeometry" "--use-custom-catalogs" "--enforce-user-order")
 tweakreg_optnames=("--use-catfile" "--no-use-catfile")
 tweakreg_kwargs=()
@@ -100,6 +102,15 @@ while [[ $iarg -le $# ]]; do
                 elif [[ " $argstr " == " --save-info-table-name " ]]; then
                     info_table_name="${!iarg}"
                 fi
+            fi
+        # sextractor
+        elif [[ " ${sextractor_argnames[@]} " == *" $argstr "* ]]; then
+            sextractor_kwargs+=("${!iarg}")
+            echo -n "${!iarg} = "
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                sextractor_kwargs+=("${!iarg}")
+                echo "\"${!iarg}\""
             fi
         # tweakreg
         elif [[ " ${tweakreg_argnames[@]} " == *" $argstr "* ]]; then
@@ -404,6 +415,9 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
                 echo "Found \"$file_out2\" and overwrite is not set. Skipping."
             else
                 proc_args=()
+                for (( i = 0; i < ${#sextractor_kwargs[@]}; i++ )); do
+                    proc_args+=(${sextractor_kwargs[i]})
+                done
                 if [[ $overwrite -gt 0 ]]; then
                     proc_args+=(--overwrite)
                 fi

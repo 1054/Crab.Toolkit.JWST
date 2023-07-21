@@ -39,8 +39,23 @@ if [[ $# -eq 0 ]]; then
     exit 255
 fi
 if [[ "$1" == *"nrca"* ]] || [[ "$1" == *"nrcb"* ]] || [[ "$1" == *"nrclong"* ]] || [[ "$1" == *"miri"* ]]; then
-    echo sextractor_classic_go_find_sources.py --detect-thresh 4.0 $@
-    sextractor_classic_go_find_sources.py --detect-thresh 4.0 $@
+    infile="$1"
+    args=()
+    iarg=2
+    detect_thresh=4.0
+    while [[ $iarg -le $# ]]; then
+        if [[ "${!iarg}" == "--detect-thresh" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                detect_thresh=${!iarg}
+            fi
+        else
+            args+=(${!iarg})
+        fi
+        iarg=$((iarg+1))
+    done
+    echo sextractor_classic_go_find_sources.py --detect-thresh $detect_thresh ${args[@]} "$infile"
+    sextractor_classic_go_find_sources.py --detect-thresh $detect_thresh ${args[@]} "$infile"
     if [[ $? -ne 0 ]]; then
         echo "Error?! Please check previous messages."
         exit 255
