@@ -5,6 +5,9 @@
 # 
 # This requires https://github.com/1054/Crab.Toolkit.SExtractorPlus.
 # 
+# Options:
+#     --detect-thresh 4.0  -> Set the SExtractor detect threshold in sigma.
+# 
 
 # Set necessary system variables
 if [[ -z "$CRDS_PATH" ]]; then
