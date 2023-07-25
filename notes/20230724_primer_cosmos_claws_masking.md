@@ -258,6 +258,12 @@ ds9 -lock frame image -scale zscale \
 
 
 
+```
+rm -rf jw018370030{21,22,23,24}_04201_*_nrc*long/calibrated*
+rm -rf jw018370030{21,22,23,24}_08201_*_nrc*/calibrated*
+```
+
+
 
 
 
