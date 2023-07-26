@@ -451,6 +451,7 @@ def run_individual_steps_for_image_files(
                 format=pipeline_object.tweakreg.name_format, force=True)
         pipeline_object.tweakreg.abs_fitgeometry = temp_abs_fitgeometry
         pipeline_object.tweakreg.catfile = temp_catfile
+        pipeline_object.tweakreg.abs_refcat = temp_abs_refcat
         del temp_catdict
         # 
         # Notes:
