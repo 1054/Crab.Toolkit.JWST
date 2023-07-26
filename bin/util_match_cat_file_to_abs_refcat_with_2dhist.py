@@ -62,6 +62,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         outlier_sigma = 5.0
 
     # read cat_file
+    # this cat_file is a text file listing the catalog file for each science image.
+    # we read in the catalog files for each science image.
     cats = OrderedDict()
     catpaths = OrderedDict()
     with open(cat_file, 'r') as fp:
