@@ -1083,6 +1083,7 @@ def main(
             #pipeline_object.tweakreg.abs_use2dhist = False # default is True, but ...
             pipeline_object.tweakreg.abs_use2dhist = True # default is True, but ...
             pipeline_object.tweakreg.abs_fitgeometry = abs_fitgeometry # 'shift', 'rshift', 'rscale', 'general' (shift, rotation, and scale)
+            pipeline_object.tweakreg.expand_refcat = False
             pipeline_object.tweakreg.save_abs_catalog = True
             #pipeline_object.tweakreg.save_abs_catalog = True # only if abs_refcat `gaia_cat_name in SINGLE_GROUP_REFCAT`
         # do manual 2dhist for a better tweakreg
