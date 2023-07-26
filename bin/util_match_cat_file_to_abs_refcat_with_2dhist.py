@@ -136,7 +136,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         refx, refy = wcs.all_world2pix(refra, refdec, 1, quiet=True) # internally I use DS9 1-based pixcoord
         # match coordinate - find the matched source in refcat for each cat source.
         idx, d2d, d3d = match_coordinates_sky(catcoords, refcatcoords)
-        matches = np.argwhere(np.logical_and(idx>=0, d2d<=maxsep)).ravel()
+        matchedflag = np.logical_and(idx>=0, d2d<=maxsep)
         # 20230726: to solve the issue "Number of output coordinates exceeded allocation"
         #           "Multiple sources within specified tolerance matched to a single reference source. "
         #           I need to make sure the cross-matching is one-to-one only.
@@ -146,7 +146,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
                 kkeep = kduplicates[np.argmin(d2d[kduplicates])] # keep min 'd2d' cat source if there are duplicates
                 for kk in kduplicates:
                     if kk != kkeep:
-                        matches[kk] = False
+                        matchedflag[kk] = False
+        matches = np.argwhere(matchedflag).ravel()
         # make plot
         ax = axes[ipanel]
         ax.axis('on')
