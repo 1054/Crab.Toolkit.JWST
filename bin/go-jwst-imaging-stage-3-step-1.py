@@ -412,8 +412,9 @@ def run_individual_steps_for_image_files(
         # asdf_from_step_to_file(pipeline_object.tweakreg, 'asdf_tweakreg.txt')
         # image_models = pipeline_object.tweakreg('asn_tweakreg.json')
         # 
-        # 20230628: do images one by one with 'shift' only
+        # 20230628: do detector part images one by one with 'shift' or 'rshift' only
         temp_abs_fitgeometry = pipeline_object.tweakreg.abs_fitgeometry
+        temp_abs_refcat = pipeline_object.tweakreg.abs_refcat
         temp_catfile = pipeline_object.tweakreg.catfile
         temp_catdict = {}
         with open(temp_catfile, 'r') as fp:
@@ -426,6 +427,7 @@ def run_individual_steps_for_image_files(
             one_image_catfile = 'catfile_tweakreg_{}_{}.txt'.format(i, one_image_name)
             one_image_catcsv = temp_catdict[processing_image_files[i]]
             one_image_cattable = Table.read(one_image_catcsv, format='csv')
+            one_image_absrefcat = re.sub(r'\.csv$', r'_matched_refcat.csv', one_image_catcsv)
             with open(one_image_catfile, 'w') as fp:
                 fp.write('{} {}\n'.format(processing_image_files[i], one_image_catcsv))
             if len(one_image_cattable) >= 4: #<20230628># how many points for 'rshift'
@@ -433,6 +435,7 @@ def run_individual_steps_for_image_files(
             else:
                 pipeline_object.tweakreg.abs_fitgeometry = 'shift'
             pipeline_object.tweakreg.catfile = one_image_catfile
+            pipeline_object.tweakreg.abs_refcat = one_image_absrefcat
             asn_from_list_to_file([processing_image_files[i]], 'asn_tweakreg_{}_{}.json'.format(i, one_image_name))
             asdf_from_step_to_file(pipeline_object.tweakreg, 'asdf_tweakreg_{}_{}.txt'.format(i, one_image_name))
             image_models = pipeline_object.tweakreg('asn_tweakreg_{}_{}.json'.format(i, one_image_name))
