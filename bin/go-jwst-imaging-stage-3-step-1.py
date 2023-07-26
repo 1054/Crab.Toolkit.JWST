@@ -1063,7 +1063,7 @@ def main(
         pipeline_object.tweakreg.enforce_user_order = enforce_user_order
         pipeline_object.tweakreg.minobj = 7 # default is 15
         pipeline_object.tweakreg.searchrad = 1.0 # default is 2.0
-        pipeline_object.tweakreg.separation = 0.3 # default is 0.1 arcsec, separation needed to prevent confusion of sources
+        pipeline_object.tweakreg.separation = 0.5 # default is 0.1 arcsec, separation needed to prevent confusion of sources
         pipeline_object.tweakreg.tolerance = 0.7 #<20230318># 0.7 # 1.0 # default is 0.7 arcsec
         pipeline_object.tweakreg.save_catalogs = True # will save as "./*_cal_cat.ecsv", but always in current directory, see "tweakreg_step.py"
         pipeline_object.tweakreg.save_results = True # will save as "{output_subdir}/*_cal_tweakreg.fits"
@@ -1078,7 +1078,7 @@ def main(
             pipeline_object.tweakreg.abs_refcat = abs_refcat
             pipeline_object.tweakreg.abs_minobj = 1 # default is 15
             pipeline_object.tweakreg.abs_searchrad = 1.0 # default is 6.0
-            pipeline_object.tweakreg.abs_separation = 0.3 # default is 0.1 arcsec, separation needed to prevent confusion of sources
+            pipeline_object.tweakreg.abs_separation = 0.5 # default is 0.1 arcsec, separation needed to prevent confusion of sources
             pipeline_object.tweakreg.abs_tolerance = 1.0 # default is 0.7 arcsec
             #pipeline_object.tweakreg.abs_use2dhist = False # default is True, but ...
             pipeline_object.tweakreg.abs_use2dhist = True # default is True, but ...

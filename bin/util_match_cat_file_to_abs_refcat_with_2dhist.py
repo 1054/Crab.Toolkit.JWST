@@ -30,6 +30,7 @@ logger = logging.getLogger()
 
 
 default_search_radius = 1.0 # arcsec
+default_min_separation = 0.5 # arcsec
 default_output_suffix = '_new2dhist'
 default_outlier_sigma = 5.0
 default_initial_offset = [0.0, 0.0] # arcsec
@@ -46,6 +47,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         abs_refcat, # The tweakreg.abs_refcat catalog file. 
                     # It must include 'RA', 'DEC', and 'ID' (or 'phot_id') columns. 
         search_radius = default_search_radius, 
+        min_separation = default_min_separation, # XYXYMatch separation, separation needed to prevent confusion of sources
         output_suffix = default_output_suffix, 
         outlier_sigma = default_outlier_sigma, # filter out outliers of large offsets
         initial_offset = default_initial_offset, 
@@ -80,6 +82,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     # make 2dhist plot
     ncats = len(cats)
     maxsep = search_radius * u.arcsec
+    minsep = min_separation * u.arcsec
     ipanel = 0
     ncols = 2
     nrows = 5
@@ -145,10 +148,32 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         for kindex in idx:
             kduplicates = np.argwhere(idx==kindex).ravel() # indices into 'idx' 'd2d' and 'catcoords' arrays
             if len(kduplicates) > 1:
-                kkeep = kduplicates[np.argmin(d2d[kduplicates])] # keep min 'd2d' cat source if there are duplicates
+                # in the case where more than one cat source is matched to the same refcat source,
+                # keep the cat source that has a distance most close to the mean distance between cat and refcat sources.
+                kkeep = kduplicates[np.argmin(
+                    np.abs(d2d[kduplicates] - np.mean(d2d[matchedflag]))
+                )]
                 for kk in kduplicates:
                     if kk != kkeep:
                         matchedflag[kk] = False
+        # 20230726: to solve the above problem, I also need to eliminate sources too close, closer than 'min_separation'
+        #           here 'idx_tooclose' are indices into 'matchedflag'
+        for k, kindex in enumerate(idx):
+            if matchedflag[k]:
+                d2dtooclose = catcoords[k].separation(catcoords)
+                ktooclose = np.argwhere(
+                    np.logical_and(matchedflag, d2dtooclose<minsep)
+                ).ravel() # indices into 'idx' 'd2d' and 'catcoords' arrays
+                if len(ktooclose) > 1:
+                    # in the case where there are multipe matched source within 'minsep',
+                    # keep the one that has a distance most close to the mean distance between cat and refcat sources.
+                    kkeep = ktooclose[np.argmin(
+                        np.abs(d2dtooclose[ktooclose] - np.mean(d2d[matchedflag]))
+                    )]
+                    for kk in ktooclose:
+                        if kk != kkeep:
+                            matchedflag[kk] = False
+        # get the matches (as indices into refcat)
         matches = np.argwhere(matchedflag).ravel()
         # make plot
         ax = axes[ipanel]
