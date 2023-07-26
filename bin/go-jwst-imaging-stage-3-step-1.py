@@ -427,7 +427,7 @@ def run_individual_steps_for_image_files(
             one_image_catfile = 'catfile_tweakreg_{}_{}.txt'.format(i, one_image_name)
             one_image_catcsv = temp_catdict[processing_image_files[i]]
             one_image_cattable = Table.read(one_image_catcsv, format='csv')
-            one_image_absrefcat = re.sub(r'\.csv$', r'_matched_refcat.csv', one_image_catcsv)
+            one_image_absrefcat = re.sub(r'\.csv$', r'_matched_refcat.fits', one_image_catcsv)
             with open(one_image_catfile, 'w') as fp:
                 fp.write('{} {}\n'.format(processing_image_files[i], one_image_catcsv))
             if len(one_image_cattable) >= 4: #<20230628># how many points for 'rshift'

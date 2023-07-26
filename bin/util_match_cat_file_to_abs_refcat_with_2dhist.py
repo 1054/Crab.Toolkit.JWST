@@ -108,6 +108,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     matched_abs_refcat_id = OrderedDict()
     matched_abs_refcat_x = OrderedDict()
     matched_abs_refcat_y = OrderedDict()
+    matched_abs_refcat_ra = OrderedDict()
+    matched_abs_refcat_dec = OrderedDict()
     for imfile in cats:
         header = fits.getheader(imfile, 'SCI')
         wcs = WCS(header, naxis=2)
@@ -196,24 +198,24 @@ def match_cat_file_to_abs_refcat_with_2dhist(
                 d_px += (-ioffra/pixsc)
                 d_py += (ioffdec/pixsc)
             # 
-            for imatch in matches:
-                key = refid[imatch]
-                #if key not in check_radecs:
-                #    check_radecs[key] = OrderedDict()
-                #    check_radecs[key]['x'] = np.full([ncats,], fill_value=np.nan)
-                #    check_radecs[key]['y'] = np.full([ncats,], fill_value=np.nan)
-                #    check_radecs[key]['ra'] = np.full([ncats,], fill_value=np.nan)
-                #    check_radecs[key]['dec'] = np.full([ncats,], fill_value=np.nan)
-                #    check_radecs[key]['refra'] = np.full([ncats,], fill_value=np.nan)
-                #    check_radecs[key]['refdec'] = np.full([ncats,], fill_value=np.nan)
-                #check_radecs[key]['x'][ipanel] = x[imatch]
-                #check_radecs[key]['y'][ipanel] = y[imatch]
-                #check_radecs[key]['ra'][ipanel] = ra[imatch]
-                #check_radecs[key]['dec'][ipanel] = dec[imatch]
-                #check_radecs[key]['refra'][ipanel] = refra[idx[imatch]]
-                #check_radecs[key]['refdec'][ipanel] = refdec[idx[imatch]]
-                # 
-                matched_abs_refcat_mask[idx[imatch]] = True
+            #for imatch in matches:
+            #    key = refid[imatch]
+            #    #if key not in check_radecs:
+            #    #    check_radecs[key] = OrderedDict()
+            #    #    check_radecs[key]['x'] = np.full([ncats,], fill_value=np.nan)
+            #    #    check_radecs[key]['y'] = np.full([ncats,], fill_value=np.nan)
+            #    #    check_radecs[key]['ra'] = np.full([ncats,], fill_value=np.nan)
+            #    #    check_radecs[key]['dec'] = np.full([ncats,], fill_value=np.nan)
+            #    #    check_radecs[key]['refra'] = np.full([ncats,], fill_value=np.nan)
+            #    #    check_radecs[key]['refdec'] = np.full([ncats,], fill_value=np.nan)
+            #    #check_radecs[key]['x'][ipanel] = x[imatch]
+            #    #check_radecs[key]['y'][ipanel] = y[imatch]
+            #    #check_radecs[key]['ra'][ipanel] = ra[imatch]
+            #    #check_radecs[key]['dec'][ipanel] = dec[imatch]
+            #    #check_radecs[key]['refra'][ipanel] = refra[idx[imatch]]
+            #    #check_radecs[key]['refdec'][ipanel] = refdec[idx[imatch]]
+            #    # 
+            #    matched_abs_refcat_mask[idx[imatch]] = True
             # 
             ax.scatter(d_ra, d_dec, s=3, alpha=0.9)
             #ax.set_xlim([lim, -lim])
@@ -251,15 +253,20 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             #ax.yaxis.set_major_locator(ticker.MaxNLocator(6))
             # 
             # identify outliers
-            outliers = ( ((d_ra-d_ra_mean)/(outlier_sigma*d_ra_sigma))**2 + ((d_dec-d_dec_mean)/(outlier_sigma*d_dec_sigma))**2 > 1.0)
+            outliers = ( ((d_ra-d_ra_mean)/(outlier_sigma*d_ra_sigma))**2 
+                         + ((d_dec-d_dec_mean)/(outlier_sigma*d_dec_sigma))**2 
+                         > 1.0 )
             ax.scatter(d_ra[outliers], d_dec[outliers], s=10, marker='*', alpha=0.7, 
                        fc='none', ec='orangered')
             catmask = np.full([len(ra),], fill_value=False, dtype=bool)
             catmask[matches] = np.invert(outliers) # remove outliers, keep good ones
             catmasks[imfile] = catmask
+            matched_abs_refcat_mask[idx[matches][~outliers]] = True
             matched_abs_refcat_id[imfile] = refid[idx[matches][~outliers]]
             matched_abs_refcat_x[imfile] = refx[idx[matches][~outliers]]
             matched_abs_refcat_y[imfile] = refy[idx[matches][~outliers]]
+            matched_abs_refcat_ra[imfile] = refra[idx[matches][~outliers]]
+            matched_abs_refcat_dec[imfile] = refdec[idx[matches][~outliers]]
             # 
             ax.plot([-lim, lim], [0., 0.], color='k', ls='dashed', lw=0.6, alpha=0.7)
             ax.plot([0., 0.], [-lim, lim], color='k', ls='dashed', lw=0.6, alpha=0.7)
@@ -302,7 +309,6 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         catpath = catpaths[imfile]
         catmask = catmasks[imfile]
         newcat = cat[catmask] # remove outliers, keep good ones, mask means good here
-        chkcat = Table({'x': matched_abs_refcat_x[imfile], 'y': matched_abs_refcat_y[imfile]}) # matched refcat for check
         # 
         # output ds9 pix region
         newcatpath = os.path.splitext(catpath)[0] + output_suffix + '.ds9.pix.reg'
@@ -327,8 +333,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         newcatpaths[imfile] = newcatpath
         logger.info('Output to {!r}'.format(newcatpath))
         # 
-        # get matched refcat -- already got this above
-        #chkcat = Table({'x': matched_abs_refcat_x[imfile], 'y': matched_abs_refcat_y[imfile]})
+        # get matched refcat in pix
+        chkcat = Table({'x': matched_abs_refcat_x[imfile], 'y': matched_abs_refcat_y[imfile]}) # matched refcat for check
         # 
         # output matched refcat ds9 pix region
         chkcatpath = os.path.splitext(catpath)[0] + output_suffix + '_matched_refcat.ds9.pix.reg'
@@ -342,7 +348,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
                 fp.write('circle({}, {}, {}")\n'.format(chkcat['x'][k], chkcat['y'][k],0.35))
         logger.info('Output to {!r}'.format(chkcatpath))
         # 
-        # output matched refcat
+        # output matched refcat in pix
         if str(output_index_base) == '0':
             chkcat['x'] -= 1 # jwst tweakreg tweakwcs uses 0-indices, see "tweakwcs/correctors.py" `ra, dec = self._wcs.all_pix2world(x, y, 0)`
             chkcat['y'] -= 1 # jwst tweakreg tweakwcs uses 0-indices, see "tweakwcs/correctors.py" `ra, dec = self._wcs.all_pix2world(x, y, 0)`
@@ -351,6 +357,18 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             shutil.move(chkcatpath, chkcatpath+'.backup')
         chkcat.write(chkcatpath, format='csv', overwrite=True)
         logger.info('Output to {!r}'.format(chkcatpath))
+        # 
+        # get matched refcat in sky
+        newrefcat = Table({'ID': matched_abs_refcat_id[imfile], 
+                           'RA': matched_abs_refcat_ra[imfile],
+                           'DEC': matched_abs_refcat_dec[imfile]}) # matched refcat in sky
+        # 
+        # output matched refcat in sky
+        newrefcatpath = os.path.splitext(catpath)[0] + output_suffix + '_matched_refcat.fits'
+        if os.path.isfile(newrefcatpath):
+            shutil.move(newrefcatpath, newrefcatpath+'.backup')
+        newrefcat.write(newrefcatpath, format='fits', overwrite=True)
+        logger.info('Output to {!r}'.format(newrefcatpath))
     
     # 
     for ipage in range(npages):
