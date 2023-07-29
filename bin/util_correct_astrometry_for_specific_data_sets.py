@@ -22,6 +22,7 @@ from astropy.modeling.models import Shift
 # jwst
 from jwst import datamodels
 from jwst.datamodels import ImageModel
+from jwst.assign_wcs.util import update_fits_wcsinfo
 from stdatamodels import util
 
 
