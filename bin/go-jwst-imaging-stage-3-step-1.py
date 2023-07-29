@@ -1188,7 +1188,8 @@ def main(
                         output_name = 'run_mosaic_image_subgroup', # hard-coded output prefix
                         asn_file = asn_filename, 
                         grid_step = grid_step, 
-                        cat_file = catfile, # it cannot contain a path otherwise things will be complicated.
+                        #cat_file = catfile, # it cannot contain a path otherwise things will be complicated.
+                        cat_file = pipeline_object.tweakreg.catfile, # 20230728 fixing issue here
                         pixel_size = ref_pixel_size, 
                     )
                 

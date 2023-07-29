@@ -508,6 +508,12 @@ def run_mosaic_image_subgrouping(
                         os.remove(cat_path)
                     os.symlink(os.path.relpath(cat_dict[image_name], group_dir), cat_path)
                     cat_dict_in_group[image_name] = cat_name
+                    
+                    # 20230728: refcat_matched
+                    refcat_matched = re.sub(r'\.csv$', r'_matched_refcat.fits', cat_dict[image_name])
+                    if os.path.isfile(refcat_matched):
+                        refcat_path = re.sub(r'\.csv$', r'_matched_refcat.fits', cat_path)
+                        os.symlink(os.path.relpath(refcat_matched, group_dir), refcat_path)
             
             # write catfile.txt
             if len(cat_dict_in_group) > 0:
