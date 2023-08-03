@@ -238,9 +238,11 @@ def main(
             else:
                 # example: jw01837004001_02101_00002_mirimage
                 check_image_type = 'jw{}[0-9]+_[x0-9]+_[0-9]+_{}_.*'.format(proposal_id, check_ending2)
+                print("obs['obs_id']", obs['obs_id'], 'check_image_type', check_image_type)
                 if re.match(check_image_type, obs['obs_id']) is not None:
                     is_image_type_matched = True
                     break
+        print("obs['obs_id']", obs['obs_id'], 'is_image_type_matched', is_image_type_matched)
         if not is_image_type_matched:
             continue
         # 
