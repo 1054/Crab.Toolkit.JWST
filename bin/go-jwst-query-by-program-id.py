@@ -203,15 +203,14 @@ def main(
             for obs_num_str in obs_num_list:
                 # example: jw01345-o052_t022_nircam_clear-f200w
                 #          jw01345-o061_s00410_nirspec_f170lp-g235m
-                check_obs_id = 'jw{}-o{}_(t|s)[0-9]+_.*_.*'.format(
-                    proposal_id, obs_num_str)
+                #          jw01727-o099_t093_miri_f770w
+                check_obs_id = 'jw{}-o{}_(t|s)[0-9]+_.*_.*'.format(proposal_id, obs_num_str)
                 if re.match(check_obs_id, obs['obs_id']) is not None:
                     is_obs_num_matched = True
                     break
                 else:
                     # example: jw01837004001_02101_00002_mirimage
-                    check_obs_id = 'jw{}{}[0-9]+_[0-9]+_[0-9]+_.*'.format(
-                        proposal_id, obs_num_str)
+                    check_obs_id = 'jw{}{}[0-9]+_[0-9]+_[0-9]+_.*'.format(proposal_id, obs_num_str)
                     if re.match(check_obs_id, obs['obs_id']) is not None:
                         is_obs_num_matched = True
                         break
@@ -223,19 +222,21 @@ def main(
         if image_type is not None:
             is_image_type_matched = False
             if image_type == 'nircam':
-                check_ending = 'nrc(a|b|)(1|2|3|4|5|long|)'
+                check_ending1 = 'nircam'
+                check_ending2 = 'miri'
             elif image_type == 'miri':
-                check_ending = 'mirimage'
-            # example: jw01837-o001_t001_nrc
-            check_image_type = 'jw{}-o[0-9]+_(t|s)[0-9]+_.*{}'.format(
-                proposal_id, check_ending)
+                check_ending1 = 'miri'
+                check_ending2 = 'mirimage'
+            else:
+                raise Exception('Unexpected image_type {!r}'.format(image_type))
+            # example: jw01345-o052_t022_nircam_clear-f200w
+            check_image_type = 'jw{}-o[0-9]+_(t|s)[0-9]+_{}_.*'.format(proposal_id, check_ending1)
             if re.match(check_image_type, obs['obs_id']) is not None:
                 is_image_type_matched = True
                 break
             else:
                 # example: jw01837004001_02101_00002_mirimage
-                check_image_type = 'jw{}[0-9]+_[0-9]+_[0-9]+_.*{}'.format(
-                    proposal_id, check_ending)
+                check_image_type = 'jw{}[0-9]+_[0-9]+_[0-9]+_{}_.*'.format(proposal_id, check_ending2)
                 if re.match(check_image_type, obs['obs_id']) is not None:
                     is_image_type_matched = True
                     break
