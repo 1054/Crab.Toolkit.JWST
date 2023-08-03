@@ -189,7 +189,7 @@ with fits.open(input_image_file_path) as hdulist:
         ihdu = input_image_extension
     print('reading ihdu %s data'%(ihdu))
     image = copy.copy(hdulist[ihdu].data)
-    for key in main_header.header:
+    for key in main_header:
         try:
             header[key] = main_header[key] # some cases extensions do not have wcs header, this solves that issue.
         except:
