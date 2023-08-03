@@ -223,7 +223,7 @@ def main(
             is_image_type_matched = False
             if image_type == 'nircam':
                 check_ending1 = 'nircam'
-                check_ending2 = 'miri'
+                check_ending2 = 'nrc(a|b|)(1|2|3|4|5|long|)'
             elif image_type == 'miri':
                 check_ending1 = 'miri'
                 check_ending2 = 'mirimage'
@@ -231,6 +231,7 @@ def main(
                 raise Exception('Unexpected image_type {!r}'.format(image_type))
             # example: jw01345-o052_t022_nircam_clear-f200w
             check_image_type = 'jw{}-o[0-9]+_(t|s)[0-9]+_{}_.*'.format(proposal_id, check_ending1)
+            print("obs['obs_id']", obs['obs_id'], 'check_image_type', check_image_type)
             if re.match(check_image_type, obs['obs_id']) is not None:
                 is_image_type_matched = True
                 break
