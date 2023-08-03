@@ -102,6 +102,7 @@ def check_guide_star_data(product):
 @click.option('--extension', type=str, default='fits', help='Selecting extension. Usually just "fits". Can be "fits,json,jpg,ecsv" if you want to get those files too.')
 @click.option('--preview', is_flag=True, default=False, help='Selecting preview files, e.g., i2d quicklook image in jpg format.')
 @click.option('--auxiliary', is_flag=True, default=False, help='Selecting auxiliary files, e.g., guide star data.')
+@click.option('--image-type', type=click.Choice(['nircam', 'miri']), default=None, help='Selecting nircam or miri image only, i.e., data set name ending with "nrc(a|b)(1|2|3|4|5|long)" or "mirimage".')
 @click.option('--guide-star-data/--no-guide-star-data', is_flag=True, default=False, help='Keeping or de-selecting guide star data by name matching ".*_gs-fg_*"')
 @click.option('--download/--no-download', is_flag=True, default=False)
 @click.option('--download-dir', type=click.Path(exists=False), default='.')
@@ -112,6 +113,7 @@ def main(
         extension, 
         preview, 
         auxiliary, 
+        image_type, 
         guide_star_data, 
         download, 
         download_dir, 
@@ -189,6 +191,8 @@ def main(
     # loop obs list
     for iobs, obs in enumerate(obs_list):
         #logger.info('obs_id: {}'.format(obs['obs_id']))
+        
+        # check obs_num constraint if provided
         is_obs_num_matched = True
         if obs_num is not None:
             is_obs_num_matched = False
@@ -213,6 +217,31 @@ def main(
                         break
         if not is_obs_num_matched:
             continue
+        
+        # check image type constraint if provided
+        is_image_type_matched = True
+        if image_type is not None:
+            is_image_type_matched = False
+                if image_type == 'nircam':
+                    check_ending = 'nrc(a|b|)(1|2|3|4|5|long|)'
+                elif image_type == 'miri':
+                    check_ending = 'mirimage'
+                # example: jw01837-o001_t001_nrc
+                check_image_type = 'jw{}-o[0-9]+_(t|s)[0-9]+_.*{}'.format(
+                    proposal_id, check_ending)
+                if re.match(check_image_type, obs['obs_id']) is not None:
+                    is_image_type_matched = True
+                    break
+                else:
+                    # example: jw01837004001_02101_00002_mirimage
+                    check_image_type = 'jw{}[0-9]+_[0-9]+_[0-9]+_.*{}'.format(
+                        proposal_id, check_ending)
+                    if re.match(check_image_type, obs['obs_id']) is not None:
+                        is_image_type_matched = True
+                        break
+        if not is_image_type_matched:
+            continue
+        # 
         logger.info('*** --- ({}/{}) "{}" --- ***'.format(iobs+1, len(obs_list), obs['obs_id']))
         product_list = Observations.get_product_list(obs)
         if len(product_list) > 0:
