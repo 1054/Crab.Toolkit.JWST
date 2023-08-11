@@ -104,6 +104,7 @@ def check_guide_star_data(product):
 @click.option('--auxiliary', is_flag=True, default=False, help='Selecting auxiliary files, e.g., guide star data.')
 @click.option('--image-type', type=click.Choice(['nircam', 'miri']), default=None, help='Selecting nircam or miri image only, i.e., data set name ending with "nrc(a|b)(1|2|3|4|5|long)" or "mirimage".')
 @click.option('--guide-star-data/--no-guide-star-data', is_flag=True, default=False, help='Keeping or de-selecting guide star data by name matching ".*_gs-fg_*"')
+@click.option('--no-grism/--with-grism', is_flag=True, default=False)
 @click.option('--download/--no-download', is_flag=True, default=False)
 @click.option('--download-dir', type=click.Path(exists=False), default='.')
 def main(
@@ -115,6 +116,7 @@ def main(
         auxiliary, 
         image_type, 
         guide_star_data, 
+        no_grism, 
         download, 
         download_dir, 
     ):
@@ -243,6 +245,13 @@ def main(
         print("obs['obs_id']", obs['obs_id'], 'is_image_type_matched', is_image_type_matched)
         if not is_image_type_matched:
             continue
+        
+        # check no_grism
+        if no_grism:
+            if obs['obs_id'].find('grismr') >= 0:
+                print("obs['obs_id']", obs['obs_id'], 'skipped due to no grism option')
+                continue
+        
         # 
         logger.info('*** --- ({}/{}) "{}" --- ***'.format(iobs+1, len(obs_list), obs['obs_id']))
         product_list = Observations.get_product_list(obs)

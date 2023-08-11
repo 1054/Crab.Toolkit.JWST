@@ -335,6 +335,12 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
     fi
+    if [[ "$mosaic_image" == *"MIRI"* ]]; then
+        proc_args+=(--detect-sigma 3.0)
+    elif [[ "$mosaic_image" == *"NIRCAM"* ]]; then
+        proc_args+=(--detect-sigma 15.0)
+        proc_args+=(--detect-smooth 5.0)
+    fi
     echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-2-make-dark-rates.sh \
         "$mosaic_image" "$mosaic_asn" "${proc_args[@]}"
     $script_dir/go-jwst-imaging-stage-3-step-2-make-dark-rates.sh \
