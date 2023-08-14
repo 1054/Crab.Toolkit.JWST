@@ -71,7 +71,7 @@ def merge_source_emission_masked_rate_data(
         date_diff = 5.0, 
         do_sigma_clip = False, 
         sigma = 3.0, 
-        use_median = False,
+        use_median = False, 
         overwrite = True, 
     ):
 

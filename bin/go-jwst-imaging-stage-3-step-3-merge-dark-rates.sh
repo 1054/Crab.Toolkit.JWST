@@ -47,11 +47,28 @@ while [[ $iarg -le $# ]]; do
 done
 
 
+# define function to get detector name
+function get_detector_name() {
+    if [[ $# -gt 0 ]]; then
+        file_basename=$(basename "$1")
+        detector_name=$(echo "$file_basename" | perl -p -e 's/.*_((nrc(a|b)(1|2|3|4|long))|mirimage)_.*/\1/g')
+        if [[ "$detector_name" != "$1" ]]; then
+            echo "$detector_name"
+        else
+            echo "Unknown"
+        fi
+    else
+        echo "Unknown"
+    fi
+}
+
+
 # get all cal images in the asn files
 multiobs_cal_images=()
 multiobs_rate_images=()
 multiobs_masked_rate_images=()
 multiobs_dataset_names=()
+multiobs_detector_names=()
 for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
     temp_mosaic_asn="${mosaic_asn_files[i]}"
     temp_mosaic_dir=$(dirname "$temp_mosaic_asn")
@@ -79,10 +96,12 @@ for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
         echo "rate_image = \"$rate_image\""
         masked_rate=$(echo "$rate_image" | perl -p -e 's%_rate.fits$%%g')"_masked_source_emission_rate.fits"
         dataset_name=$(basename "$rate_image" | perl -p -e 's%_rate.fits$%%g')
+        detector_name=$(get_detector_name "$rate_image")
         multiobs_cal_images+=("$cal_image")
         multiobs_rate_images+=("$rate_image")
         multiobs_masked_rate_images+=("$masked_rate")
         multiobs_dataset_names+=("$dataset_name")
+        multiobs_detector_names+=("$detector_name")
     done
 done
 
@@ -93,6 +112,7 @@ echo "multiobs_masked_rate_images = ${multiobs_masked_rate_images[@]} (${#multio
 for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     cal_image="${multiobs_cal_images[i]}"
     rate_image="${multiobs_rate_images[i]}"
+    detector_name="${multiobs_detector_names[i]}"
     masked_rate_image="${multiobs_masked_rate_images[i]}"
     merged_masked_rate=$(dirname "$masked_rate_image")"/merged_other_visits_masked_source_emission_rate.fits"
     merged_masked_rate_list_file=$(dirname "$masked_rate_image")"/merged_other_visits_masked_source_emission_rate.list.txt"
@@ -103,7 +123,8 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     if [[ ! -f "$merged_masked_rate" ]] || [[ $overwrite -gt 0 ]]; then
         applicable_masked_rate_images=()
         for (( m = 0; m < ${#multiobs_masked_rate_images[@]}; m++ )); do
-            if [[ "${multiobs_masked_rate_images[m]}" != "$masked_rate_image" ]]; then
+            if [[ "${multiobs_masked_rate_images[m]}" != "$masked_rate_image" ]] && \
+               [[ "${multiobs_detector_names[m]}" == "$detector_name" ]]; then
                 applicable_masked_rate_images+=("${multiobs_masked_rate_images[m]}")
             fi
         done
