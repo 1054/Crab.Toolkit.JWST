@@ -408,51 +408,53 @@ def run_individual_steps_for_image_files(
     pipeline_object.log.info('Checking tweakreg output file existence: {}'.format(repr(processed_image_files)))
     if not np.all(list(map(os.path.exists, processed_image_files))):
         # 
-        # asn_from_list_to_file(processing_image_files, 'asn_tweakreg.json')
-        # asdf_from_step_to_file(pipeline_object.tweakreg, 'asdf_tweakreg.txt')
-        # image_models = pipeline_object.tweakreg('asn_tweakreg.json')
-        # 
-        # 20230628: do detector part images one by one with 'shift' or 'rshift' only
-        temp_abs_fitgeometry = pipeline_object.tweakreg.abs_fitgeometry
-        temp_abs_refcat = pipeline_object.tweakreg.abs_refcat
-        temp_catfile = pipeline_object.tweakreg.catfile
-        temp_catdict = {}
-        with open(temp_catfile, 'r') as fp:
-            for line in fp:
-                line_split = line.strip().split()
-                if len(line_split) >= 2:
-                    temp_catdict[line_split[0]] = line_split[1]
-        for i in range(len(processed_image_files)):
-            one_image_name = re.sub(r'_cal(\.fits|)$', r'', os.path.basename(processing_image_files[i]))
-            one_image_catfile = 'catfile_tweakreg_{}_{}.txt'.format(i, one_image_name)
-            one_image_catcsv = temp_catdict[processing_image_files[i]]
-            one_image_cattable = Table.read(one_image_catcsv, format='csv')
-            one_image_absrefcat = re.sub(r'\.csv$', r'_matched_refcat.fits', one_image_catcsv)
-            with open(one_image_catfile, 'w') as fp:
-                fp.write('{} {}\n'.format(processing_image_files[i], one_image_catcsv))
-            if len(one_image_cattable) >= 4: #<20230628># how many points for 'rshift'
-                pipeline_object.tweakreg.abs_fitgeometry = 'rshift'
-            else:
-                pipeline_object.tweakreg.abs_fitgeometry = 'shift'
-            pipeline_object.tweakreg.catfile = one_image_catfile
-            pipeline_object.tweakreg.abs_refcat = one_image_absrefcat
-            asn_from_list_to_file([processing_image_files[i]], 'asn_tweakreg_{}_{}.json'.format(i, one_image_name))
-            asdf_from_step_to_file(pipeline_object.tweakreg, 'asdf_tweakreg_{}_{}.txt'.format(i, one_image_name))
-            image_models = pipeline_object.tweakreg('asn_tweakreg_{}_{}.json'.format(i, one_image_name))
-            # TODO: sometimes tweakreg update_fits_wcsinfo fails because `max_pix_error` is too small, 
-            # we can run this manually with a larger `max_pix_error`, then save_model.
-            #from jwst.assign_wcs.util import update_fits_wcsinfo
-            for image_model in image_models:
-                update_fits_wcsinfo(image_model,
-                    max_pix_error=1.,
-                    npoints=16)
-            pipeline_object.tweakreg.save_model(image_models, 
-                idx=None, suffix='tweakreg', # will save as '{dataset_name}_tweakreg.fits' (without '_cal')
-                format=pipeline_object.tweakreg.name_format, force=True)
-        pipeline_object.tweakreg.abs_fitgeometry = temp_abs_fitgeometry
-        pipeline_object.tweakreg.catfile = temp_catfile
-        pipeline_object.tweakreg.abs_refcat = temp_abs_refcat
-        del temp_catdict
+        if pipeline_object.tweakreg.abs_refcat is None or pipeline_object.tweakreg.abs_refcat == '':
+            asn_from_list_to_file(processing_image_files, 'asn_tweakreg.json')
+            asdf_from_step_to_file(pipeline_object.tweakreg, 'asdf_tweakreg.txt')
+            image_models = pipeline_object.tweakreg('asn_tweakreg.json')
+        else:
+            # 
+            # 20230628: do detector part images one by one with 'shift' or 'rshift' only
+            temp_abs_fitgeometry = pipeline_object.tweakreg.abs_fitgeometry
+            temp_abs_refcat = pipeline_object.tweakreg.abs_refcat
+            temp_catfile = pipeline_object.tweakreg.catfile
+            temp_catdict = {}
+            with open(temp_catfile, 'r') as fp:
+                for line in fp:
+                    line_split = line.strip().split()
+                    if len(line_split) >= 2:
+                        temp_catdict[line_split[0]] = line_split[1]
+            for i in range(len(processed_image_files)):
+                one_image_name = re.sub(r'_cal(\.fits|)$', r'', os.path.basename(processing_image_files[i]))
+                one_image_catfile = 'catfile_tweakreg_{}_{}.txt'.format(i, one_image_name)
+                one_image_catcsv = temp_catdict[processing_image_files[i]]
+                one_image_cattable = Table.read(one_image_catcsv, format='csv')
+                one_image_absrefcat = re.sub(r'\.csv$', r'_matched_refcat.fits', one_image_catcsv)
+                with open(one_image_catfile, 'w') as fp:
+                    fp.write('{} {}\n'.format(processing_image_files[i], one_image_catcsv))
+                if len(one_image_cattable) >= 4: #<20230628># how many points for 'rshift'
+                    pipeline_object.tweakreg.abs_fitgeometry = 'rshift'
+                else:
+                    pipeline_object.tweakreg.abs_fitgeometry = 'shift'
+                pipeline_object.tweakreg.catfile = one_image_catfile
+                pipeline_object.tweakreg.abs_refcat = one_image_absrefcat
+                asn_from_list_to_file([processing_image_files[i]], 'asn_tweakreg_{}_{}.json'.format(i, one_image_name))
+                asdf_from_step_to_file(pipeline_object.tweakreg, 'asdf_tweakreg_{}_{}.txt'.format(i, one_image_name))
+                image_models = pipeline_object.tweakreg('asn_tweakreg_{}_{}.json'.format(i, one_image_name))
+                # TODO: sometimes tweakreg update_fits_wcsinfo fails because `max_pix_error` is too small, 
+                # we can run this manually with a larger `max_pix_error`, then save_model.
+                #from jwst.assign_wcs.util import update_fits_wcsinfo
+                for image_model in image_models:
+                    update_fits_wcsinfo(image_model,
+                        max_pix_error=1.,
+                        npoints=16)
+                pipeline_object.tweakreg.save_model(image_models, 
+                    idx=None, suffix='tweakreg', # will save as '{dataset_name}_tweakreg.fits' (without '_cal')
+                    format=pipeline_object.tweakreg.name_format, force=True)
+            pipeline_object.tweakreg.abs_fitgeometry = temp_abs_fitgeometry
+            pipeline_object.tweakreg.catfile = temp_catfile
+            pipeline_object.tweakreg.abs_refcat = temp_abs_refcat
+            del temp_catdict
         # 
         # Notes:
         #   dzliu fixing a potential tweak_step bug "images.from_asn(input)" --> "images.from_asn(asn_data)"
@@ -1147,7 +1149,7 @@ def main(
         
         
         # run
-        if not run_individual_steps:
+        if not run_individual_steps and not very_big_mosaic:
             
             asdf_from_step_to_file(pipeline_object, 'asdf_calwebb_image3.asdf')
             
