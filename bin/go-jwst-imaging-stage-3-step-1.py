@@ -724,16 +724,25 @@ def main(
         os.makedirs(output_dir)
     
     
-    # expand input file list if there is a wildcard
+    # expand input file list if there is a wildcard or it is a txt file
     input_files = []
     for input_file in input_cal_files:
-        if input_file.find('*')>=0:
+        if input_file.endswith('.txt'):
+            with open(input_file) as fp:
+                for line in fp:
+                    if not line.startswith('#') and line.strip() != '':
+                        input_files.append(line.strip())
+        elif input_file.find('*')>=0:
             for found_file in glob.glob(input_file):
                 input_files.append(found_file)
         else:
-            if not os.path.isfile(input_file):
-                raise Exception('Error! File does not exist: {!r}'.format(input_file))
             input_files.append(input_file)
+    
+    
+    # check input file existence
+    for file_path in input_files:
+        if not os.path.isfile(file_path):
+            raise Exception('Error! File does not exist: {!r}'.format(file_path))
     
     
     # sort input files
