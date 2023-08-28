@@ -467,9 +467,9 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
         proc_args+=(--overwrite)
     fi
     redo_file_list="tmp_file_list_for_${redo_dir_out}.txt"
-    echo "# " > redo_file_list
+    echo "# N=${#redo_files_in[@]}" > $redo_file_list
     for (( i = 0; i < ${#redo_files_in[@]}; i++ )); do
-        echo "${redo_files_in[i]}" >> redo_file_list
+        echo "${redo_files_in[i]}" >> $redo_file_list
     done
     #echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-1.py ${redo_files_in[@]} $redo_dir_out "${proc_args[@]}"
     #$script_dir/go-jwst-imaging-stage-3-step-1.py ${redo_files_in[@]} $redo_dir_out "${proc_args[@]}"
