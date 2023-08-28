@@ -58,7 +58,7 @@ def main(
         iext = 0
         for hdu in hdul:
             if hdu.header['NAXIS'] >= 2:
-                print('{} {}'.format(np.nanmin(hdu.data), np.nanmax(hdu.data)))
+                print('{:.6g} {:.6g}'.format(np.nanmin(hdu.data), np.nanmax(hdu.data)))
                 break
             iext += 1
 
