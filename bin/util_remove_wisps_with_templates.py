@@ -34,7 +34,8 @@ import crds
 # code name and version
 CODE_NAME = 'util_remove_wisps_with_templates.py'
 CODE_AUTHOR = 'Daizhong Liu'
-CODE_VERSION = '20221109'
+#CODE_VERSION = '20221109'
+CODE_VERSION = '20230830' # adding --template-file
 CODE_HOMEPAGE = ''
 
 # logging
@@ -137,10 +138,12 @@ def do_template_fitting(data_image, error_image, template_image):
 @click.argument('input_file', type=click.Path(exists=True))
 @click.argument('output_file', required=False, type=click.Path(exists=False), default=None)
 @click.option('--template-dir', type=click.Path(exists=True), default=None, help='Where to find the downloaded NIRCam team wisps template files. If not given we will search current and home directories.')
+@click.option('--template-file', type=click.Path(exists=True), default=None, help='Which exact template FITS file to use. Use with caution! This will be applied to all input images.')
 def main(
         input_file, 
         output_file, 
         template_dir, 
+        template_file, 
     ):
     """
     Input rate image. 
@@ -182,33 +185,36 @@ def main(
     
     
     # find wisps template file
-    search_dirs = []
-    if template_dir is None:
-        if 'NIRCAM_WISP_TEMPLATES' in os.environ:
-            logger.info('template_dir is not given but found system variable NIRCAM_WISP_TEMPLATES')
-            search_dirs.append(os.environ['NIRCAM_WISP_TEMPLATES'])
+    if template_file is None:
+        search_dirs = []
+        if template_dir is None:
+            if 'NIRCAM_WISP_TEMPLATES' in os.environ:
+                logger.info('template_dir is not given but found system variable NIRCAM_WISP_TEMPLATES')
+                search_dirs.append(os.environ['NIRCAM_WISP_TEMPLATES'])
+            else:
+                logger.info('template_dir is not given and system variable NIRCAM_WISP_TEMPLATES is not found, will search current dir and home dir')
+                search_dirs.extend(['.', 'wisp_templates', os.path.expanduser('~/wisp_templates')])
         else:
-            logger.info('template_dir is not given and system variable NIRCAM_WISP_TEMPLATES is not found, will search current dir and home dir')
-            search_dirs.extend(['.', 'wisp_templates', os.path.expanduser('~/wisp_templates')])
-    else:
-        if not os.path.isdir(template_dir):
-            errmsg = 'Error! template_dir {} does not exist?'.format(template_dir)
+            if not os.path.isdir(template_dir):
+                errmsg = 'Error! template_dir {} does not exist?'.format(template_dir)
+                logger.error(errmsg)
+                raise Exception(errmsg) # template_dir not found
+            search_dirs.append(template_dir)
+        template_filepath = None
+        searched_paths = []
+        for search_dir in search_dirs:
+            template_filename = 'wisps_{}_{}.fits'.format(detector_name.lower(), filter_name.upper())
+            search_path = os.path.join(search_dir, template_filename)
+            searched_paths.append(search_path)
+            if os.path.isfile(search_path):
+                template_filepath = search_path
+                break
+        if template_filepath is None:
+            errmsg = 'Error! Could not find template file! Searched paths: {}. Please specify --template-dir.'.format(repr(searched_paths))
             logger.error(errmsg)
-            raise Exception(errmsg) # template_dir not found
-        search_dirs.append(template_dir)
-    template_filepath = None
-    searched_paths = []
-    for search_dir in search_dirs:
-        template_filename = 'wisps_{}_{}.fits'.format(detector_name.lower(), filter_name.upper())
-        search_path = os.path.join(search_dir, template_filename)
-        searched_paths.append(search_path)
-        if os.path.isfile(search_path):
-            template_filepath = search_path
-            break
-    if template_filepath is None:
-        errmsg = 'Error! Could not find template file! Searched paths: {}. Please specify --template-dir.'.format(repr(searched_paths))
-        logger.error(errmsg)
-        raise Exception(errmsg) # template file not found
+            raise Exception(errmsg) # template file not found
+    else:
+        template_filepath = template_file
     
     
     # read wisps template image

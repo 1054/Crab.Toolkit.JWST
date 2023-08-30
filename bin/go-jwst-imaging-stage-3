@@ -17,7 +17,14 @@
 #    If the option `--combine-obsnum` is set, the output directory name will be appended with "_multiobs".
 #    If the option `--combine-visitnum` is set, the output directory name will be appended with "_multivisit".
 #    If the option `--abs-refcat` is set, the output directory name will be appended with "_absref".
-#    If the option `--reprocess-miri` is set, the output directory name will be appended with "_redone_with_source_emission_mask".
+#    If the option `--reprocess-miri` is set, we will do master dark background subtraction using the jwst pipeline 
+#        by calling our script 'go-jwst-imaging-stage-2-step-3-redo-bkgsub.py', and 
+#        the output directory name will be appended with "_redone_with_source_emission_mask".
+#    If the option `--reprocess-nircam` is set, we will do master dark background subtraction using the wisps subtraction
+#        method, i.e., a scalebale background, by calling our script 'util_remove_wisps_with_templates.py', and 
+#        the output directory name will be appended with "_redone_with_source_emission_mask".
+#        (It has been tested that the MIRI method does not work well for the NIRCam case because the NIRCam issue 
+#         only appears in a few visits but not all visits, and tend to be more like wisps thus needs to be scalable.)
 # 
 # 
 set -e
@@ -389,6 +396,9 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     proc_args+=(--date-diff $date_diff) # 2023-01-06 check user input here
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
+    fi
+    if [[ $reprocess_NIRCam -gt 0 ]]; then
+        proc_args+=(--subtract-as-wisps) #<20230830># for NIRCam it is better to do this way?
     fi
     echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-3-merge-dark-rates.sh \
         ${multiobs_mosaic_asn[@]} "${proc_args[@]}"
