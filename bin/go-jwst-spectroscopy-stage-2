@@ -214,6 +214,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         obsnum=${pronum_obsnum_visnum[1]}
         visnum=${pronum_obsnum_visnum[2]}
         if [[ "$sourcecat"x == ""x ]]; then
+            echo "The file \$sourcecat is not set, trying to find it from ../processing_NIRCam_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*/jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*_cat.ecsv"
             sourcecat=$(ls "../processing_NIRCam_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*/jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*_cat.ecsv 2>/dev/null | tail -n 1)
         fi
         if [[ "$sourcecat"x == ""x ]]; then
@@ -223,6 +224,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
             proc_args+=(--sourcecat "$sourcecat")
         fi
         if [[ "$segmap"x == ""x ]]; then
+            echo "The file \$segmap is not set, trying to find it from ../processing_NIRCam_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*/jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*_segm.fits"
             segmap=$(ls "../processing_NIRCam_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*/jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*_segm.fits 2>/dev/null | tail -n 1)
         fi
         if [[ "$segmap"x == ""x ]]; then
@@ -232,6 +234,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
             proc_args+=(--segmap "$segmap")
         fi
         if [[ "$direct_image"x == ""x ]]; then
+            echo "The file \$direct_image is not set, trying to find it from ../processing_NIRCam_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*/jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*_i2d.fits"
             direct_image=$(ls "../processing_NIRCam_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*/jw${pronum}_obs${obsnum}_visit${visnum}_NIRCAM_*_i2d.fits 2>/dev/null | tail -n 1)
         fi
         if [[ "$direct_image"x == ""x ]]; then
