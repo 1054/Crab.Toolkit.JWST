@@ -1,0 +1,17 @@
+#!/bin/bash
+conda create -n jwstpmap1130 python=3.10
+conda_env="jwstpmap1130" # 2023-09-15, new NIRCam flats
+crds_context="jwst_1130.pmap"
+source $(dirname $CONDA_EXE)/activate $conda_env
+pip install stdatamodels==1.8.1 # numpy-1.26.0, astropy-5.3.3 # If using '1.4.0', then ImportError: cannot import name 's3_utils' from 'stdatamodels'
+pip install jwst==1.11.4 # 2023-04-28 https://github.com/spacetelescope/jwst/releases/tag/1.11.4
+pip install click tqdm astroquery lmfit reproject shapely regions
+pip install opencv-python # jwst pipeline snowball needs it
+conda install -c conda-forge astromatic-source-extractor
+# also need https://github.com/1054/Crab.Toolkit.SExtractorPlus
+[ ! -d $CONDA_PREFIX/etc/conda/activate.d ] && mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+echo "export CRDS_CONTEXT=\"$crds_context\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+echo "export CRDS_PATH=\"\$HOME/jwst_crds_cache\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+echo "export CRDS_SERVER_URL=\"https://jwst-crds.stsci.edu\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+
+
