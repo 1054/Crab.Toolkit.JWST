@@ -65,6 +65,7 @@ maxcores="all" # "none", "quarter", "half", "all"
 overwrite=0
 dataset_names=()
 use_ellipses="False"
+grism=0
 destripe_tilted_angles="False"
 unused_args=()
 while [[ $iarg -le $# ]]; do
@@ -88,9 +89,12 @@ while [[ $iarg -le $# ]]; do
         elif [[ "$argstr" == "--destripe-tilted-angles" ]]; then
             destripe_tilted_angles="True"
             echo "destripe_tilted_angles = \"$destripe_tilted_angles\""
+        elif [[ "$argstr" == "--grism" ]]; then
+            grism=1
+            echo "grism = $grism"
         elif [[ "$argstr" == "--overwrite" ]]; then
             overwrite=1
-            echo "overwrite = \"$overwrite\""
+            echo "overwrite = $overwrite"
             echo "Setting --overwrite can be dangerous! If you really want to overwrite, please delete existing output files!"
             exit 255
         else
@@ -215,6 +219,15 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         echo "Error! Failed to produce the output file: $file_out"
         exit 255
     fi
+    
+    
+    # If grims, then we stop here and continue next data set
+    if [[ $grism -gt 0 ]]; then
+        echo cd ../
+        cd ../
+        continue
+    fi
+    
     
     # Run step 2 -- apply flatfield
     file_in="calibrated1_rates/${dataset_name}_rate.fits"

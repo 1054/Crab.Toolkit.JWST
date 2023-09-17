@@ -40,6 +40,7 @@ current_dir=$(pwd)
 overwrite=0
 dataset_names=()
 user_flat_dir=""
+sourcecat=""
 no_bkgsub=0
 no_sextractor=0
 while [[ $iarg -le $# ]]; do
@@ -56,6 +57,12 @@ while [[ $iarg -le $# ]]; do
             if [[ $iarg -le $# ]]; then
                 user_flat_dir=$(abspath "${!iarg}")
                 echo "user_flat_dir = \"$user_flat_dir\""
+            fi
+        elif [[ "$argstr" == "--sourcecat" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                sourcecat=$(abspath "${!iarg}")
+                echo "sourcecat = \"$sourcecat\""
             fi
         elif [[ "$argstr" == "--no-bkgsub" ]]; then
             no_bkgsub=1
@@ -152,6 +159,9 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     proc_args=()
     if [[ ! -z "$user_flat_dir" ]]; then
         proc_args+=(--user-flat-dir "$user_flat_dir")
+    fi
+    if [[ ! -z "$sourcecat" ]]; then
+        proc_args+=(--sourcecat "$sourcecat")
     fi
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)

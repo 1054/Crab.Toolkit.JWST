@@ -250,11 +250,11 @@ def main(
         
         # check no_grism
         if no_grism:
-            if obs['obs_id'].find('grismr') >= 0:
+            if obs['obs_id'].find('grism') >= 0:
                 print("obs['obs_id']", obs['obs_id'], 'skipped due to no grism option')
                 continue
         elif only_grism:
-            if not (obs['obs_id'].find('grismr') >= 0):
+            if not (obs['obs_id'].find('grism') >= 0):
                 print("obs['obs_id']", obs['obs_id'], 'skipped due to only grism option')
                 continue
         
