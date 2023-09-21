@@ -266,7 +266,8 @@ def detect_source_and_background_for_image(
         box_size = None, 
         box_frac = 0.05, 
         median_filter = 1, 
-        smooth = 0.0, 
+        smooth_in_advance = 0.0, 
+        smooth_after = 0.0, 
         minpixarea = 1, # 
         flat_file = None, # for MIRI only, will combine DQ from the flat file.
         include_region_files = None, 
@@ -396,11 +397,10 @@ def detect_source_and_background_for_image(
     
     
     # applying smooth before detecting sources (20230921)
-    if smooth > 0.0:
-        #header['SMOOTH'] = (smooth, 'Gaussian2DKernel stddev in pixel')
+    if smooth_in_advance > 0.0:
         if verbose:
-            logger.info('Smoothing with Gaussian2DKernel kernel stddev {}'.format(smooth))
-        kernel = Gaussian2DKernel(x_stddev=smooth) # 1 pixel stddev kernel
+            logger.info('Smoothing with Gaussian2DKernel kernel stddev {}'.format(smooth_in_advance))
+        kernel = Gaussian2DKernel(x_stddev=smooth_in_advance) # 1 pixel stddev kernel
         image = apy_convolve(image, kernel)
     
     
@@ -537,13 +537,13 @@ def detect_source_and_background_for_image(
     arr = arr.astype(float)
     
     # smoothing/expanding the mask (commented out 20230921)
-    #if smooth > 0.0:
-    #    header['SMOOTH'] = (smooth, 'Gaussian2DKernel stddev in pixel')
-    #    if verbose:
-    #        logger.info('Smoothing with Gaussian2DKernel kernel stddev {}'.format(smooth))
-    #    kernel = Gaussian2DKernel(x_stddev=smooth) # 1 pixel stddev kernel
-    #    arr = apy_convolve(arr, kernel)
-    #    arr[arr<1e-6] = 0.0
+    if smooth_after > 0.0:
+        header['SMOOTH'] = (smooth_after, 'Gaussian2DKernel stddev in pixel')
+        if verbose:
+            logger.info('Smoothing with Gaussian2DKernel kernel stddev {}'.format(smooth_after))
+        kernel = Gaussian2DKernel(x_stddev=smooth_after) # 1 pixel stddev kernel
+        arr = apy_convolve(arr, kernel)
+        arr[arr<1e-6] = 0.0
     
     # save fits file
     hdu = fits.PrimaryHDU(data=arr, header=header)
@@ -597,7 +597,8 @@ def detect_source_and_background_for_image(
 @click.option('--box-frac', type=float, default=0.05, help='Another way to set the box size as a fraction to the image size.')
 @click.option('--median-filter', type=int, default=1, help='Do median filter before detecting sources.') # median_filter
 @click.option('--minpixarea', type=int, default=1, help='Mininum pixel area to detect an emission.')
-@click.option('--smooth', type=float, default=0.0, help='Convovling an Gaussian2DKernel with sigma of this input value, in pixel units.')
+@click.option('--smooth-in-advance', type=float, default=0.0, help='Convovling an Gaussian2DKernel with sigma of this input value, in pixel units.')
+@click.option('--smooth', '--smooth-after', 'smooth_after', type=float, default=0.0, help='Convovling an Gaussian2DKernel with sigma of this input value, in pixel units.')
 @click.option('--flat-file', type=click.Path(exists=True), default=None, help='Apply a flat file?')
 @click.option('--include-region', 'include_region_files', type=click.Path(exists=True), multiple=True, help='If input an include-region file, then source detection is performed only in these regions.')
 @click.option('--exclude-region', 'exclude_region_files', type=click.Path(exists=True), multiple=True, help='If input an exclude-region file, then we will avoid detecting sources in these regions.')
@@ -616,7 +617,8 @@ def main(
         box_frac,
         median_filter, 
         minpixarea, 
-        smooth, 
+        smooth_in_advance, 
+        smooth_after, 
         flat_file, 
         include_region_files, 
         exclude_region_files, 
@@ -637,7 +639,8 @@ def main(
         box_frac = box_frac, 
         median_filter = median_filter, 
         minpixarea = minpixarea, 
-        smooth = smooth, 
+        smooth_in_advance = smooth_in_advance, 
+        smooth_after = smooth_after, 
         flat_file = flat_file, 
         include_region_files = include_region_files, 
         exclude_region_files = exclude_region_files, 
