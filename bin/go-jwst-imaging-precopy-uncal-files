@@ -35,6 +35,7 @@ hardcopy=0 # do hardcopy instead of symlink
 overwrite=0
 data_files=()
 check_grism=0
+check_filters=()
 dry_run=0
 unused_args=()
 while [[ $iarg -le $# ]]; do
@@ -52,6 +53,20 @@ while [[ $iarg -le $# ]]; do
         elif [[ "$argstr" == "--check-grism" ]]; then
             check_grism=1
             echo "check_grism = $check_grism"
+        elif [[ "$argstr" == "--check-filter" ]] || [[ "$argstr" == "--check-filters" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                temp_filter_str="${!iarg}"
+                if [[ "$temp_filter_str" == *","* ]]; then
+                    temp_filter_list=($(echo "$temp_filter_str" | perl -p -e 's/,/ /g'))
+                else
+                    temp_filter_list=("$temp_filter_str")
+                fi
+                for (( k = 0; k < ${#temp_filter_list[@]}; k++ )); do
+                    check_filters+=("${temp_filter_list[k]}")
+                done
+            fi
+            echo "check_filters = ${check_filters[@]} (${#check_filters[@]})"
         elif [[ "$argstr" == "--dry-run" ]]; then
             dry_run=1
             echo "dry_run = $dry_run"
@@ -69,6 +84,11 @@ done
 # Check user input
 if [[ ${#data_files[@]} -eq 0 ]]; then
     echo "No input JWST uncal file!"
+    echo "Usage: "
+    echo "    go-jwst-imaging-precopy-uncal-files INPUT_CAL_FILES"
+    echo "Options:"
+    echo "    --check-grism"
+    echo "    --check-fitlers \"F090W,F115W\""
     exit 2
 fi
 
@@ -96,9 +116,18 @@ for (( i = 0; i < ${#data_files[@]}; i++ )); do
     
     # 20221226 check_grism
     if [[ $check_grism -gt 0 ]]; then
-        exp_type=$(fitsheader -k EXP_TYPE -e 0 "$data_file" | tail -n 1 | awk '{print $2}'| perl -pe 's/[^\w]//g')
+        exp_type=$(fitsheader -k EXP_TYPE -e 0 "$data_file" | tail -n 1 | perl -pe 's/[^a-zA-Z0-9_ ]//g' | awk '{print $2}')
         echo "** Checking $data_file (EXP_TYPE=$exp_type) *** "
         if [[ "$exp_type" == "NRC_WFSS" ]]; then
+            continue
+        fi
+    fi
+    
+    # 20230921 check_filters
+    if [[ ${#check_filters[@]} -gt 0 ]]; then
+        filter_key=$(fitsheader -k FILTER -e 0 "$data_file" | tail -n 1 | perl -pe 's/[^a-zA-Z0-9_ ]//g' | awk '{print $2}')
+        echo "** Checking $data_file (FILTER in ${check_filters[@]}) *** "
+        if [[ " ${check_filters[@]} " != *" $filter_key "* ]]; then
             continue
         fi
     fi
