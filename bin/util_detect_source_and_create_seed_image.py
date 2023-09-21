@@ -536,6 +536,7 @@ def detect_source_and_background_for_image(
     
     arr = arr.astype(float)
     
+    
     # smoothing/expanding the mask (commented out 20230921)
     if smooth_after > 0.0:
         header['SMOOTH'] = (smooth_after, 'Gaussian2DKernel stddev in pixel')
@@ -543,7 +544,9 @@ def detect_source_and_background_for_image(
             logger.info('Smoothing with Gaussian2DKernel kernel stddev {}'.format(smooth_after))
         kernel = Gaussian2DKernel(x_stddev=smooth_after) # 1 pixel stddev kernel
         arr = apy_convolve(arr, kernel)
-        arr[arr<1e-6] = 0.0
+        #arr[arr<1e-6] = 0.0
+        arr[arr<1e-3] = 0.0 # arr is a peak-of-unity array, gaussian smoothing cut off can be like 1e-3 (20230921)
+    
     
     # save fits file
     hdu = fits.PrimaryHDU(data=arr, header=header)
