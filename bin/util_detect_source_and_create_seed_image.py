@@ -14,7 +14,7 @@ Last updates:
     2022-11-11 
 
 """
-import os, sys, re, shutil
+import os, sys, re, copy, shutil
 import click
 import numpy as np
 from astropy.io import fits
@@ -292,14 +292,32 @@ def detect_source_and_background_for_image(
         os.makedirs(output_dir)
     
     # read image
-    hdulist = fits.open(fits_image)
-    pheader = hdulist[0].header
-    hdulist.close()
-    image, header = fits.getdata(fits_image, header=True)
-    if len(image.shape) == 0 or image.shape == (0,):
-        image, header1 = fits.getdata(fits_image, ext=1, header=True)
-        for key in header1:
-            header[key] = header1[key]
+    with fits.open(fits_image) as hdulist:
+        pheader = hdulist[0].header
+        if 'SCI' in hdulist:
+            image, header = hdulist['SCI'].data, hdulist['SCI'].header
+        elif len(hdulist[0].data.shape) >= 2:
+            image, header = hdulist[0].data, hdulist[0].header
+        elif len(hdulist[1].data.shape) >= 2:
+            image, header1 = hdulist[1].data, hdulist[1].header
+            header = copy.deepcopy(pheader)
+            for key in header1:
+                header[key] = header1[key]
+        else:
+            raise Exception('Error! No SCI extension or 2-D data in the first two extensions of the input FITS file {!r}?'.format(fits_image))
+        if 'ERR' in hdulist:
+            err_data, err_header = hdulist['ERR'].data, hdulist['ERR'].header
+        else:
+            err_data, err_header = None
+        if 'DQ' in hdulist:
+            dq_data, dq_header = hdulist['DQ'].data, hdulist['DQ'].header
+        else:
+            dq_data, dq_header = None
+    #image, header = fits.getdata(fits_image, header=True)
+    #if len(image.shape) == 0 or image.shape == (0,):
+    #    image, header1 = fits.getdata(fits_image, ext=1, header=True)
+    #    for key in header1:
+    #        header[key] = header1[key]
     
     # prepare output file name
     if with_filter_in_output_name:
@@ -580,14 +598,21 @@ def detect_source_and_background_for_image(
         logger.info('Output to "{}"'.format(output_masked_image))
     
     # save unmasked image
-    masked_image = np.full(image.shape, fill_value=0.0)
-    mask1 = np.invert(arr>0)
-    masked_image[mask1] = image[mask1]
-    output_masked_image = re.sub(r'\.fits$', '_unmasked.fits', output_fits_image) # 1 means unmasked pixel
-    output_hdu = fits.PrimaryHDU(data=masked_image, header=header)
-    output_hdu.writeto(output_masked_image, overwrite=True)
+    unmasked_image = np.full(image.shape, fill_value=0.0)
+    unmask1 = np.invert(arr>0)
+    unmasked_image[unmask1] = image[unmask1]
+    output_unmasked_image = re.sub(r'\.fits$', '_unmasked.fits', output_fits_image) # 1 means unmasked pixel
+    output_hdulist = []
+    output_hdu = fits.PrimaryHDU(data=unmasked_image, header=header)
+    output_hdulist.append(output_hdu)
+    if err_data is not None:
+        output_hdulist.append(fits.ImageHDU(data=err_data, header=err_header, name='ERR'))
+    if dq_data is not None:
+        output_hdulist.append(fits.ImageHDU(data=dq_data, header=dq_header, name='DQ'))
+    output_hdulist = fits.HDUList(output_hdulist)
+    output_hdulist.writeto(output_unmasked_image, overwrite=True)
     if verbose:
-        logger.info('Output to "{}"'.format(output_masked_image))
+        logger.info('Output to "{}"'.format(output_unmasked_image))
 
 
 
