@@ -268,6 +268,7 @@ def detect_source_and_background_for_image(
         median_filter = 1, 
         smooth_in_advance = 0.0, 
         smooth_after = 0.0, 
+        smooth_cutoff = 1e-3, 
         minpixarea = 1, # 
         flat_file = None, # for MIRI only, will combine DQ from the flat file.
         include_region_files = None, 
@@ -602,6 +603,7 @@ def detect_source_and_background_for_image(
 @click.option('--minpixarea', type=int, default=1, help='Mininum pixel area to detect an emission.')
 @click.option('--smooth-in-advance', type=float, default=0.0, help='Convovling an Gaussian2DKernel with sigma of this input value, in pixel units.')
 @click.option('--smooth', '--smooth-after', 'smooth_after', type=float, default=0.0, help='Convovling an Gaussian2DKernel with sigma of this input value, in pixel units.')
+@click.option('--smooth-cutoff', type=float, default=1e-3, help='When applying --smooth-after, the Gaussian cut-off fraction, default is 1e-6 (the area with intensity above this cut-off for a peak-of-unity Gaussian).')
 @click.option('--flat-file', type=click.Path(exists=True), default=None, help='Apply a flat file?')
 @click.option('--include-region', 'include_region_files', type=click.Path(exists=True), multiple=True, help='If input an include-region file, then source detection is performed only in these regions.')
 @click.option('--exclude-region', 'exclude_region_files', type=click.Path(exists=True), multiple=True, help='If input an exclude-region file, then we will avoid detecting sources in these regions.')
@@ -622,6 +624,7 @@ def main(
         minpixarea, 
         smooth_in_advance, 
         smooth_after, 
+        smooth_cutoff, 
         flat_file, 
         include_region_files, 
         exclude_region_files, 
@@ -644,6 +647,7 @@ def main(
         minpixarea = minpixarea, 
         smooth_in_advance = smooth_in_advance, 
         smooth_after = smooth_after, 
+        smooth_cutoff = smooth_cutoff, 
         flat_file = flat_file, 
         include_region_files = include_region_files, 
         exclude_region_files = exclude_region_files, 
