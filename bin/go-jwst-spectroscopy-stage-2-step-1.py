@@ -98,8 +98,8 @@ def main(
         input_segmap_file, 
         input_direct_image_file, 
         input_msa_meta_file, 
-        user_flat_file, 
-        user_flat_dir, 
+        user_flat_file, #<TODO><20230915># not used
+        user_flat_dir, #<TODO><20230915># not used
         overwrite = False, 
     ):
     
