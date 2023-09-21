@@ -389,9 +389,20 @@ def detect_source_and_background_for_image(
     if verbose:
         logger.info('Output to "{}"'.format(output_mask_fits_image))
     
-    valid_data = image[valid_mask].ravel()
-    pixval_min = np.nanmin(valid_data)
-    pixval_max = np.nanmax(valid_data)
+    
+    #valid_data = image[valid_mask].ravel()
+    #pixval_min = np.nanmin(valid_data)
+    #pixval_max = np.nanmax(valid_data)
+    
+    
+    # applying smooth before detecting sources (20230921)
+    if smooth > 0.0:
+        #header['SMOOTH'] = (smooth, 'Gaussian2DKernel stddev in pixel')
+        if verbose:
+            logger.info('Smoothing with Gaussian2DKernel kernel stddev {}'.format(smooth))
+        kernel = Gaussian2DKernel(x_stddev=smooth) # 1 pixel stddev kernel
+        image = apy_convolve(image, kernel)
+    
     
     # analyze Background2D with a 1/10 box size
     if not ignore_background:
@@ -525,14 +536,14 @@ def detect_source_and_background_for_image(
     
     arr = arr.astype(float)
     
-    # smoothing/expanding the mask
-    if smooth > 0.0:
-        header['SMOOTH'] = (smooth, 'Gaussian2DKernel stddev in pixel')
-        if verbose:
-            logger.info('Smoothing with Gaussian2DKernel kernel stddev {}'.format(smooth))
-        kernel = Gaussian2DKernel(x_stddev=smooth) # 1 pixel stddev kernel
-        arr = apy_convolve(arr, kernel)
-        arr[arr<1e-6] = 0.0
+    # smoothing/expanding the mask (commented out 20230921)
+    #if smooth > 0.0:
+    #    header['SMOOTH'] = (smooth, 'Gaussian2DKernel stddev in pixel')
+    #    if verbose:
+    #        logger.info('Smoothing with Gaussian2DKernel kernel stddev {}'.format(smooth))
+    #    kernel = Gaussian2DKernel(x_stddev=smooth) # 1 pixel stddev kernel
+    #    arr = apy_convolve(arr, kernel)
+    #    arr[arr<1e-6] = 0.0
     
     # save fits file
     hdu = fits.PrimaryHDU(data=arr, header=header)
@@ -541,11 +552,11 @@ def detect_source_and_background_for_image(
         logger.info('Output to "{}"'.format(output_fits_image))
     
     # save masked image
-    output_masked_image = re.sub(r'\.fits$', '_nonbrigthmask.fits', output_fits_image) # 1 means valid pixel
-    output_hdu = fits.PrimaryHDU(data=nonbright_mask.astype(int), header=header)
-    output_hdu.writeto(output_masked_image, overwrite=True)
-    if verbose:
-        logger.info('Output to "{}"'.format(output_masked_image))
+    #output_masked_image = re.sub(r'\.fits$', '_nonbrigthmask.fits', output_fits_image) # 1 means valid pixel
+    #output_hdu = fits.PrimaryHDU(data=nonbright_mask.astype(int), header=header)
+    #output_hdu.writeto(output_masked_image, overwrite=True)
+    #if verbose:
+    #    logger.info('Output to "{}"'.format(output_masked_image))
     
     # save masked image
     output_masked_image = re.sub(r'\.fits$', '_zeroonemask.fits', output_fits_image) # 1 means valid pixel
@@ -559,6 +570,16 @@ def detect_source_and_background_for_image(
     mask1 = (arr>0)
     masked_image[mask1] = image[mask1]
     output_masked_image = re.sub(r'\.fits$', '_masked.fits', output_fits_image) # 1 means valid pixel
+    output_hdu = fits.PrimaryHDU(data=masked_image, header=header)
+    output_hdu.writeto(output_masked_image, overwrite=True)
+    if verbose:
+        logger.info('Output to "{}"'.format(output_masked_image))
+    
+    # save unmasked image
+    masked_image = np.full(image.shape, fill_value=0.0)
+    mask1 = np.invert(arr>0)
+    masked_image[mask1] = image[mask1]
+    output_masked_image = re.sub(r'\.fits$', '_unmasked.fits', output_fits_image) # 1 means unmasked pixel
     output_hdu = fits.PrimaryHDU(data=masked_image, header=header)
     output_hdu.writeto(output_masked_image, overwrite=True)
     if verbose:

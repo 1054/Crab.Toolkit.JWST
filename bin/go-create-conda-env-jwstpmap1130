@@ -7,7 +7,7 @@ pip install stdatamodels==1.8.1 # numpy-1.26.0, astropy-5.3.3 # If using '1.4.0'
 pip install jwst==1.11.4 # numpy-1.25.2, 2023-04-28 https://github.com/spacetelescope/jwst/releases/tag/1.11.4
 pip install click tqdm astroquery lmfit reproject shapely regions
 pip install opencv-python # jwst pipeline snowball needs it
-conda install -cy conda-forge astromatic-source-extractor
+conda install -c conda-forge -y astromatic-source-extractor
 # also need https://github.com/1054/Crab.Toolkit.SExtractorPlus
 [ ! -d $CONDA_PREFIX/etc/conda/activate.d ] && mkdir -p $CONDA_PREFIX/etc/conda/activate.d
 echo "export CRDS_CONTEXT=\"$crds_context\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh

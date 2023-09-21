@@ -1,5 +1,5 @@
---- /home/dzliu/Software/CONDA/miniconda3/envs/miragepmap1075/lib/python3.9/site-packages/mirage/dark/dark_prep.py.ori	2023-05-17 14:54:45.280669292 +0200
-+++ /home/dzliu/Software/CONDA/miniconda3/envs/miragepmap1075/lib/python3.9/site-packages/mirage/dark/dark_prep.py	2023-05-17 14:53:46.704902996 +0200
+--- $CONDA_PREFIX/lib/python3.10/site-packages/mirage/dark/dark_prep.py.ori	    2023-05-17 14:54:45.280669292 +0200
++++ $CONDA_PREFIX/lib/python3.10/site-packages/mirage/dark/dark_prep.py	        2023-05-17 14:53:46.704902996 +0200
 @@ -916,10 +916,10 @@
                  if file_index == 0:
                      #print('self.linDark shape is {}. Expecting it to be 4D'.format(self.linDark.data.shape))
