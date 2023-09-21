@@ -2,7 +2,13 @@
 # 
 
 """
-Measure and renormalize strips in JWST images. 
+Measure and renormalize 'wisps' in JWST images. 
+
+Wisps templates are from NIRCam team: 
+https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-instrument-features-and-caveats/nircam-claws-and-wisps
+
+Wisp templates available here may be subtracted from count rate (slope) files (stage 1 output) using code provided:
+https://stsci.box.com/s/1bymvf1lkrqbdn9rnkluzqk30e8o2bne
 
 """
 
@@ -36,7 +42,7 @@ CODE_NAME = 'util_remove_wisps_with_templates.py'
 CODE_AUTHOR = 'Daizhong Liu'
 #CODE_VERSION = '20221109'
 #CODE_VERSION = '20230830' # adding --template-file
-CODE_VERSION = '20230921' # do not check filters when --template-file is given
+CODE_VERSION = '20230921' # do not check filters when --template-file is given. using custom wisps templates for 01180 F090W.
 CODE_HOMEPAGE = 'https://github.com/1054/Crab.Toolkit.JWST'
 
 # logging
@@ -168,11 +174,17 @@ def main(
             logger.warning('The input is not NIRCam data, cannot remove wisps.')
             return
         
+        # known template_filters
+        template_filters = ['F150W', 'F150W2', 'F200W', 'F210M']
+        dataset_identity = os.path.basename(input_file)[0:10]
+        if dataset_identity in ['jw01180007', 'jw01180010', 'jw01180018']: # for JWST program 01180, these visits need F090W wisps correction. 
+            template_filters.append('F090W') # 20230921 custom templates, see "<this_git_repo>/notes/20230921_01180_custom_wisps_rate_files.md"
+        
         # check filter, only 'F150W', 'F150W2', 'F200W', 'F210M' allowed
         filter_name = model.meta.instrument.filter
-        if template_file is None and filter_name.upper() not in ['F150W', 'F150W2', 'F200W', 'F210M']:
+        if template_file is None and filter_name.upper() not in template_filters:
             logger.warning('The input NIRCam data filter {} is not one of the {} that can remove wisps.'.format(
-                filter_name, repr(['F150W', 'F150W2', 'F200W', 'F210M'])
+                filter_name, repr(template_filters)
             ))
             return
         
@@ -204,6 +216,7 @@ def main(
         template_filepath = None
         searched_paths = []
         for search_dir in search_dirs:
+            # wisps template file name must be like: "wisps_nrca3_F200W.fits"
             template_filename = 'wisps_{}_{}.fits'.format(detector_name.lower(), filter_name.upper())
             search_path = os.path.join(search_dir, template_filename)
             searched_paths.append(search_path)
