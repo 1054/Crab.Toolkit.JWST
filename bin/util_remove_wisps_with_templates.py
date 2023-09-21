@@ -35,8 +35,9 @@ import crds
 CODE_NAME = 'util_remove_wisps_with_templates.py'
 CODE_AUTHOR = 'Daizhong Liu'
 #CODE_VERSION = '20221109'
-CODE_VERSION = '20230830' # adding --template-file
-CODE_HOMEPAGE = ''
+#CODE_VERSION = '20230830' # adding --template-file
+CODE_VERSION = '20230921' # do not check filters when --template-file is given
+CODE_HOMEPAGE = 'https://github.com/1054/Crab.Toolkit.JWST'
 
 # logging
 import logging
@@ -163,13 +164,13 @@ def main(
         
         # check instrument_name
         instrument_name = model.meta.instrument.name
-        if instrument_name.upper() != 'NIRCAM':
+        if template_file is None and instrument_name.upper() != 'NIRCAM':
             logger.warning('The input is not NIRCam data, cannot remove wisps.')
             return
         
         # check filter, only 'F150W', 'F150W2', 'F200W', 'F210M' allowed
         filter_name = model.meta.instrument.filter
-        if filter_name.upper() not in ['F150W', 'F150W2', 'F200W', 'F210M']:
+        if template_file is None and filter_name.upper() not in ['F150W', 'F150W2', 'F200W', 'F210M']:
             logger.warning('The input NIRCam data filter {} is not one of the {} that can remove wisps.'.format(
                 filter_name, repr(['F150W', 'F150W2', 'F200W', 'F210M'])
             ))
@@ -177,7 +178,7 @@ def main(
         
         # check detector, only 'NRCA3', 'NRCA4', 'NRCB3', 'NRCB4' allowed
         detector_name = model.meta.instrument.detector
-        if detector_name.upper() not in ['NRCA3', 'NRCA4', 'NRCB3', 'NRCB4']:
+        if template_file is None and detector_name.upper() not in ['NRCA3', 'NRCA4', 'NRCB3', 'NRCB4']:
             logger.warning('The input NIRCam data detector {} is not one of the {} that can remove wisps.'.format(
                 detector_name, repr(['NRCA3', 'NRCA4', 'NRCB3', 'NRCB4'])
             ))

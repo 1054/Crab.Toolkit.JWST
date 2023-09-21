@@ -622,8 +622,8 @@ def detect_source_and_background_for_image(
 @click.option('--lsigma', type=float, default=None, help='Lower sigma value. Usually not needed because we can set --sigma.')
 @click.option('--usigma', type=float, default=None, help='Upper sigma value. Usually not needed because we can set --sigma.')
 @click.option('--sigma', type=float, default=3.0, help='Sigma value to detect emission above local background.')
-@click.option('--box-size', type=int, default=None, help='Box size for 2D background detection.')
-@click.option('--box-frac', type=float, default=0.05, help='Another way to set the box size as a fraction to the image size.')
+@click.option('--box-size', type=int, default=None, help='Box size for 2D background detection. Default is None (i.e., using --box-frac).')
+@click.option('--box-frac', type=float, default=0.05, help='Another way to set the box size as a fraction to the image size. Default is 0.05.')
 @click.option('--median-filter', type=int, default=1, help='Do median filter before detecting sources.') # median_filter
 @click.option('--minpixarea', type=int, default=1, help='Mininum pixel area to detect an emission.')
 @click.option('--smooth-in-advance', type=float, default=0.0, help='Convovling an Gaussian2DKernel with sigma of this input value, in pixel units.')
