@@ -31,6 +31,8 @@ def main(
         output_catalog_file, 
         old_ra_dec, 
         new_ra_dec,
+        ra_column,
+        dec_column,
     ):
     """
     This script will apply a simple astrometry correction to all RA Dec in the input catalog and save as the output catalog. 
