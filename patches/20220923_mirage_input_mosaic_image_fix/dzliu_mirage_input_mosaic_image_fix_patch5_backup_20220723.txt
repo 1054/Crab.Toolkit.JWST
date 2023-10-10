@@ -1,20 +1,20 @@
---- $CONDA_PREFIX/lib/python3.10/site-packages/mirage/seed_image/crop_mosaic.py.backup.20230921	2023-09-21 13:45:38.781766132 +0200
-+++ $CONDA_PREFIX/lib/python3.10/site-packages/mirage/seed_image/crop_mosaic.py	2023-09-29 20:08:36.454031905 +0200
+--- $CONDA_PREFIX/lib/python3.10/site-packages/mirage/seed_image/crop_mosaic.py.original    2023-05-02 21:33:46.474567448 +0200
++++ $CONDA_PREFIX/lib/python3.10/site-packages/mirage/seed_image/crop_mosaic.py             2023-05-02 21:33:15.498999464 +0200
 @@ -125,8 +125,8 @@
- 
+
          # Determine the dimensions of the mosaic aperture to be cropped in
          # units of mosaic pixels
 -        nx = np.absolute(np.int(xlen * self.jwst_pixel_scale / self.mosaic_scale_x))
 -        ny = np.absolute(np.int(ylen * self.jwst_pixel_scale / self.mosaic_scale_y))
 +        nx = np.absolute(np.int64(xlen * self.jwst_pixel_scale / self.mosaic_scale_x))
 +        ny = np.absolute(np.int64(ylen * self.jwst_pixel_scale / self.mosaic_scale_y))
- 
+
          # Set the CRPIX values that will define the WCS in the output
          self.crpix1 = nx / 2 + 0.5
 @@ -136,10 +136,10 @@
          half_height = ny // 2 + 1
          half_width = nx // 2 + 1
- 
+
 -        miny = np.int(mosaic_center_y - half_height)
 -        maxy = np.int(mosaic_center_y + half_height + 1)
 -        minx = np.int(mosaic_center_x - half_width)
@@ -23,23 +23,6 @@
 +        maxy = np.int64(mosaic_center_y + half_height + 1)
 +        minx = np.int64(mosaic_center_x - half_width)
 +        maxx = np.int64(mosaic_center_x + half_width + 1)
- 
+
          # If the cropped area falls off the edge of the mosaic, adjust
          # the extraction coordinates and the crpix values accordingly
-@@ -159,7 +159,15 @@
-         self.logger.info("X-min, X-max coords: {}, {}".format(minx, maxx))
-         self.logger.info("Y-min, Y-max coords: {}, {}".format(miny, maxy))
- 
--        crop = mosaic[self.data_extension_number].data[miny: maxy, minx: maxx]
-+        #<DZLIU># ++++++ check cut rect in mosaic fov
-+        #<DZLIU># crop = mosaic[self.data_extension_number].data[miny: maxy, minx: maxx]
-+        if minx < maxx and miny < maxy:
-+            crop = mosaic[self.data_extension_number].data[miny: maxy, minx: maxx]
-+        else:
-+            self.crpix1 = nx / 2 + 0.5
-+            self.crpix2 = ny / 2 + 0.5
-+            crop = np.zeros((ny, nx))
-+        #<DZLIU># ------
- 
-         # Place into a data model to prepare for blotting
-         self.cropped = self.populate_datamodel(crop)

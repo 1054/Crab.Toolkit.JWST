@@ -1,0 +1,29 @@
+--- $CONDA_PREFIX/lib/python3.10/site-packages/mirage/ramp_generator/obs_generator.py.backup  2023-10-04 17:50:20.762787095 +0200
++++ $CONDA_PREFIX/lib/python3.10/site-packages/mirage/ramp_generator/obs_generator.py 2023-10-04 17:52:37.378212680 +0200
+@@ -1733,6 +1733,7 @@
+         # Set those to zero when adding noise, then replace with
+         # original value
+         signalgain = signalimage * self.gain
++        signalgain[np.isnan(signalgain)] = 0.0 #<DZLIU><20230522>#
+         highpix = np.where(signalgain == np.nanmax(signalgain))
+         if np.nanmin(signalgain) < 0.:
+             neg = signalgain < 0.
+@@ -1741,7 +1742,8 @@
+             signalgain[neg] = 0.
+
+         # Add poisson noise
+-        newimage = np.random.poisson(signalgain, signalgain.shape).astype(np.float64)
++        print('DZLIU DEBUGGING mirage/ramp_generator/obs_generator.py np.random.poisson({}, {})'.format(signalgain, signalgain.shape))
++        newimage = np.random.poisson(signalgain.astype(np.float64), signalgain.shape).astype(np.float64)
+
+         if np.nanmin(signalgain) < 0.:
+             newimage[neg] = negatives[neg].astype(np.float64)
+@@ -1842,7 +1844,7 @@
+         if ndim == 3:
+             data = np.vstack((np.zeros((1, yd, xd)), data))
+
+-        outramp = np.zeros((self.params['Readout']['ngroup'], yd, xd), dtype=np.float)
++        outramp = np.zeros((self.params['Readout']['ngroup'], yd, xd), dtype=np.float32)
+
+         # Set up functions to apply cosmic rays later
+         # Need the total number of active pixels in the

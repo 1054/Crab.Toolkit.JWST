@@ -118,7 +118,8 @@ def main(
             dataRA = dataRA.value
     else:
         dataRA = table[colRA]
-    if isinstance(colRA, (list, tuple)):
+    
+    if isinstance(colDec, (list, tuple)):
         dataDec = getattr(table[colDec[0]], colDec[1])
         if isinstance(dataDec, u.Quantity):
             dataDec = dataDec.value
