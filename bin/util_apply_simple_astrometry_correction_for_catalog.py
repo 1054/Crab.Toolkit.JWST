@@ -101,19 +101,25 @@ def main(
     
     if isinstance(colRA, (list, tuple)):
         dataRA = getattr(table[colRA[0]], colRA[1])
-        if isinstance(dataRA, u.Quantity):
-            setattr(table[colRA[0]], colRA[1], dataRA + (d_ra * u.deg))
+        if colRA[1] == 'ra':
+            table[colRA[0]].ra += (d_ra * u.deg)
         else:
-            table[colRA[0]] = dataRA + (d_ra * u.deg)
+            if isinstance(dataRA, u.Quantity):
+                setattr(table[colRA[0]], colRA[1], dataRA + (d_ra * u.deg))
+            else:
+                setattr(table[colRA[0]], colRA[1], dataRA + (d_ra))
     else:
         table[colRA] += d_ra
     
     if isinstance(colDec, (list, tuple)):
         dataDec = getattr(table[colDec[0]], colDec[1])
-        if isinstance(dataDec, u.Quantity):
-            setattr(table[colDec[0]], colDec[1], dataDec + (d_dec * u.deg))
+        if colDec[1] == 'dec':
+            table[colRA[0]].dec += (d_dec * u.deg)
         else:
-            table[colDec[0]] = dataDec + (d_dec * u.deg)
+            if isinstance(dataDec, u.Quantity):
+                setattr(table[colDec[0]], colDec[1], dataDec + (d_dec * u.deg))
+            else:
+                setattr(table[colDec[0]], colDec[1], dataDec + (d_dec))
     else:
         table[colDec] += d_dec
     
