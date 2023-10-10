@@ -100,10 +100,11 @@ def main(
     # update RA Dec in the table
     
     if isinstance(colRA, (list, tuple)):
-        dataRA = getattr(table[colRA[0]], colRA[1])
-        if colRA[1] == 'ra':
-            table[colRA[0]].ra += (d_ra * u.deg)
+        if isinstance(table[colRA[0]], SkyCoord):
+            scoord = table[colRA[0]]
+            table[colRA[0]] = SkyCoord(scoord.ra + (d_ra * u.deg), scoord.dec)
         else:
+            dataRA = getattr(table[colRA[0]], colRA[1])
             if isinstance(dataRA, u.Quantity):
                 setattr(table[colRA[0]], colRA[1], dataRA + (d_ra * u.deg))
             else:
@@ -112,10 +113,11 @@ def main(
         table[colRA] += d_ra
     
     if isinstance(colDec, (list, tuple)):
-        dataDec = getattr(table[colDec[0]], colDec[1])
-        if colDec[1] == 'dec':
-            table[colRA[0]].dec += (d_dec * u.deg)
+        if isinstance(table[colDec[0]], SkyCoord):
+            scoord = table[colDec[0]]
+            table[colDec[0]] = SkyCoord(scoord.ra, scoord.dec + (d_dec * u.deg))
         else:
+            dataDec = getattr(table[colDec[0]], colDec[1])
             if isinstance(dataDec, u.Quantity):
                 setattr(table[colDec[0]], colDec[1], dataDec + (d_dec * u.deg))
             else:
