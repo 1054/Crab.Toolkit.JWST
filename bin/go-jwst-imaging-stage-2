@@ -39,6 +39,8 @@ work_dir="."
 current_dir=$(pwd)
 overwrite=0
 dataset_names=()
+sextractor_argnames=("--detect-thresh")
+sextractor_kwargs=()
 user_flat_dir=""
 no_bkgsub=0
 no_sextractor=0
@@ -63,6 +65,17 @@ while [[ $iarg -le $# ]]; do
         elif [[ "$argstr" == "--no-sextractor" ]]; then
             no_sextractor=1
             echo "no_sextractor = \"$no_sextractor\""
+        
+        # sextractor
+        elif [[ " ${sextractor_argnames[@]} " == *" $argstr "* ]]; then
+            sextractor_kwargs+=("${!iarg}")
+            echo -n "${!iarg} = "
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                sextractor_kwargs+=("${!iarg}")
+                echo "\"${!iarg}\""
+            fi
+        
         else
             echo "Unkonwn argument: ${!iarg}"
         fi
@@ -133,7 +146,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     
     # check input directory: calibrated1_rates
     if [[ ! -d calibrated1_rates ]]; then
-        echo "Error! Dataset directory does not exist: \"$calibrated1_rates\"! Current directory: \"$(pwd)\"."
+        echo "Error! Dataset directory does not exist: \"calibrated1_rates\"! Current directory: \"$(pwd)\"."
         exit 255
     fi
 
@@ -238,6 +251,9 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
             echo "Found \"$file_out2\" and overwrite is not set. Skipping."
         else
             proc_args=()
+            for (( i = 0; i < ${#sextractor_kwargs[@]}; i++ )); do
+                proc_args+=(${sextractor_kwargs[i]})
+            done
             if [[ $overwrite -gt 0 ]]; then
                 proc_args+=(--overwrite)
             fi

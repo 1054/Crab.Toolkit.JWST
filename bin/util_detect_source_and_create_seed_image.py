@@ -14,7 +14,7 @@ Last updates:
     2022-11-11 
 
 """
-import os, sys, re, shutil
+import os, sys, re, copy, shutil
 import click
 import numpy as np
 from astropy.io import fits
@@ -63,6 +63,18 @@ from jwst.datamodels.dqflags import pixel as dqflags_pixel
 #{'GOOD': 0, 
 #'DO_NOT_USE': 1, 'SATURATED': 2, 'JUMP_DET': 4, 'DROPOUT': 8, 
 #'OUTLIER': 16, 'PERSISTENCE': 32, 'AD_FLOOR': 64, 'RESERVED_4': 128, 
+#'UNRELIABLE_ERROR': 256, 'NON_SCIENCE': 512, 'DEAD': 1024, 'HOT': 2048, 
+#'WARM': 4096, 'LOW_QE': 8192, 'RC': 16384, 'TELEGRAPH': 32768, 
+#'NONLINEAR': 65536, 'BAD_REF_PIXEL': 131072, 'NO_FLAT_FIELD': 262144, 'NO_GAIN_VALUE': 524288, 
+#'NO_LIN_CORR': 1048576, 'NO_SAT_CHECK': 2097152, 'UNRELIABLE_BIAS': 4194304, 'UNRELIABLE_DARK': 8388608, 
+#'UNRELIABLE_SLOPE': 16777216, 'UNRELIABLE_FLAT': 33554432, 'OPEN': 67108864, 'ADJ_OPEN': 134217728, 
+#'UNRELIABLE_RESET': 268435456, 'MSA_FAILED_OPEN': 536870912, 'OTHER_BAD_PIXEL': 1073741824, 'REFERENCE_PIXEL': 2147483648
+#}
+#
+#20230616 jwst 1.10.0
+#{'GOOD': 0, 
+#'DO_NOT_USE': 1, 'SATURATED': 2, 'JUMP_DET': 4, 'DROPOUT': 8, 
+#'OUTLIER': 16, 'PERSISTENCE': 32, 'AD_FLOOR': 64, 'UNDERSAMP': 128, 
 #'UNRELIABLE_ERROR': 256, 'NON_SCIENCE': 512, 'DEAD': 1024, 'HOT': 2048, 
 #'WARM': 4096, 'LOW_QE': 8192, 'RC': 16384, 'TELEGRAPH': 32768, 
 #'NONLINEAR': 65536, 'BAD_REF_PIXEL': 131072, 'NO_FLAT_FIELD': 262144, 'NO_GAIN_VALUE': 524288, 
@@ -174,7 +186,8 @@ def get_dqmask_from_dq(dq, image=None):
     dqmask = bitfield_to_boolean_mask(
         dq,
         interpret_bit_flags(
-            '~(DO_NOT_USE,SATURATED,NON_SCIENCE,JUMP_DET,OUTLIER,PERSISTENCE,AD_FLOOR,RESERVED_4,UNRELIABLE_FLAT,OTHER_BAD_PIXEL)', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
+            #'~(DO_NOT_USE,SATURATED,NON_SCIENCE,JUMP_DET,OUTLIER,PERSISTENCE,AD_FLOOR,RESERVED_4,UNRELIABLE_FLAT,OTHER_BAD_PIXEL)', # SkyMatchStep().dqbits is '~DO_NOT_USE+NON_SCIENCE' in default
+            '~(DO_NOT_USE,SATURATED,NON_SCIENCE,JUMP_DET,OUTLIER,PERSISTENCE,OTHER_BAD_PIXEL)', # 20230616
             flag_name_map=dqflags_pixel), # -1073742468
         good_mask_value=1,
         dtype=int
@@ -253,7 +266,9 @@ def detect_source_and_background_for_image(
         box_size = None, 
         box_frac = 0.05, 
         median_filter = 1, 
-        smooth = 0.0, 
+        smooth_in_advance = 0.0, 
+        smooth_after = 0.0, 
+        smooth_cutoff = 1e-3, 
         minpixarea = 1, # 
         flat_file = None, # for MIRI only, will combine DQ from the flat file.
         include_region_files = None, 
@@ -277,14 +292,32 @@ def detect_source_and_background_for_image(
         os.makedirs(output_dir)
     
     # read image
-    hdulist = fits.open(fits_image)
-    pheader = hdulist[0].header
-    hdulist.close()
-    image, header = fits.getdata(fits_image, header=True)
-    if len(image.shape) == 0 or image.shape == (0,):
-        image, header1 = fits.getdata(fits_image, ext=1, header=True)
-        for key in header1:
-            header[key] = header1[key]
+    with fits.open(fits_image) as hdulist:
+        pheader = hdulist[0].header
+        if 'SCI' in hdulist:
+            image, header = hdulist['SCI'].data, hdulist['SCI'].header
+        elif len(hdulist[0].data.shape) >= 2:
+            image, header = hdulist[0].data, hdulist[0].header
+        elif len(hdulist[1].data.shape) >= 2:
+            image, header1 = hdulist[1].data, hdulist[1].header
+            header = copy.deepcopy(pheader)
+            for key in header1:
+                header[key] = header1[key]
+        else:
+            raise Exception('Error! No SCI extension or 2-D data in the first two extensions of the input FITS file {!r}?'.format(fits_image))
+        if 'ERR' in hdulist:
+            err_data, err_header = hdulist['ERR'].data, hdulist['ERR'].header
+        else:
+            err_data, err_header = None
+        if 'DQ' in hdulist:
+            dq_data, dq_header = hdulist['DQ'].data, hdulist['DQ'].header
+        else:
+            dq_data, dq_header = None
+    #image, header = fits.getdata(fits_image, header=True)
+    #if len(image.shape) == 0 or image.shape == (0,):
+    #    image, header1 = fits.getdata(fits_image, ext=1, header=True)
+    #    for key in header1:
+    #        header[key] = header1[key]
     
     # prepare output file name
     if with_filter_in_output_name:
@@ -376,9 +409,19 @@ def detect_source_and_background_for_image(
     if verbose:
         logger.info('Output to "{}"'.format(output_mask_fits_image))
     
-    valid_data = image[valid_mask].ravel()
-    pixval_min = np.nanmin(valid_data)
-    pixval_max = np.nanmax(valid_data)
+    
+    #valid_data = image[valid_mask].ravel()
+    #pixval_min = np.nanmin(valid_data)
+    #pixval_max = np.nanmax(valid_data)
+    
+    
+    # applying smooth before detecting sources (20230921)
+    if smooth_in_advance > 0.0:
+        if verbose:
+            logger.info('Smoothing with Gaussian2DKernel kernel stddev {}'.format(smooth_in_advance))
+        kernel = Gaussian2DKernel(x_stddev=smooth_in_advance) # 1 pixel stddev kernel
+        image = apy_convolve(image, kernel)
+    
     
     # analyze Background2D with a 1/10 box size
     if not ignore_background:
@@ -512,14 +555,17 @@ def detect_source_and_background_for_image(
     
     arr = arr.astype(float)
     
-    # smoothing/expanding the mask
-    if smooth > 0.0:
-        header['SMOOTH'] = (smooth, 'Gaussian2DKernel stddev in pixel')
+    
+    # smoothing/expanding the mask (commented out 20230921)
+    if smooth_after > 0.0:
+        header['SMOOTH'] = (smooth_after, 'Gaussian2DKernel stddev in pixel')
         if verbose:
-            logger.info('Smoothing with Gaussian2DKernel kernel stddev {}'.format(smooth))
-        kernel = Gaussian2DKernel(x_stddev=smooth) # 1 pixel stddev kernel
+            logger.info('Smoothing with Gaussian2DKernel kernel stddev {}'.format(smooth_after))
+        kernel = Gaussian2DKernel(x_stddev=smooth_after) # 1 pixel stddev kernel
         arr = apy_convolve(arr, kernel)
-        arr[arr<1e-6] = 0.0
+        #arr[arr<1e-6] = 0.0
+        arr[arr<1e-3] = 0.0 # arr is a peak-of-unity array, gaussian smoothing cut off can be like 1e-3 (20230921)
+    
     
     # save fits file
     hdu = fits.PrimaryHDU(data=arr, header=header)
@@ -528,11 +574,11 @@ def detect_source_and_background_for_image(
         logger.info('Output to "{}"'.format(output_fits_image))
     
     # save masked image
-    output_masked_image = re.sub(r'\.fits$', '_nonbrigthmask.fits', output_fits_image) # 1 means valid pixel
-    output_hdu = fits.PrimaryHDU(data=nonbright_mask.astype(int), header=header)
-    output_hdu.writeto(output_masked_image, overwrite=True)
-    if verbose:
-        logger.info('Output to "{}"'.format(output_masked_image))
+    #output_masked_image = re.sub(r'\.fits$', '_nonbrigthmask.fits', output_fits_image) # 1 means valid pixel
+    #output_hdu = fits.PrimaryHDU(data=nonbright_mask.astype(int), header=header)
+    #output_hdu.writeto(output_masked_image, overwrite=True)
+    #if verbose:
+    #    logger.info('Output to "{}"'.format(output_masked_image))
     
     # save masked image
     output_masked_image = re.sub(r'\.fits$', '_zeroonemask.fits', output_fits_image) # 1 means valid pixel
@@ -550,6 +596,23 @@ def detect_source_and_background_for_image(
     output_hdu.writeto(output_masked_image, overwrite=True)
     if verbose:
         logger.info('Output to "{}"'.format(output_masked_image))
+    
+    # save unmasked image
+    unmasked_image = np.full(image.shape, fill_value=0.0)
+    unmask1 = np.invert(arr>0)
+    unmasked_image[unmask1] = image[unmask1]
+    output_unmasked_image = re.sub(r'\.fits$', '_unmasked.fits', output_fits_image) # 1 means unmasked pixel
+    output_hdulist = []
+    output_hdu = fits.PrimaryHDU(data=unmasked_image, header=header)
+    output_hdulist.append(output_hdu)
+    if err_data is not None:
+        output_hdulist.append(fits.ImageHDU(data=err_data, header=err_header, name='ERR'))
+    if dq_data is not None:
+        output_hdulist.append(fits.ImageHDU(data=dq_data, header=dq_header, name='DQ'))
+    output_hdulist = fits.HDUList(output_hdulist)
+    output_hdulist.writeto(output_unmasked_image, overwrite=True)
+    if verbose:
+        logger.info('Output to "{}"'.format(output_unmasked_image))
 
 
 
@@ -559,11 +622,13 @@ def detect_source_and_background_for_image(
 @click.option('--lsigma', type=float, default=None, help='Lower sigma value. Usually not needed because we can set --sigma.')
 @click.option('--usigma', type=float, default=None, help='Upper sigma value. Usually not needed because we can set --sigma.')
 @click.option('--sigma', type=float, default=3.0, help='Sigma value to detect emission above local background.')
-@click.option('--box-size', type=int, default=None, help='Box size for 2D background detection.')
-@click.option('--box-frac', type=float, default=0.05, help='Another way to set the box size as a fraction to the image size.')
+@click.option('--box-size', type=int, default=None, help='Box size for 2D background detection. Default is None (i.e., using --box-frac).')
+@click.option('--box-frac', type=float, default=0.05, help='Another way to set the box size as a fraction to the image size. Default is 0.05.')
 @click.option('--median-filter', type=int, default=1, help='Do median filter before detecting sources.') # median_filter
 @click.option('--minpixarea', type=int, default=1, help='Mininum pixel area to detect an emission.')
-@click.option('--smooth', type=float, default=0.0, help='Convovling an Gaussian2DKernel with sigma of this input value, in pixel units.')
+@click.option('--smooth-in-advance', type=float, default=0.0, help='Convovling an Gaussian2DKernel with sigma of this input value, in pixel units.')
+@click.option('--smooth', '--smooth-after', 'smooth_after', type=float, default=0.0, help='Convovling an Gaussian2DKernel with sigma of this input value, in pixel units.')
+@click.option('--smooth-cutoff', type=float, default=1e-3, help='When applying --smooth-after, the Gaussian cut-off fraction, default is 1e-6 (the area with intensity above this cut-off for a peak-of-unity Gaussian).')
 @click.option('--flat-file', type=click.Path(exists=True), default=None, help='Apply a flat file?')
 @click.option('--include-region', 'include_region_files', type=click.Path(exists=True), multiple=True, help='If input an include-region file, then source detection is performed only in these regions.')
 @click.option('--exclude-region', 'exclude_region_files', type=click.Path(exists=True), multiple=True, help='If input an exclude-region file, then we will avoid detecting sources in these regions.')
@@ -582,7 +647,9 @@ def main(
         box_frac,
         median_filter, 
         minpixarea, 
-        smooth, 
+        smooth_in_advance, 
+        smooth_after, 
+        smooth_cutoff, 
         flat_file, 
         include_region_files, 
         exclude_region_files, 
@@ -603,7 +670,9 @@ def main(
         box_frac = box_frac, 
         median_filter = median_filter, 
         minpixarea = minpixarea, 
-        smooth = smooth, 
+        smooth_in_advance = smooth_in_advance, 
+        smooth_after = smooth_after, 
+        smooth_cutoff = smooth_cutoff, 
         flat_file = flat_file, 
         include_region_files = include_region_files, 
         exclude_region_files = exclude_region_files, 

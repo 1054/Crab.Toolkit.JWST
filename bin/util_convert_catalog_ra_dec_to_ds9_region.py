@@ -4,6 +4,7 @@
 import os, sys, re, copy, shutil
 import click
 import numpy as np
+import astropy.units as u
 from astropy.table import Table
 from matplotlib import cm
 from matplotlib import colors as mpl_colors
@@ -46,29 +47,40 @@ def main(
     ):
     
     print('Reading catalog file {!r}'.format(input_catalog_file))
-    table = Table.read(input_catalog_file)
+    if re.match(r'.*\.(txt|dat|lis)$', input_catalog_file): 
+        table = Table.read(input_catalog_file, format='ascii')
+    elif re.match(r'.*\.ecsv$', input_catalog_file):
+        table = Table.read(input_catalog_file, format='ascii.ecsv')
+    else:
+        table = Table.read(input_catalog_file)
     
     print('Reading columns ...')
     
     colRA = None
-    colRA_list = ['RA', 'ALPHA_J2000', 'ra']
+    colRA_list = ['RA', 'ALPHA_J2000', 'ra', 'sky_centroid.ra']
     if ra_column is not None:
         colRA_list = [ra_column]
     for colname in colRA_list:
         if colname in table.colnames:
             colRA = colname
             break
+        elif colname.find('.')>=0 and colname.split('.')[0] in table.colnames:
+            colRA = colname.split('.')
+            break
     if colRA is None:
         print('Error! Could not find RA column ({}) in the input table ({})'.format(colRA_list, table.colnames))
         sys.exit(255)
     
     colDec = None
-    colDec_list = ['DEC', 'Dec', 'DELTA_J2000', 'dec']
+    colDec_list = ['DEC', 'Dec', 'DELTA_J2000', 'dec', 'sky_centroid.dec']
     if dec_column is not None:
         colDec_list = [dec_column]
     for colname in colDec_list:
         if colname in table.colnames:
             colDec = colname
+            break
+        elif colname.find('.')>=0 and colname.split('.')[0] in table.colnames:
+            colDec = colname.split('.')
             break
     if colDec is None:
         print('Error! Could not find DEC column ({}) in the input table ({})'.format(colDec_list, table.colnames))
@@ -100,6 +112,20 @@ def main(
     #    print('Error! Could not find ID column ({}) in the input table ({})'.format(colID_list, table.colnames))
     #    sys.exit(255)
     
+    if isinstance(colRA, (list, tuple)):
+        dataRA = getattr(table[colRA[0]], colRA[1])
+        if isinstance(dataRA, u.Quantity):
+            dataRA = dataRA.value
+    else:
+        dataRA = table[colRA]
+    
+    if isinstance(colDec, (list, tuple)):
+        dataDec = getattr(table[colDec[0]], colDec[1])
+        if isinstance(dataDec, u.Quantity):
+            dataDec = dataDec.value
+    else:
+        dataDec = table[colDec]
+
     print('Writing region file {!r} ...'.format(output_region_file))
     
     if os.path.isfile(output_region_file):
@@ -110,7 +136,7 @@ def main(
         fp.write('global color={}\n'.format(color))
         fp.write('fk5\n')
         for i in tqdm(range(len(table))):
-            line_str = 'circle({},{},{}")'.format(table[colRA][i], table[colDec][i], radius)
+            line_str = 'circle({},{},{}")'.format(dataRA[i], dataDec[i], radius)
             text_str = ''
             color_str = ''
             if colID is not None:

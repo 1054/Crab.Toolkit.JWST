@@ -30,10 +30,22 @@ iarg=1
 overwrite=0
 mosaic_image=""
 mosaic_asn=""
+detect_smooth=1.0
+detect_sigma=3.0
 while [[ $iarg -le $# ]]; do
     argstr="${!iarg}"
     if [[ "$argstr" == "--overwrite" ]]; then
         overwrite=1
+    elif [[ "$argstr" == "--detect-sigma" ]]; then
+        iarg=$((iarg+1))
+        if [[ $iarg -le $# ]]; then
+            detect_sigma=${!iarg}
+        fi
+    elif [[ "$argstr" == "--detect-smooth" ]]; then
+        iarg=$((iarg+1))
+        if [[ $iarg -le $# ]]; then
+            detect_smooth=${!iarg}
+        fi
     elif [[ "$mosaic_image"x == ""x ]]; then
         mosaic_image="${!iarg}"
         echo "mosaic_image = \"$mosaic_image\""
@@ -77,7 +89,8 @@ if [[ ! -f "$this_file_out" ]] || [[ $overwrite -gt 0 ]]; then
     echo "#cd $(pwd)" >> "$this_script_out"
     echo "$script_dir/util_detect_source_and_create_seed_image.py \\" >> "$this_script_out"
     echo "    \"$this_file_in\" \\" >> "$this_script_out"
-    echo "    --smooth 1.0 \\" >> "$this_script_out"
+    echo "    --smooth $detect_smooth \\" >> "$this_script_out"
+    echo "    --sigma $detect_sigma \\" >> "$this_script_out"
     if [[ $overwrite -gt 0 ]]; then
         echo "    --overwrite \\" >> "$this_script_out"
     fi

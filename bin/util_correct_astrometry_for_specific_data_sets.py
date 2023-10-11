@@ -17,10 +17,12 @@ import astropy.units as u
 from astropy.io import fits
 from astropy.coordinates import SkyCoord, FK5
 from astropy.wcs import WCS
+from astropy.modeling.models import Shift
 
 # jwst
 from jwst import datamodels
 from jwst.datamodels import ImageModel
+from jwst.assign_wcs.util import update_fits_wcsinfo
 from stdatamodels import util
 
 
@@ -155,13 +157,24 @@ def main(
                 logger.info('Updating header key: {}, value {} -> {}'.format(key, old_wcs_params[key], new_wcs_params[key]))
         hdul.flush()
     
-    with ImageModel(output_file) as out_model:
+    with ImageModel(output_file) as dm:
         
+        #from jwst.assign_wcs.util import update_fits_wcsinfo
         #update_fits_wcsinfo(
-        #    out_model,
+        #    dm,
         #    max_pix_error=1., # default is 0.01 in "tweakreg_step.py"
         #    npoints=16
         #)
+        
+        dra = new_wcs_params['CRVAL1'] - old_wcs_params['CRVAL1'] # equiv. dm.meta.wcsinfo.crval1 - dm.meta.wcs.to_fits_sip()['CRVAL1']
+        ddec = new_wcs_params['CRVAL2'] - old_wcs_params['CRVAL2'] # equiv. dm.meta.wcsinfo.crval2 - dm.meta.wcs.to_fits_sip()['CRVAL2']
+        
+        # dm.meta.wcs.available_frames : ['detector', 'v2v3', 'v2v3vacorr', 'world']
+        # set_transform needs from_frame and to_frame in in sequence, so we only update the last sequence
+        trans = dm.meta.wcs.get_transform('v2v3vacorr', 'world')
+        trans2 = trans | (Shift(dra) & Shift(ddec))
+        dm.meta.wcs.set_transform('v2v3vacorr', 'world', trans2)
+        update_fits_wcsinfo(dm)
         
         # add history entry following CEERS
         stepdescription = f'Corrected astrometry with {CODE_NAME} ({out_timestamp})'
@@ -170,9 +183,9 @@ def main(
                          'version':CODE_VERSION,
                          'homepage':CODE_HOMEPAGE}
         substr = util.create_history_entry(stepdescription, software=software_dict)
-        out_model.history.append(substr)
-        #print('out_model.history', out_model.history)
-        out_model.save(output_file)
+        dm.history.append(substr)
+        #print('dm.history', dm.history)
+        dm.save(output_file)
         logger.info('Saved astrometry-corrected data into {!r}'.format(output_file))
     
     

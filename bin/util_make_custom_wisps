@@ -1,0 +1,14 @@
+#!/bin/bash
+# 
+
+set -e
+
+cal_files=($(find . -maxdepth 1 -mindepth 1 -name "jw*_cal.fits"))
+
+for (( i=0; i<${#cal_files[@]}; i++ )); do
+    cal_file="${cal_files[i]}"
+    echo "util_detect_source_and_create_seed_image.py \"$cal_file\" --exclude-region ds9_nrca3_avoiding_source_detection_region.reg --overwrite --median-filter 2 --smooth-after 1 --smooth-cutoff 0.1"
+    util_detect_source_and_create_seed_image.py "$cal_file" --exclude-region ds9_nrca3_avoiding_source_detection_region.reg --overwrite --median-filter 2 --smooth-after 1 --smooth-cutoff 0.1
+done
+
+

@@ -18,6 +18,7 @@ Last update:
     
     2022-09-10 DZLIU.
     2022-12-03 DZLIU. tweakreg with "*_cat_for_tweakreg.csv".
+    2023-06-28 DZLIU. In some cases abs_fitgeometry 'general' might be needed.
 
 
 More notes from CEERS in "ceers_nircam_reduction.ipynb":
@@ -93,6 +94,8 @@ from jwst.source_catalog import SourceCatalogStep
 from jwst import datamodels
 from jwst.associations.asn_from_list import asn_from_list
 from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
+from jwst.associations import load_asn
+from jwst.assign_wcs.util import update_fits_wcsinfo
 
 # Import jwst package itself
 import jwst
@@ -214,6 +217,14 @@ def asdf_from_step_to_file(
     if os.path.isfile(asdf_file):
         shutil.move(asdf_file, asdf_file+'.backup')
     asdf_object.write_to(asdf_file)
+    
+    # 20230318
+    # see -- https://jwst-pipeline.readthedocs.io/en/latest/jwst/stpipe/config_asdf.html#config-asdf-files
+    asdf_file2 = os.path.splitext(asdf_file)[0] + '_export_config.asdf'
+    if os.path.isfile(asdf_file2):
+        shutil.move(asdf_file2, asdf_file2+'.backup')
+    step_object.export_config(asdf_file2) # include_meta=True
+    
     return asdf_file
 
 
@@ -244,9 +255,11 @@ def clean_up_intermediate_outlier_i2d_files(
         image_list, 
         output_name, 
         asn_id = None, 
+        reload_image_models = False, 
     ):
     # move some output files to subdirectories
     # for example the "outlier_i2d.fits", so that we do not find them when doing an `ls *_i2d.fits`
+    reloading_image_model_files = []
     for i in range(len(image_list)):
         image_file = image_list[i]
         # add all possible files to move
@@ -272,6 +285,14 @@ def clean_up_intermediate_outlier_i2d_files(
             if os.path.isfile(f'{output_name}_{asn_id}_{i}_outlierdetection.fits'):
                 shutil.move(f'{output_name}_{asn_id}_{i}_outlierdetection.fits', 
                             f'{output_name}_{i}_{asn_id}_outlierdetection.fits')
+        if reload_image_models:
+            reloading_image_model_files.append(f'{output_name}_{i}_{asn_id}_outlierdetection.fits')
+    if reload_image_models: # not tested 20230412
+        asn_from_list_to_file(reloading_image_model_files, 'asn_outlier_detection_reloading.json')
+        reloaded_image_models = datamodels.ModelContainer()
+        asn_data = reloaded_image_models.read_asn('asn_outlier_detection_reloading.json')
+        reloaded_image_models.from_asn(asn_data)
+        return reloaded_image_models
 
 
 def run_individual_steps_for_one_asn_file(
@@ -301,7 +322,7 @@ def run_individual_steps_for_one_asn_file(
         image_models = pipeline_object.tweakreg(input_models)
         # TODO: sometimes tweakreg update_fits_wcsinfo fails because `max_pix_error` is too small, 
         # we can run this manually with a larger `max_pix_error`, then save_model.
-        from jwst.assign_wcs.util import update_fits_wcsinfo
+        #from jwst.assign_wcs.util import update_fits_wcsinfo
         for image_model in image_models:
             update_fits_wcsinfo(image_model,
                 max_pix_error=1.,
@@ -318,11 +339,17 @@ def run_individual_steps_for_one_asn_file(
         # 
         # 3. outlier detection
         pipeline_object.outlier_detection.output_file = output_name
+        pipeline_object.outlier_detection.maskpt = 0.2 # default is 0.7. The 0.2 means we only need 20% valid to get a valid median.
+        pipeline_object.outlier_detection.save_intermediate_results = True # False
         pipeline_object.outlier_detection.save_results = True # will save to '{asn_name}_{i}_{asn_id}_crf.fits'
-        pipeline_object.outlier_detection.suffix = 'crf'
+        pipeline_object.outlier_detection.suffix = 'outlierdetection' # default is crf
         pipeline_object.outlier_detection.search_output_file = False
+        asn_id = 'a3001' # the default, see ...
         image_models = pipeline_object.outlier_detection(image_models)
-        clean_up_intermediate_outlier_i2d_files(image_models, output_name)
+        image_models = clean_up_intermediate_outlier_i2d_files(image_models, output_name, asn_id = asn_id, 
+            reload_image_models = True)
+        # 20230412 it seems pipeline does not return the outlier-detected-pixel-masked image models
+        #          have to reload image_models
         # 
         # 4. resample
         pipeline_object.resample.output_file = output_name
@@ -345,6 +372,14 @@ def run_individual_steps_for_one_asn_file(
     asdf_object = AsdfFile(pipeline_object.get_pars())
     asdf_object.write_to(asdf_filepath)
     pipeline_object.log.info('Parameters are saved into {}'.format(asdf_filepath))
+    
+    # 20230318
+    #asdf_filepath = output_name + '_calwebb_image3_export_config.asdf'
+    #if os.path.isfile(asdf_filepath):
+    #    shutil.move(asdf_filepath, asdf_filepath+'.backup')
+    #pipeline_object.export_config('cube_build.asdf')
+    #pipeline_object.log.info('Parameters are saved into {}'.format(asdf_filepath))
+    
 
 
 def run_individual_steps_for_image_files(
@@ -372,19 +407,78 @@ def run_individual_steps_for_image_files(
     processed_image_files = [re.sub(r'_cal(\.fits|)$', r'', t)+'_tweakreg.fits' for t in processing_image_files] # (without '_cal')
     pipeline_object.log.info('Checking tweakreg output file existence: {}'.format(repr(processed_image_files)))
     if not np.all(list(map(os.path.exists, processed_image_files))):
-        asn_from_list_to_file(processing_image_files, 'asn_tweakreg.json')
-        asdf_from_step_to_file(pipeline_object.tweakreg, 'asdf_tweakreg.txt')
-        image_models = pipeline_object.tweakreg('asn_tweakreg.json')
-        # TODO: sometimes tweakreg update_fits_wcsinfo fails because `max_pix_error` is too small, 
-        # we can run this manually with a larger `max_pix_error`, then save_model.
-        from jwst.assign_wcs.util import update_fits_wcsinfo
-        for image_model in image_models:
-            update_fits_wcsinfo(image_model,
-                max_pix_error=1.,
-                npoints=16)
-        pipeline_object.tweakreg.save_model(image_models, 
-            idx=None, suffix='tweakreg', # will save as '{dataset_name}_tweakreg.fits' (without '_cal')
-            format=pipeline_object.tweakreg.name_format, force=True)
+        # 
+        if pipeline_object.tweakreg.abs_refcat is None or pipeline_object.tweakreg.abs_refcat == '':
+            asn_from_list_to_file(processing_image_files, 'asn_tweakreg.json')
+            asdf_from_step_to_file(pipeline_object.tweakreg, 'asdf_tweakreg.txt')
+            image_models = pipeline_object.tweakreg('asn_tweakreg.json')
+        else:
+            # 
+            # 20230628: do detector part images one by one with 'shift' or 'rshift' only
+            temp_abs_fitgeometry = pipeline_object.tweakreg.abs_fitgeometry
+            temp_abs_refcat = pipeline_object.tweakreg.abs_refcat
+            temp_catfile = pipeline_object.tweakreg.catfile
+            temp_catdict = {}
+            with open(temp_catfile, 'r') as fp:
+                for line in fp:
+                    line_split = line.strip().split()
+                    if len(line_split) >= 2:
+                        temp_catdict[line_split[0]] = line_split[1]
+            for i in range(len(processed_image_files)):
+                one_image_name = re.sub(r'_cal(\.fits|)$', r'', os.path.basename(processing_image_files[i]))
+                one_image_catfile = 'catfile_tweakreg_{}_{}.txt'.format(i, one_image_name)
+                one_image_catcsv = temp_catdict[processing_image_files[i]]
+                one_image_cattable = Table.read(one_image_catcsv, format='csv')
+                one_image_absrefcat = re.sub(r'\.csv$', r'_matched_refcat.fits', one_image_catcsv)
+                with open(one_image_catfile, 'w') as fp:
+                    fp.write('{} {}\n'.format(processing_image_files[i], one_image_catcsv))
+                if len(one_image_cattable) >= 4: #<20230628># how many points for 'rshift'
+                    pipeline_object.tweakreg.abs_fitgeometry = 'rshift'
+                else:
+                    pipeline_object.tweakreg.abs_fitgeometry = 'shift'
+                pipeline_object.tweakreg.catfile = one_image_catfile
+                pipeline_object.tweakreg.abs_refcat = one_image_absrefcat
+                asn_from_list_to_file([processing_image_files[i]], 'asn_tweakreg_{}_{}.json'.format(i, one_image_name))
+                asdf_from_step_to_file(pipeline_object.tweakreg, 'asdf_tweakreg_{}_{}.txt'.format(i, one_image_name))
+                image_models = pipeline_object.tweakreg('asn_tweakreg_{}_{}.json'.format(i, one_image_name))
+                # TODO: sometimes tweakreg update_fits_wcsinfo fails because `max_pix_error` is too small, 
+                # we can run this manually with a larger `max_pix_error`, then save_model.
+                #from jwst.assign_wcs.util import update_fits_wcsinfo
+                for image_model in image_models:
+                    update_fits_wcsinfo(image_model,
+                        max_pix_error=1.,
+                        npoints=16)
+                pipeline_object.tweakreg.save_model(image_models, 
+                    idx=None, suffix='tweakreg', # will save as '{dataset_name}_tweakreg.fits' (without '_cal')
+                    format=pipeline_object.tweakreg.name_format, force=True)
+            pipeline_object.tweakreg.abs_fitgeometry = temp_abs_fitgeometry
+            pipeline_object.tweakreg.catfile = temp_catfile
+            pipeline_object.tweakreg.abs_refcat = temp_abs_refcat
+            del temp_catdict
+        # 
+        # Notes:
+        #   dzliu fixing a potential tweak_step bug "images.from_asn(input)" --> "images.from_asn(asn_data)"
+        # 
+        # 
+        # DONE: 20230318: 
+        #   tweakreg was skipped for some images, error messages as below:
+        #     ERROR - Number of output coordinates exceeded allocation
+        #     ERROR - Multiple sources within specified tolerance matched to a single reference source. 
+        #             Try to adjust 'tolerance' and/or 'separation' parameters.
+        #   which will make tweakreg to skip the action at the step of aligning JWST images relatively
+        #     (this is even before doing the absolute alignment to the absrefcat, i.e., 
+        #       before `if align_to_abs_refcat` in "tweakreg_step.py"), 
+        #     marking `model.meta.cal_step.tweakreg = "SKIPPED"`, 
+        #     and leaving a log message `Skipping 'TweakRegStep'`.
+        #   After extensive testing, it seems changing `tolerance` from 1.0 to 0.7 will do the trick...
+        # 
+        # 
+        # DONE: 20230628: 
+        #   tweakreg with abs_refcat does not work
+        #   now do tweakreg for each detector image individually with rshift
+        #   TODO: do another global tweakreg? probably not
+        # 
+        # 
     else:
         pipeline_object.log.info('Step tweakreg is skipped because all output files exist: {}'.format(repr(processed_image_files)))
     # 
@@ -409,7 +503,8 @@ def run_individual_steps_for_image_files(
     # 
     # 3. outlier detection
     pipeline_object.outlier_detection.output_file = output_name
-    pipeline_object.outlier_detection.save_intermediate_results = False
+    pipeline_object.outlier_detection.maskpt = 0.2 # default is 0.7
+    pipeline_object.outlier_detection.save_intermediate_results = True # False
     pipeline_object.outlier_detection.save_results = True # will save as '{output_name}_{index}_{asn_id}_outlierdetection.fits'
     pipeline_object.outlier_detection.suffix = 'outlierdetection' # default is crf
     pipeline_object.outlier_detection.search_output_file = False
@@ -486,6 +581,15 @@ def run_individual_steps_for_image_files(
 
 
 
+def join_a_string_list_with_omitted_parts(str_list, sep='+', omit='many', maxN=4):
+    if len(str_list) <= maxN:
+        return sep.join(str_list)
+    else:
+        return sep.join(str_list[0:maxN-1])+sep+omit+sep+str_list[-1]
+
+
+
+
 
 
 # Defaults
@@ -494,6 +598,7 @@ DEFAULT_KERNEL = 'square'
 DEFAULT_PIXFRAC = 1.0 # 0.5
 DEFAULT_PIXEL_SCALE_RATIO = 0.48
 DEFAULT_PIXEL_SCALE = None
+DEFAULT_ABS_FITGEOMETRY = 'rshift' # rotate and shift only
 
 
 
@@ -527,6 +632,9 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--abs-refcat', type=click.Path(exists=True), 
                               default=None, 
                               help='Absolute reference catalog, must contain `RA` and `DEC` columns, optionally `weight`. See `tweakwcs/imalign.py` `align_wcs`.')
+@click.option('--abs-fitgeometry', type=click.Choice(['shift', 'rshift', 'rscale', 'general']), 
+                              default=DEFAULT_ABS_FITGEOMETRY, 
+                              help='Type of affine transformation to fit the abs_refcat astrometry correction. Default is \'rshift\' but sometimes it is not perfect.')
 @click.option('--save-info-table-dir', type=click.Path(exists=False), 
                                        default=None, 
                                        help='Save the dataset-grouped info table to disk. Default directory is the `output_dir`.')
@@ -548,7 +656,9 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite?')
 @click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
-@click.option('--very-big-mosaic/--no-very-big-mosaic', is_flag=True, default=False, help='Big mosaic mode! If Ture, we will divide images into boxes with size set by `grid_step` in arcmin.')
+@click.option('--very-big-mosaic/--no-very-big-mosaic', is_flag=True, default=False, help='Very big mosaic mode! If Ture, we will divide images into boxes with size set by `grid_step` in arcmin.')
+@click.option('--outlier-detection-discard-highest', is_flag=True, default=False, help='Outlier detection discard the highest frame when making the median.')
+@click.option('--north-up', is_flag=True, default=False, help='Make image north-up.')
 def main(
         input_cal_files, 
         output_dir, 
@@ -562,6 +672,7 @@ def main(
         pixel_scale_ratio, 
         pixel_scale, 
         abs_refcat, 
+        abs_fitgeometry, 
         save_info_table_dir, 
         save_info_table_name, 
         use_custom_catalogs, 
@@ -574,6 +685,8 @@ def main(
         overwrite, 
         run_individual_steps,
         very_big_mosaic, 
+        outlier_detection_discard_highest, 
+        north_up, 
     ):
     
     # Add script dir to sys path
@@ -611,16 +724,25 @@ def main(
         os.makedirs(output_dir)
     
     
-    # expand input file list if there is a wildcard
+    # expand input file list if there is a wildcard or it is a txt file
     input_files = []
     for input_file in input_cal_files:
-        if input_file.find('*')>=0:
+        if input_file.endswith('.txt'):
+            with open(input_file) as fp:
+                for line in fp:
+                    if not line.startswith('#') and line.strip() != '':
+                        input_files.append(line.strip())
+        elif input_file.find('*')>=0:
             for found_file in glob.glob(input_file):
                 input_files.append(found_file)
         else:
-            if not os.path.isfile(input_file):
-                raise Exception('Error! File does not exist: {!r}'.format(input_file))
             input_files.append(input_file)
+    
+    
+    # check input file existence
+    for file_path in input_files:
+        if not os.path.isfile(file_path):
+            raise Exception('Error! File does not exist: {!r}'.format(file_path))
     
     
     # sort input files
@@ -753,22 +875,22 @@ def main(
     for subgroup_key, subgroup_table in zip(groupped_table.groups.keys, groupped_table.groups):
         
         unique_programs = np.unique(subgroup_table['program'])
-        groupped_program_str = '+'.join(unique_programs)
+        groupped_program_str = join_a_string_list_with_omitted_parts(unique_programs) # = '+'.join(unique_programs)
         
         unique_obsnums = np.unique(subgroup_table['obs_num'])
-        groupped_obsnum_str = '+'.join(unique_obsnums)
+        groupped_obsnum_str = join_a_string_list_with_omitted_parts(unique_obsnums) # '+'.join(unique_obsnums)
         
         unique_visitnums = np.unique(subgroup_table['visit_num'])
-        groupped_visitnum_str = '+'.join(unique_visitnums)
+        groupped_visitnum_str = join_a_string_list_with_omitted_parts(unique_visitnums) # = '+'.join(unique_visitnums)
         
         unique_instruments = np.unique(subgroup_table['instrument'])
-        groupped_instrument_str = '+'.join(unique_instruments)
+        groupped_instrument_str = join_a_string_list_with_omitted_parts(unique_instruments) # = '+'.join(unique_instruments)
         
         unique_filters = np.unique(subgroup_table['filter'])
-        groupped_filter_str = '+'.join(unique_filters)
+        groupped_filter_str = join_a_string_list_with_omitted_parts(unique_filters) # = '+'.join(unique_filters)
         
         #unique_obsnums = np.unique(subgroup_table['obs_num'])
-        #groupped_obsnum_str = '+'.join(unique_obsnums)
+        #groupped_obsnum_str = join_a_string_list_with_omitted_parts(unique_obsnums) # = '+'.join(unique_obsnums)
         
         #subgroup_files = subgroup_table['file_path'].data.tolist()
         subgroup_files = [os.path.abspath(t) for t in subgroup_table['file_path']]
@@ -956,8 +1078,8 @@ def main(
         pipeline_object.tweakreg.enforce_user_order = enforce_user_order
         pipeline_object.tweakreg.minobj = 7 # default is 15
         pipeline_object.tweakreg.searchrad = 1.0 # default is 2.0
-        pipeline_object.tweakreg.separation = 1.0 # default is 0.1 arcsec
-        pipeline_object.tweakreg.tolerance = 1.0 # default is 0.7 arcsec
+        pipeline_object.tweakreg.separation = 0.5 # default is 0.1 arcsec, separation needed to prevent confusion of sources
+        pipeline_object.tweakreg.tolerance = 0.7 #<20230318># 0.7 # 1.0 # default is 0.7 arcsec
         pipeline_object.tweakreg.save_catalogs = True # will save as "./*_cal_cat.ecsv", but always in current directory, see "tweakreg_step.py"
         pipeline_object.tweakreg.save_results = True # will save as "{output_subdir}/*_cal_tweakreg.fits"
         pipeline_object.tweakreg.search_output_file = False # do not use output_file define in parent step
@@ -969,13 +1091,14 @@ def main(
         # set abs_refcat if user has input that
         if abs_refcat is not None and abs_refcat != '':
             pipeline_object.tweakreg.abs_refcat = abs_refcat
-            #pipeline_object.abs_fitgeometry = 'rshift' # 'shift', 'rshift', 'rscale', 'general' (shift, rotation, and scale)
             pipeline_object.tweakreg.abs_minobj = 1 # default is 15
             pipeline_object.tweakreg.abs_searchrad = 1.0 # default is 6.0
-            pipeline_object.tweakreg.abs_separation = 1.0 # default is 0.1 arcsec
+            pipeline_object.tweakreg.abs_separation = 0.5 # default is 0.1 arcsec, separation needed to prevent confusion of sources
             pipeline_object.tweakreg.abs_tolerance = 1.0 # default is 0.7 arcsec
-            pipeline_object.tweakreg.abs_use2dhist = False # default is True, but ...
-            #pipeline_object.tweakreg.abs_fitgeometry = 'shift' # 'rshift'
+            #pipeline_object.tweakreg.abs_use2dhist = False # default is True, but ...
+            pipeline_object.tweakreg.abs_use2dhist = True # default is True, but ...
+            pipeline_object.tweakreg.abs_fitgeometry = abs_fitgeometry # 'shift', 'rshift', 'rscale', 'general' (shift, rotation, and scale)
+            pipeline_object.tweakreg.expand_refcat = False
             pipeline_object.tweakreg.save_abs_catalog = True
             #pipeline_object.tweakreg.save_abs_catalog = True # only if abs_refcat `gaia_cat_name in SINGLE_GROUP_REFCAT`
         # do manual 2dhist for a better tweakreg
@@ -983,7 +1106,8 @@ def main(
            abs_refcat is not None and abs_refcat != '':
             from util_match_cat_file_to_abs_refcat_with_2dhist import match_cat_file_to_abs_refcat_with_2dhist
             pipeline_object.tweakreg.catfile, pipeline_object.tweakreg.abs_refcat = \
-                match_cat_file_to_abs_refcat_with_2dhist(catfile, abs_refcat)
+                match_cat_file_to_abs_refcat_with_2dhist(catfile, abs_refcat,
+                    output_dir = os.getcwd())
         
         
         # SkyMatchStep
@@ -998,9 +1122,18 @@ def main(
         
         # OutlierDetectionStep
         pipeline_object.outlier_detection.pixfrac = pixfrac
-        pipeline_object.outlier_detection.in_memory = False
+        pipeline_object.outlier_detection.in_memory = True # must be True otherwise outlier_detection flag_cr sci_image.dq updates are not saved to the same object! 20230307
         #pipeline_object.outlier_detection.suffix = 'crf' # just use the default
         #pipeline_object.outlier_detection.save_results = True # will save as '*_crf.fits'
+        
+        # 20230307
+        pipeline_object.outlier_detection.snr = '3.0 2.5'
+        pipeline_object.outlier_detection.scale = '10. 5'
+        
+        # 20230614
+        pipeline_object.outlier_detection.maskpt = 0.2 # default is 0.7
+        if outlier_detection_discard_highest:
+            pipeline_object.outlier_detection.nhigh = 1 # default is 0
         
         
         # ResampleStep
@@ -1015,13 +1148,17 @@ def main(
         #pipeline_object.resample.suffix = 'i2d' # just use the default
         #pipeline_object.resample.save_results = True
         
+        # 20230616
+        if north_up:
+            pipeline_object.resample.rotation = 0.0 # A value of 0.0 would orient the final output image to be North up. 
+        
         
         # SourceCatalogStep
         #pipeline_object.source_catalog.save_results = True
         
         
         # run
-        if not run_individual_steps:
+        if not run_individual_steps and not very_big_mosaic:
             
             asdf_from_step_to_file(pipeline_object, 'asdf_calwebb_image3.asdf')
             
@@ -1030,10 +1167,10 @@ def main(
         # we can also run individual steps following "jwst/pipeline/calwebb_image3.py" `process()`
         else: # TODO
             
-            # 20230109 big mosaic
+            # 20230109 very big mosaic
             
             if very_big_mosaic:
-                pipeline_object.log.info('*-*-*\n*-*-* Big mosaic mode! *-*-*\n*-*-*')
+                pipeline_object.log.info('*-*-*\n*-*-* Very big mosaic mode! *-*-*\n*-*-*')
                 
                 # get pixel_size if only pixel_scale_ratio is given
                 # and pa_v3 # no need 
@@ -1062,7 +1199,8 @@ def main(
                         output_name = 'run_mosaic_image_subgroup', # hard-coded output prefix
                         asn_file = asn_filename, 
                         grid_step = grid_step, 
-                        cat_file = catfile, # it cannot contain a path otherwise things will be complicated.
+                        #cat_file = catfile, # it cannot contain a path otherwise things will be complicated.
+                        cat_file = pipeline_object.tweakreg.catfile, # 20230728 fixing issue here
                         pixel_size = ref_pixel_size, 
                     )
                 
@@ -1076,92 +1214,139 @@ def main(
                     if first_valid_idx is None:
                         first_valid_idx = mosaic_group_idx
                     
-                    pipeline_object_copy = copy.deepcopy(pipeline_object)
-                    pipeline_object_copy.tweakreg.catfile = os.path.basename(group_cat_files[mosaic_group_idx])
-                    pipeline_object_copy.resample.crpix = (
-                        mosaic_group_table['crpix1'][mosaic_group_idx],
-                        mosaic_group_table['crpix2'][mosaic_group_idx]
-                    ) # IMPORTANT: resample crpix is 0-based according to ...
-                    pipeline_object_copy.resample.crval = (
-                        mosaic_group_table['crval1'][mosaic_group_idx],
-                        mosaic_group_table['crval2'][mosaic_group_idx]
-                    )
-                    pipeline_object_copy.resample.rotation = 0.0 # A value of 0.0 would orient the final output image to be North up. 
-                    #pipeline_object_copy.resample.rotation = ref_pa_v3-360. # A value of 0.0 would orient the final output image to be North up. 
-                    pipeline_object_copy.resample.output_shape = (
-                        int(mosaic_group_table['naxis1'][mosaic_group_idx]),
-                        int(mosaic_group_table['naxis2'][mosaic_group_idx])
-                    )
-                    pipeline_object_copy.resample.pixel_scale = ref_pixel_size
                     mosaic_group_dir = mosaic_group_table['group_dir'][mosaic_group_idx]
                     mosaic_group_images = mosaic_group_table['image_files'][mosaic_group_idx].split(',')
-                    pipeline_object_copy.log.info(
-                        '*-*-*\n*-*-* Processing big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
-                        mosaic_group_dir, 
-                        pipeline_object_copy.resample.output_shape[0], 
-                        pipeline_object_copy.resample.output_shape[1], 
-                        ref_pixel_size*1000.0)
-                    )
-                    mosaic_parent_dir = os.getcwd()
-                    os.chdir(mosaic_group_dir)
-                    run_individual_steps_for_image_files(
-                        pipeline_object_copy, 
-                        mosaic_group_images,
-                        mosaic_group_dir, # use this as output file name
-                    )
-                    os.chdir(mosaic_parent_dir)
-                    pipeline_object_copy.log.info(
-                        '*-*-*\n*-*-* Processed big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
-                        mosaic_group_dir, 
-                        pipeline_object_copy.resample.output_shape[0], 
-                        pipeline_object_copy.resample.output_shape[1], 
-                        ref_pixel_size*1000.0)
-                    )
+                    mosaic_group_output_file = os.path.join(mosaic_group_dir, 
+                                                            mosaic_group_dir+'_i2d.fits')
+                    if os.path.isfile(mosaic_group_output_file) and not overwrite:
+                        logger.warning(f"Found processed very big mosaic tile {mosaic_group_output_file!r} and overwrite is set to False. " + 
+                                        "We will skip the processing.")
+                        pass
+                    else:
+                        pipeline_object_copy = copy.deepcopy(pipeline_object)
+                        pipeline_object_copy.tweakreg.catfile = os.path.basename(group_cat_files[mosaic_group_idx])
+                        pipeline_object_copy.resample.crpix = (
+                            mosaic_group_table['crpix1'][mosaic_group_idx],
+                            mosaic_group_table['crpix2'][mosaic_group_idx]
+                        ) # IMPORTANT: resample crpix is 0-based according to ...
+                        pipeline_object_copy.resample.crval = (
+                            mosaic_group_table['crval1'][mosaic_group_idx],
+                            mosaic_group_table['crval2'][mosaic_group_idx]
+                        )
+                        pipeline_object_copy.resample.rotation = 0.0 # A value of 0.0 would orient the final output image to be North up. 
+                        #pipeline_object_copy.resample.rotation = ref_pa_v3-360. # A value of 0.0 would orient the final output image to be North up. 
+                        pipeline_object_copy.resample.output_shape = (
+                            int(mosaic_group_table['naxis1'][mosaic_group_idx]),
+                            int(mosaic_group_table['naxis2'][mosaic_group_idx])
+                        )
+                        pipeline_object_copy.resample.pixel_scale = ref_pixel_size
+                        # 
+                        pipeline_object_copy.log.info(
+                            '*-*-*\n*-*-* Processing very big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
+                            mosaic_group_dir, 
+                            pipeline_object_copy.resample.output_shape[0], 
+                            pipeline_object_copy.resample.output_shape[1], 
+                            ref_pixel_size*1000.0)
+                        )
+                        mosaic_parent_dir = os.getcwd()
+                        os.chdir(mosaic_group_dir)
+                        run_individual_steps_for_image_files(
+                            pipeline_object_copy, 
+                            mosaic_group_images,
+                            mosaic_group_dir, # use this as output file name
+                        )
+                        os.chdir(mosaic_parent_dir)
+                        pipeline_object_copy.log.info(
+                            '*-*-*\n*-*-* Processed very big mosaic tile {!r} ({} x {} @ {:.3f} mas) *-*-*\n*-*-*'.format(
+                            mosaic_group_dir, 
+                            pipeline_object_copy.resample.output_shape[0], 
+                            pipeline_object_copy.resample.output_shape[1], 
+                            ref_pixel_size*1000.0)
+                        )
+                        # 
+                        del pipeline_object_copy
                 
                 # 
                 gc.collect()
                 
-                # initialize the output big mosaic fits file using memmap
-                imagefile1 = os.path.join(mosaic_group_table['group_dir'][first_valid_idx], 
-                                          mosaic_group_table['group_dir'][first_valid_idx]+'_i2d.fits')
-                header1 = fits.getheader(imagefile1, 0)
-                data = np.zeros((100, 100), dtype=np.float32)
-                hdu = fits.PrimaryHDU(data=data, header=header1.copy())
-                header = hdu.header
-                header['BITPIX'] = -32
-                header['NAXIS1'] = mosaic_group_meta['naxis1']
-                header['NAXIS2'] = mosaic_group_meta['naxis2']
-                header.append('', useblanks=False, end=True)
-                header.append(('', 'Mosaic WCS Information'), useblanks=False, end=True)
-                header.append('', useblanks=False, end=True)
-                header.append(('RADESYS', 'FK5'), useblanks=False, end=True)
-                header.append(('EQUINOX', 2000.0), useblanks=False, end=True)
-                header.append(('CTYPE1', 'RA---TAN'), useblanks=False, end=True)
-                header.append(('CTYPE2', 'DEC--TAN'), useblanks=False, end=True)
-                header.append(('CUNIT1', 'deg'), useblanks=False, end=True)
-                header.append(('CUNIT2', 'deg'), useblanks=False, end=True)
-                header.append(('CRVAL1', mosaic_group_meta['crval1'], 'In degrees.'), useblanks=False, end=True)
-                header.append(('CRVAL2', mosaic_group_meta['crval2'], 'In degrees.'), useblanks=False, end=True)
-                header.append(('CRPIX1', mosaic_group_meta['crpix1']), useblanks=False, end=True)
-                header.append(('CRPIX2', mosaic_group_meta['crpix2']), useblanks=False, end=True)
-                header.append(('CDELT1', mosaic_group_meta['cdelt1'], 'In degrees.'), useblanks=False, end=True)
-                header.append(('CDELT2', mosaic_group_meta['cdelt2'], 'In degrees.'), useblanks=False, end=True)
-                header.append(('CROTA2', mosaic_group_meta['crota2'], 'In degrees.'), useblanks=False, end=True)
-                header.append(('PIXSCALE', ref_pixel_size, 'In arcsec.'), useblanks=False, end=True)
-                header.append('', useblanks=False, end=True)
-                header.append(('HISTORY', 'Mosaic made with Crab.Toolkit.JWST/bin/go-jwst-imaging-stage-3-step-1.py'), useblanks=False, end=True)
-                header.append('', useblanks=False, end=True)
-                while (len(header))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
-                    header.append('', useblanks=False, end=True)
-                pipeline_object.log.info('Building final big mosaic {!r}'.format(output_file))
+                # initialize the output very big mosaic fits file using memmap
+                pipeline_object.log.info('Building final very big mosaic {!r}'.format(output_file))
                 if not os.path.isfile(output_file) or overwrite:
-                    header.tofile(output_file, overwrite=overwrite)
+                    # read first valid tile image
+                    imagefile1 = os.path.join(mosaic_group_table['group_dir'][first_valid_idx], 
+                                              mosaic_group_table['group_dir'][first_valid_idx]+'_i2d.fits')
+                    header1 = fits.getheader(imagefile1, 0)
+                    # initialize with a small data array
+                    data = np.zeros((100, 100), dtype=np.float32)
+                    hdu = fits.PrimaryHDU(data=data, header=header1.copy())
+                    header = hdu.header
+                    header['BITPIX'] = -32
+                    header['NAXIS1'] = mosaic_group_meta['naxis1']
+                    header['NAXIS2'] = mosaic_group_meta['naxis2']
+                    header.append('', useblanks=False, end=True)
+                    header.append(('', 'Mosaic WCS Information'), useblanks=False, end=True)
+                    header.append('', useblanks=False, end=True)
+                    header.append(('RADESYS', 'FK5'), useblanks=False, end=True)
+                    header.append(('EQUINOX', 2000.0), useblanks=False, end=True)
+                    header.append(('CTYPE1', 'RA---TAN'), useblanks=False, end=True)
+                    header.append(('CTYPE2', 'DEC--TAN'), useblanks=False, end=True)
+                    header.append(('CUNIT1', 'deg'), useblanks=False, end=True)
+                    header.append(('CUNIT2', 'deg'), useblanks=False, end=True)
+                    header.append(('CRVAL1', mosaic_group_meta['crval1'], 'In degrees.'), useblanks=False, end=True)
+                    header.append(('CRVAL2', mosaic_group_meta['crval2'], 'In degrees.'), useblanks=False, end=True)
+                    header.append(('CRPIX1', mosaic_group_meta['crpix1']), useblanks=False, end=True)
+                    header.append(('CRPIX2', mosaic_group_meta['crpix2']), useblanks=False, end=True)
+                    header.append(('CDELT1', mosaic_group_meta['cdelt1'], 'In degrees.'), useblanks=False, end=True)
+                    header.append(('CDELT2', mosaic_group_meta['cdelt2'], 'In degrees.'), useblanks=False, end=True)
+                    header.append(('CROTA2', mosaic_group_meta['crota2'], 'In degrees.'), useblanks=False, end=True)
+                    header.append(('PIXSCALE', ref_pixel_size, 'In arcsec.'), useblanks=False, end=True)
+                    header.append('', useblanks=False, end=True)
+                    header.append(('HISTORY', 'Mosaic made with Crab.Toolkit.JWST/bin/go-jwst-imaging-stage-3-step-1.py'), useblanks=False, end=True)
+                    header.append('', useblanks=False, end=True)
+                    header['EXTEND'] = True
+                    header['EXTNAME'] = 'SCI'
+                    #while (len(header))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
+                    #    header.append('', useblanks=False, end=True)
+                    # 
+                    header.tofile(output_file, endcard=True, padding=True, overwrite=overwrite)
+                    headerstr = header.tostring(sep='', endcard=True, padding=True)
                     with open(output_file, 'rb+') as fobj:
-                        last_byte = len(header.tostring()) + (header['NAXIS1'] * header['NAXIS2'] * np.abs(header['BITPIX']//8))
+                        last_byte = len(headerstr) + (header['NAXIS1'] * header['NAXIS2'] * np.abs(header['BITPIX']//8))
                         last_byte_padded = int(np.ceil(float(last_byte)/2880))*2880 # fits data blocks are padded to 2880 by standard
                         fobj.seek(last_byte-1)
                         for iter_byte in range(last_byte-1, last_byte_padded):
                             fobj.write(b'\0')
+                        fpos = fobj.tell()
+                        # 
+                        # write extension 2
+                        header2 = fits.Header()
+                        header2['XTENSION'] = 'IMAGE'
+                        header2['BITPIX'] = -32
+                        header2['NAXIS1'] = mosaic_group_meta['naxis1']
+                        header2['NAXIS2'] = mosaic_group_meta['naxis2']
+                        for key in ['NAXIS', 'NAXIS1', 'NAXIS2', 'RADESYS', 'EQUINOX', 'CTYPE1', 'CTYPE2', 'CUNIT1', 'CUNIT2', 
+                                    'CRVAL1', 'CRVAL2', 'CRPIX1', 'CRPIX2', 'CDELT1', 'CDELT2', 'CROTA2']:
+                            header2[key] = header[key]
+                        header2['PCOUNT'] = 0
+                        header2['GCOUNT'] = 1
+                        header2['EXTNAME'] = 'ERR'
+                        #while (len(header2))%(2880//80) != 0: # fits header block is padded to N*2880 by standard
+                        #    header2.append('', useblanks=False, end=True)
+                        # 
+                        header2str = header2.tostring(sep='', endcard=True, padding=True) # manually control the padding to Nx2880
+                        fobj.write(header2str.encode())
+                        last_byte = len(header2str) + (header2['NAXIS1'] * header2['NAXIS2'] * np.abs(header2['BITPIX']//8))
+                        last_byte_padded = int(np.ceil(float(last_byte)/2880))*2880 # fits data blocks are padded to 2880 by standard
+                        fobj.seek(fpos + last_byte-1)
+                        for iter_byte in range(last_byte-1, last_byte_padded):
+                            fobj.write(b'\0')
+                    # 
+                    del header2
+                    del header1
+                    del header
+                    del data
+                    del hdu
+                    
                 with fits.open(output_file, mode='update', memmap=True) as out_hdul:
                     for mosaic_group_idx in range(len(mosaic_group_table)):
                         if mosaic_group_table['n_images'][mosaic_group_idx] == 0:
@@ -1181,7 +1366,12 @@ def main(
                                 imagefile1, in_y1, in_y2, in_x1, in_x2, 
                                 output_file, out_y1, out_y2, out_x1, out_x2, 
                             ))
-                            out_hdul[0].data[out_y1:out_y2,out_x1:out_x2] = in_hdul['SCI'].data[in_y1:in_y2,in_x1:in_x2]
+                            #out_hdul[0].data[out_y1:out_y2,out_x1:out_x2] = in_hdul['SCI'].data[in_y1:in_y2,in_x1:in_x2]
+                            #<TODO><20230116># also copy 'ERR' 'CON'
+                            
+                            out_hdul['SCI'].data[out_y1:out_y2,out_x1:out_x2] = in_hdul['SCI'].data[in_y1:in_y2,in_x1:in_x2]
+                            out_hdul['ERR'].data[out_y1:out_y2,out_x1:out_x2] = in_hdul['ERR'].data[in_y1:in_y2,in_x1:in_x2]
+                            
                     out_hdul.flush()
                 
                 # 
@@ -1189,9 +1379,20 @@ def main(
                 
             else:
                 
-                run_individual_steps_for_one_asn_file(
+                # 20230412 still has outlier detection pixel issue, already set in_memory = True
+                #          it must be that calling `` does not return the updated image models.
+                # run_individual_steps_for_one_asn_file(
+                #     pipeline_object, 
+                #     asn_filename,
+                #     output_name, 
+                # )
+                
+                with open(asn_filename, 'r') as fp:
+                    asn_dict_tmp = load_asn(fp)
+                image_files_tmp = [t['expname'] for t in asn_dict_tmp['products'][0]['members'] if t['exptype']=='science']
+                run_individual_steps_for_image_files(
                     pipeline_object, 
-                    asn_filename,
+                    image_files_tmp,
                     output_name, 
                 )
             

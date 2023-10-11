@@ -28,6 +28,7 @@ fi
 iarg=1
 overwrite=0
 date_diff=7 # days, 
+subtract_as_wisps=0 # subtract as wisps, i.e., a scaleable background, rather than as master dark rate.
 mosaic_asn_files=()
 while [[ $iarg -le $# ]]; do
     argstr="${!iarg}"
@@ -39,6 +40,8 @@ while [[ $iarg -le $# ]]; do
             date_diff="${!iarg}"
             echo "date_diff = \"$date_diff\""
         fi
+    elif [[ "$argstr" == "--subtract-as-wisps" ]]; then
+        subtract_as_wisps=0
     else
         mosaic_asn_files+=("${!iarg}")
         echo "mosaic_asn_files += \"${!iarg}\""
@@ -47,11 +50,28 @@ while [[ $iarg -le $# ]]; do
 done
 
 
+# define function to get detector name
+function get_detector_name() {
+    if [[ $# -gt 0 ]]; then
+        file_basename=$(basename "$1")
+        detector_name=$(echo "$file_basename" | perl -p -e 's/.*_((nrc(a|b)(1|2|3|4|long))|mirimage)_.*/\1/g')
+        if [[ "$detector_name" != "$1" ]]; then
+            echo "$detector_name"
+        else
+            echo "Unknown"
+        fi
+    else
+        echo "Unknown"
+    fi
+}
+
+
 # get all cal images in the asn files
 multiobs_cal_images=()
 multiobs_rate_images=()
 multiobs_masked_rate_images=()
 multiobs_dataset_names=()
+multiobs_detector_names=()
 for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
     temp_mosaic_asn="${mosaic_asn_files[i]}"
     temp_mosaic_dir=$(dirname "$temp_mosaic_asn")
@@ -79,10 +99,12 @@ for (( i = 0; i < ${#mosaic_asn_files[@]}; i++ )); do
         echo "rate_image = \"$rate_image\""
         masked_rate=$(echo "$rate_image" | perl -p -e 's%_rate.fits$%%g')"_masked_source_emission_rate.fits"
         dataset_name=$(basename "$rate_image" | perl -p -e 's%_rate.fits$%%g')
+        detector_name=$(get_detector_name "$rate_image")
         multiobs_cal_images+=("$cal_image")
         multiobs_rate_images+=("$rate_image")
         multiobs_masked_rate_images+=("$masked_rate")
         multiobs_dataset_names+=("$dataset_name")
+        multiobs_detector_names+=("$detector_name")
     done
 done
 
@@ -93,6 +115,7 @@ echo "multiobs_masked_rate_images = ${multiobs_masked_rate_images[@]} (${#multio
 for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     cal_image="${multiobs_cal_images[i]}"
     rate_image="${multiobs_rate_images[i]}"
+    detector_name="${multiobs_detector_names[i]}"
     masked_rate_image="${multiobs_masked_rate_images[i]}"
     merged_masked_rate=$(dirname "$masked_rate_image")"/merged_other_visits_masked_source_emission_rate.fits"
     merged_masked_rate_list_file=$(dirname "$masked_rate_image")"/merged_other_visits_masked_source_emission_rate.list.txt"
@@ -103,7 +126,8 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     if [[ ! -f "$merged_masked_rate" ]] || [[ $overwrite -gt 0 ]]; then
         applicable_masked_rate_images=()
         for (( m = 0; m < ${#multiobs_masked_rate_images[@]}; m++ )); do
-            if [[ "${multiobs_masked_rate_images[m]}" != "$masked_rate_image" ]]; then
+            if [[ "${multiobs_masked_rate_images[m]}" != "$masked_rate_image" ]] && \
+               [[ "${multiobs_detector_names[m]}" == "$detector_name" ]]; then
                 applicable_masked_rate_images+=("${multiobs_masked_rate_images[m]}")
             fi
         done
@@ -154,22 +178,60 @@ for (( i = 0; i < ${#multiobs_rate_images[@]}; i++ )); do
     
     # then re-run stage2 with an associated background so that `calwebb_image2.Image2Pipeline.bkg_subtract` will be used.
     if [[ ! -f "$output_cal_image" ]] || [[ $overwrite -gt 0 ]] || [[ $merged_masked_rate_updated -gt 0 ]]; then
-        proc_args=(--darkobs "$merged_masked_rate" --skymatch)
-        if [[ $overwrite -gt 0 ]] || [[ $merged_masked_rate_updated -gt 0 ]]; then
-            proc_args+=(--overwrite)
+        
+        if [[ $subtract_as_wisps -eq 0 ]]; then
+            
+            # subtract the merged dark as master dark using jwst pipeline
+            
+            proc_args=(--darkobs "$merged_masked_rate" --skymatch)
+            if [[ $overwrite -gt 0 ]] || [[ $merged_masked_rate_updated -gt 0 ]]; then
+                proc_args+=(--overwrite)
+            fi
+            echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
+                "$rate_image" \
+                "$output_cal_image" \
+                "${proc_args[@]}"
+            $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
+                "$rate_image" \
+                "$output_cal_image" \
+                "${proc_args[@]}"
+            if [[ ! -f "$output_cal_image" ]] && [[ ! -L "$output_cal_image" ]]; then
+                echo "Error! Failed to produce the output file: $output_cal_image"
+                exit 255
+            fi
+        
+        else
+            
+            # subtract the merged dark as wisps, i.e., a scaleable background, using 'util_remove_wisps_with_templates.py'
+            # this is updating "$rate_image" in-place
+            proc_args=(--template-file "$merged_masked_rate")
+            echo "*** Running ***" $script_dir/util_remove_wisps_with_templates.py \
+                "$rate_image" \
+                "${proc_args[@]}"
+            $script_dir/util_remove_wisps_with_templates.py \
+                "$rate_image" \
+                "${proc_args[@]}"
+            
+            # redo the rate->cal stage2
+            proc_args=()
+            if [[ $overwrite -gt 0 ]] || [[ $merged_masked_rate_updated -gt 0 ]]; then
+                proc_args+=(--overwrite)
+            fi
+            echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-1.py \
+                "$rate_image" \
+                "$output_cal_image" \
+                "${proc_args[@]}"
+            $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
+                "$rate_image" \
+                "$output_cal_image" \
+                "${proc_args[@]}"
+            if [[ ! -f "$output_cal_image" ]] && [[ ! -L "$output_cal_image" ]]; then
+                echo "Error! Failed to produce the output file: $output_cal_image"
+                exit 255
+            fi
+            
         fi
-        echo "*** Running ***" $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
-            "$rate_image" \
-            "$output_cal_image" \
-            "${proc_args[@]}"
-        $script_dir/go-jwst-imaging-stage-2-step-3-redo-bkgsub.py \
-            "$rate_image" \
-            "$output_cal_image" \
-            "${proc_args[@]}"
-        if [[ ! -f "$output_cal_image" ]] && [[ ! -L "$output_cal_image" ]]; then
-            echo "Error! Failed to produce the output file: $output_cal_image"
-            exit 255
-        fi
+        
     elif [[ -f "$output_cal_image" ]]; then
         echo "Found existing file \"$output_cal_image\" and overwrite is False and merged_masked_rate_updated is False. Skipping."
     fi

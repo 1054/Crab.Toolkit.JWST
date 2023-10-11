@@ -7,6 +7,9 @@ Remove claws for specific data sets.
 We need some region files under the `CODE_DATADIR` directory with the 
 same name as the data set file, e.g., 'jw01837022001_02201_00002_nrca1_rate.reg'. 
 
+20230604: It can also read region files and directly add those regions into DQ mask. 
+The regions need to be pixel regions.
+
 """
 
 import os, sys, re, copy, shutil, glob, datetime
@@ -20,12 +23,14 @@ from astropy.nddata.bitmask import (
 )
 from astropy.convolution import Gaussian2DKernel, convolve
 from astropy.stats import sigma_clipped_stats
+from astropy.wcs import WCS, FITSFixedWarning
 #from scipy.ndimage import median_filter, gaussian_filter, binary_dilation, generate_binary_structure
 #from scipy.optimize import curve_fit
 #from tqdm import tqdm
 #import lmfit
 #from scipy.optimize import minimize, LinearConstraint
 #from lmfit import Minimizer, Parameters, report_fit
+from regions import Regions, PixelRegion, SkyRegion
 from reproject import reproject_interp
 
 # jwst
@@ -54,6 +59,9 @@ from jwst.datamodels import ImageModel, FlatModel, dqflags
 from stdatamodels import util
 #import crds
 
+import warnings
+warnings.filterwarnings('ignore', category=FITSFixedWarning)
+
 # code name and version
 CODE_NAME = 'util_remove_claws_for_specific_data_sets.py'
 CODE_AUTHOR = 'Daizhong Liu'
@@ -76,10 +84,12 @@ logger.setLevel(logging.DEBUG)
 @click.argument('input_file', type=click.Path(exists=True))
 @click.argument('output_file', required=False, type=click.Path(exists=False), default=None)
 @click.option('--template-dir', type=click.Path(exists=True), default=CODE_DATADIR, help='Where to find the custom claws region files.')
+@click.option('--fill-value', type=float, default=0.0, help='Fill the data pixel value in the mask area. Default is 0.0. Their DQ will be updated anyway.')
 def main(
         input_file, 
         output_file, 
         template_dir, 
+        fill_value, 
     ):
     """
     Input rate image. 
@@ -89,25 +99,25 @@ def main(
     # TODO: region files
     dataset_name = os.path.splitext(os.path.basename(input_file))[0]
     dataset_name = re.sub(r'^(.*)(_rate|_cal)$', r'\1', dataset_name)
-    #region_files = glob.glob(os.path.join(template_dir, dataset_name + '*.reg'))
+    region_files = glob.glob(os.path.join(template_dir, dataset_name + '*.reg'))
     mask_files = glob.glob(os.path.join(template_dir, dataset_name + '*.fits.gz')) + \
                  glob.glob(os.path.join(template_dir, dataset_name + '*.fits'))
-    #if len(region_files) == 0:
-    #    region_files = glob.glob(os.path.join(template_dir, '*', dataset_name + '*.reg'))
-    if len(mask_files) == 0:
+    if len(region_files) == 0: # search subsubdirectories if needed
+        region_files = glob.glob(os.path.join(template_dir, '*', dataset_name + '*.reg'))
+    if len(mask_files) == 0: # search subsubdirectories if needed
         mask_files = glob.glob(os.path.join(template_dir, '*', dataset_name + '*.fits.gz')) + \
                      glob.glob(os.path.join(template_dir, '*', dataset_name + '*.fits'))
-    #if len(region_files) == 0 and len(mask_files) == 0:
-    if len(mask_files) == 0:
+    if len(region_files) == 0 and len(mask_files) == 0:
         logger.warning('No region or mask file is found associating with the data set {!r} in the directory {!r}. Skipping.'.format(
             dataset_name, template_dir, 
         ))
         return
-    
-    #if len(region_files) > 0:
-    #    logger.info('Found region file(s): {}'.format(region_files))
-    if len(mask_files) > 0:
+    elif len(mask_files) > 0:
         logger.info('Found mask file(s): {}'.format(mask_files))
+        if len(region_files) > 0:
+            region_files = []
+    elif len(region_files) > 0:
+        logger.info('Found region file(s): {}'.format(region_files))
     
     
     # check input image
@@ -117,8 +127,8 @@ def main(
         # check if already processed
         for entry in model.history:
             for k,v in entry.items():
-                if v.startswith('Removed claws'):
-                    logger.info('{!r} already had claws removed. Skipping!'.format(input_file))
+                if v.startswith('Removed claws with {CODE_NAME}'):
+                    logger.info(f'{input_file!r} already had claws removed with {CODE_NAME}. Skipping!')
                     return
         
         # get image
@@ -135,7 +145,7 @@ def main(
     
     
     # for loop
-    seed_dq = None
+    seed_masks = None
     for seed_image_file in mask_files:
         
         # read seed image
@@ -154,15 +164,40 @@ def main(
             )
             seed_mask = (seed_image_reproj>1e-6) # 1e-6 is just a threshold value, maybe use 0 is also okay.
         
-        # prepare mask_seed_emission_dq
-        mask_seed_emission_dq = interpret_bit_flags(
-                                        'DO_NOT_USE+SATURATED+NO_FLAT_FIELD+UNRELIABLE_DARK+UNRELIABLE_FLAT+OTHER_BAD_PIXEL',
-                                        flag_name_map=dqflags_pixel
-                                    )
-        if seed_dq is None:
-            seed_dq = mask_seed_emission_dq
+        if seed_masks is None:
+            seed_masks = seed_mask
         else:
-            seed_dq = np.bitwise_or(seed_dq, mask_seed_emission_dq)
+            seed_masks = np.bitwise_or(seed_masks, seed_mask)
+    
+    
+    # 
+    wcs = None
+    for region_file in region_files:
+        
+        # read pixel region
+        region_list = Regions.read(region_file, format='ds9')
+        for iregion, region_object in enumerate(region_list):
+            if not isinstance(region_object, PixelRegion):
+                ith = '{}th'.format(iregion) if iregion >= 3 else (['1st', '2nd', '3rd'][iregion])
+                logger.info('Warning! The {} region in {!r} is not a pixel region! The WCS may be inaccurate due to astrometry.'.format(ith, region_file))
+                if wcs is None:
+                    wcs = WCS(rate_image_header, naxis=2)
+                pixel_region = region_object.to_pixel(wcs)
+            else:
+                pixel_region = region_object
+            pixel_mask = pixel_region.to_mask().to_image(rate_image.shape).astype(bool)
+            
+            if seed_masks is None:
+                seed_masks = pixel_mask
+            else:
+                seed_masks = np.bitwise_or(seed_masks, pixel_mask)
+    
+    
+    # prepare mask_seed_emission_dq -- a specific combination of flags for the masked bad pixels
+    mask_seed_emission_dq = interpret_bit_flags(
+        'DO_NOT_USE+SATURATED+NO_FLAT_FIELD+UNRELIABLE_DARK+UNRELIABLE_FLAT+OTHER_BAD_PIXEL',
+        flag_name_map=dqflags_pixel
+    )
     
     
     # output file
@@ -185,12 +220,12 @@ def main(
     with ImageModel(output_file) as out_model:
         
         # set DQ to the pixels with seed emission mask
-        out_model.dq[seed_mask] = np.bitwise_or(
-            out_model.dq[seed_mask], 
-            seed_dq
+        out_model.dq[seed_masks] = np.bitwise_or(
+            out_model.dq[seed_masks], 
+            mask_seed_emission_dq
         )
         
-        out_model.data[seed_mask] = 0.0
+        out_model.data[seed_masks] = fill_value
         
         # add history entry following CEERS
         stepdescription = f'Removed claws with {CODE_NAME} ({out_timestamp})'

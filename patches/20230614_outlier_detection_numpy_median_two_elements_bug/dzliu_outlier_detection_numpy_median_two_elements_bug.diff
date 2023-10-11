@@ -1,0 +1,18 @@
+--- /nfs/irdata07/dzliu/software/CONDA/miniconda2/envs/jwstpmap1075/lib/python3.9/site-packages/jwst/outlier_detection/outlier_detection.py.ori	2023-06-14 19:17:05.989983739 +0000
++++ /nfs/irdata07/dzliu/software/CONDA/miniconda2/envs/jwstpmap1075/lib/python3.9/site-packages/jwst/outlier_detection/outlier_detection.py	2023-06-14 17:06:14.725404019 +0000
+@@ -308,6 +308,15 @@
+                 warnings.filterwarnings(action="ignore",
+                                         message="All-NaN slice encountered",
+                                         category=RuntimeWarning)
++
++                #<20230614><DZLIU># np.nanmedian([5.0, 0.0]) -> 2.5 ?!
++                where_two_elements = (np.count_nonzero(np.isfinite(resampled_sci), axis=0) == 2)
++                where_two_elements_mask = np.repeat(where_two_elements[np.newaxis, :, :], resampled_sci.shape[0], axis=0)
++                min_of_two_elements = np.nanmin(resampled_sci, axis=0)
++                for iframe in range(resampled_sci.shape[0]):
++                    resampled_sci[iframe][where_two_elements] = min_of_two_elements[where_two_elements]
++                #<20230614><DZLIU>#
++
+                 median_image[row1:row2] = np.nanmedian(resampled_sci, axis=0)
+             del resampled_sci, resampled_weight
+ 

@@ -46,6 +46,7 @@ from jwst.datamodels import dqflags
 # The entire calwebb_spec3 pipeline
 from jwst import datamodels
 from jwst.pipeline import calwebb_spec3
+from jwst.pipeline import calwebb_image3
 from jwst.associations import asn_from_list
 from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
 
@@ -345,7 +346,17 @@ def main(
         )
         
         output_subdir = os.path.join(output_dir, output_name)
-        output_file = output_name + '_i2d.fits'
+        
+        # check meta.exposure.type and set output file name
+        with datamodels.open(subgroup_files[0]) as model:
+            exp_type = model.meta.exposure.type
+        if exp_type in ['NRS_MSATA', 'NRS_TACONFIRM']:
+            target_acquisition_mode = True
+            output_file = output_name + '_i2d.fits'
+        else:
+            target_acquisition_mode = False
+            output_file = output_name + '_all_sources.csv' # here we output a source table
+        
         output_filepath = os.path.join(output_subdir, output_file)
         
         # add to lookup dict
@@ -472,10 +483,14 @@ def main(
         os.chdir(output_subdir)
         
         
-        # prepare to run
-        pipeline_object = calwebb_spec3.Spec3Pipeline()
+        # check meta.exposure.type and prepare to run
+        if target_acquisition_mode:
+            pipeline_object = calwebb_image3.Image3Pipeline()
+            pipeline_object.source_catalog.skip = True # 'apcorr' in pipeline_object.source_catalog.reference_file_types
+        else:
+            pipeline_object = calwebb_spec3.Spec3Pipeline()
         
-
+        
         # Set some parameters that pertain to the entire pipeline
         #pipeline_object.input_dir = os.getcwd()
         pipeline_object.output_file = output_name # os.path.splitext(output_file)[0]
@@ -487,13 +502,58 @@ def main(
         pipeline_object.run(asn_filename)
         
         
+        # here we output source table
+        if not target_acquisition_mode:
+            x1d_files = glob.glob(f'{output_name}_s*_x1d.fits')
+            x1d_table = OrderedDict()
+            x1d_table['source_id'] = []
+            x1d_table['source_ra'] = []
+            x1d_table['source_dec'] = []
+            x1d_table['source_xpos'] = []
+            x1d_table['source_ypos'] = []
+            x1d_table['source_name'] = []
+            x1d_table['source_alias'] = []
+            x1d_table['x1d_fits_file'] = []
+            x1d_table['x1d_ascii_file'] = []
+            #with datamodels.open(cal_file) as model:
+            #    [slit.source_id for slit in model.slits]
+            for x1d_file in x1d_files:
+                with fits.open(x1d_file) as hdul:
+                    x1d_table['source_id'].append(hdul[1].header['SOURCEID'])
+                    x1d_table['source_ra'].append(hdul[1].header['SRCRA'])
+                    x1d_table['source_dec'].append(hdul[1].header['SRCDEC'])
+                    x1d_table['source_xpos'].append(hdul[1].header['SRCXPOS'])
+                    x1d_table['source_ypos'].append(hdul[1].header['SRCYPOS'])
+                    x1d_table['source_name'].append(hdul[1].header['SRCNAME'])
+                    x1d_table['source_alias'].append(hdul[1].header['SRCALIAS'])
+                    x1d_ascii_file = os.path.splitext(x1d_file)[0] + '.dat'
+                    Table(hdul[1].data).write(x1d_ascii_file, format='ascii.fixed_width', 
+                                              delimiter=' ', bookend=True, overwrite=True)
+                    with open(x1d_ascii_file, 'r+') as ofp:
+                        ofp.seek(0)
+                        ofp.write('#')
+                    x1d_table['x1d_fits_file'].append(x1d_file)
+                    x1d_table['x1d_ascii_file'].append(x1d_ascii_file)
+            Table(x1d_table).write(output_file, overwrite=True)
+            if not output_file.endswith('.dat'):
+                output_file2 = os.path.splitext(output_file)[0] + '.dat'
+                Table(x1d_table).write(output_file2, format='ascii.fixed_width', 
+                                       delimiter=' ', bookend=True, overwrite=True)
+                with open(output_file2, 'r+') as ofp:
+                    ofp.seek(0)
+                    ofp.write('#')
+        
+        
         # chdir back
         logger.info("chdir {}".format(current_dir))
         os.chdir(current_dir)
         
         
         # save pars as asdf file
-        asdf_filepath = os.path.splitext(output_filepath)[0] + '_calwebb_spec3.asdf'
+        if target_acquisition_mode:
+            asdf_filepath = os.path.splitext(output_filepath)[0] + '_calwebb_image3.asdf'
+        else:
+            asdf_filepath = os.path.splitext(output_filepath)[0] + '_calwebb_spec3.asdf'
         if os.path.isfile(asdf_filepath):
             shutil.move(asdf_filepath, asdf_filepath+'.backup')
         asdf_object = AsdfFile(pipeline_object.get_pars())

@@ -71,7 +71,7 @@ def merge_source_emission_masked_rate_data(
         date_diff = 5.0, 
         do_sigma_clip = False, 
         sigma = 3.0, 
-        use_median = False,
+        use_median = False, 
         overwrite = True, 
     ):
 
@@ -113,9 +113,12 @@ def merge_source_emission_masked_rate_data(
         #rate_image_err = fits.getdata(rate_image_file, extname='ERR', header=False)
         #rate_image_dq = fits.getdata(rate_image_file, extname='DQ', header=False)
         with fits.open(rate_image_file) as hdul:
-            rate_image_obsdate = hdul[0].header['DATE-OBS']
-            rate_image_obstime = hdul[0].header['TIME-OBS']
-            rate_image_datetime = Time('{} {}'.format(rate_image_obsdate, rate_image_obstime))
+            if 'DATE-OBS' in hdul[0].header and 'TIME-OBS' in hdul[0].header:
+                rate_image_obsdate = hdul[0].header['DATE-OBS']
+                rate_image_obstime = hdul[0].header['TIME-OBS']
+                rate_image_datetime = Time('{} {}'.format(rate_image_obsdate, rate_image_obstime))
+            else:
+                rate_image_datetime = None
             rate_image_sci, rate_image_header = hdul['SCI'].data, hdul['SCI'].header
             rate_image_err = hdul['ERR'].data
             rate_image_dq = hdul['DQ'].data

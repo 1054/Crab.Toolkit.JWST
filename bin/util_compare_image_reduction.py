@@ -36,7 +36,7 @@ Last updates:
     2022-12-19 
 
 """
-import os, sys, re, shutil
+import os, sys, re, json, shutil
 import astropy.units as u
 import astropy.constants as const
 import click
@@ -45,9 +45,13 @@ from astropy.coordinates import SkyCoord, FK5
 from astropy.io import fits
 from astropy.modeling import models, fitting
 from astropy.table import Table
-from astropy.wcs import WCS
+from astropy.wcs import WCS, FITSFixedWarning
 from astropy.wcs.utils import proj_plane_pixel_scales, proj_plane_pixel_area
 from collections import OrderedDict
+import textwrap
+
+import warnings
+warnings.simplefilter('ignore', FITSFixedWarning)
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -76,6 +80,7 @@ mpl.rcParams['legend.borderpad'] = 0.1
 #mpl.rcParams['mathtext.fontset'] = 'cm'
 #mpl.rcParams['mathtext.fontset'] = 'dejavuserif'
 mpl.rcParams['font.size'] = 12
+#mpl.rcParams['figure.titlesize'] = 10
 
 # code name and version
 CODE_NAME = 'util_compare_image_reduction.py'
@@ -295,7 +300,10 @@ class ImageComparer(object):
             colors, # a list, e.g., ['red', 'blue', 'orange', 'cyan']
             output_figure, 
             aperture_psf_fraction = 1.0, 
+            save_statistics_to_json = '', 
             title = '', 
+            show_legend = True, 
+            show_label = True, 
         ):
         # 
         if self.apertures_table is not None:
@@ -310,6 +318,9 @@ class ImageComparer(object):
             fig_right = 0.2 # inches
             fig_bottom = 0.6 # inches
             fig_top = 0.4 # inches
+            if title is not None:
+                if title.count(',')>=0:
+                    fig_top += 0.2 * title.count(',')
             panel_wspace = 0.2 # inches
             panel_hspace = 0.25 # inches
             fig_width = fig_left + panel_width * ncols + panel_wspace * (ncols-1) + fig_right
@@ -358,12 +369,13 @@ class ImageComparer(object):
             bin_min = (p84_flux+p16_flux)/2.0 - init_sigma * 3.0
             bin_max = (p84_flux+p16_flux)/2.0 + init_sigma * 5.0
             logger.debug('bin_min, bin_max: {}, {}'.format(bin_min, bin_max))
-            if isinstance(bin_min, u.Quantity):
-                bin_min = bin_min.value
-            if isinstance(bin_max, u.Quantity):
-                bin_max = bin_max.value
+            #if isinstance(bin_min, u.Quantity):
+            #    bin_min = bin_min.value
+            #if isinstance(bin_max, u.Quantity):
+            #    bin_max = bin_max.value
             nbins = 151
             # 
+            result_statistics = []
             for i in range(len(labels)):
                 # 
                 ii = orders.index(i)
@@ -372,7 +384,14 @@ class ImageComparer(object):
                 fluxes = fluxes_list[i]
                 pixsc = pixsc_list[i]
                 # 
-                hist, bin_edges = np.histogram(fluxes, bins=nbins, range=(bin_min, bin_max))
+                #if isinstance(fluxes, u.Quantity):
+                #    fluxes = fluxes.value
+                logger.debug('type(fluxes): {}'.format(type(fluxes)))
+                try:
+                    hist, bin_edges = np.histogram(fluxes, bins=nbins, range=(bin_min, bin_max))
+                except:
+                    hist, bin_edges = np.histogram(fluxes, bins=nbins, range=(bin_min.value, bin_max.value))
+                logger.debug('type(hist): {}'.format(type(hist)))
                 # 
                 x = (bin_edges[0:-1]+bin_edges[1:])/2.0
                 y = hist
@@ -391,7 +410,7 @@ class ImageComparer(object):
                 logger.debug('label: {!r}, xpeak: {}, xhalf: {}, fitmask: x < {}, pixsc: {}'.format(
                     labels[ii], xpeak, xhalf, xpeak+(xpeak-xhalf), pixsc))
                 # 
-                mod = models.Gaussian1D(amplitude=ypeak, mean=0.0, stddev=init_sigma)
+                mod = models.Gaussian1D(amplitude=ypeak, mean=xpeak, stddev=init_sigma)
                 fit = fitting.LevMarLSQFitter()
                 fitted_line = fit(mod, x[fitmask], y[fitmask])
                 ax.plot(x, fitted_line(x), color=colors[i], ls='dashed', alpha=0.8,
@@ -404,8 +423,15 @@ class ImageComparer(object):
                 sigma_mag = (sigma * u.nJy / aperture_psf_fraction).to(u.ABmag).value
                 five_sigma_mag = (5.0*sigma * u.nJy / aperture_psf_fraction).to(u.ABmag).value
                 # 
-                ax.text(0.99, 0.88, 
-                    'histogram: {}'.format(labels[ii]) + '\n' + \
+                if show_legend:
+                    ytext = 0.88
+                else:
+                    ytext = 0.97
+                # 
+                # plot the text
+                # for the label with a long string, we wrap the text so that there are max. 25 chars per line
+                ax.text(0.99, ytext, 
+                    'histogram: {}'.format(textwrap.fill(labels[ii], 25)) + '\n' + \
                     'aperture diameter: {:.2f} [arcsec]'.format(aperture_size) + '\n' + \
                     'pixel size: {:.4f} [arcsec]'.format(pixsc) + '\n' + \
                     'mean: {:.5g} [nanoJy]'.format(mean) + '\n' + \
@@ -414,19 +440,45 @@ class ImageComparer(object):
                     '1-sigma: {:.3f} magAB'.format(sigma_mag) + '\n' + \
                     '5-sigma: {:.3f} magAB'.format(five_sigma_mag),
                     ha='right', va='top', fontsize=9,
-                    bbox=dict(facecolor='none', edgecolor='k', boxstyle='round'),
-                    transform=ax.transAxes)
+                    bbox=dict(facecolor='none', edgecolor='k', boxstyle='round', linewidth=0.6),
+                    transform=ax.transAxes, 
+                )
                 # 
                 #ax.set_xlim(ax.get_xlim()[::-1])
                 #ax.set_yscale('log')
                 if i == len(labels)-1:
                     ax.set_xlabel('flux in aperture [nanoJy]')
                 ax.set_ylabel('N')
-                ax.legend()
+                if show_legend:
+                    ax.legend()
+                # 
+                # append to results
+                result_statistics.append({
+                        'image': self.image_files[ii], 
+                        'label': labels[ii], 
+                        'aperture diameter [arcsec]': aperture_size, 
+                        'pixel size [arcsec]': pixsc, 
+                        'mean [nanoJy]': mean, 
+                        'sigma [nanoJy]': sigma, 
+                        'aper corr': aperture_psf_fraction, 
+                        '1-sigma [magAB]': sigma_mag, 
+                        '5-sigma [magAB]': five_sigma_mag, 
+                })
+            # 
+            # save statistics to json
+            if save_statistics_to_json != '':
+                if not save_statistics_to_json.endswith('.json'):
+                    save_statistics_to_json += '.json'
+                with open(save_statistics_to_json, 'w') as fp:
+                    json.dump(result_statistics, fp, indent=4)
             # 
             # title
             if title != '':
-                axes[0].set_title(title)
+                if title.find(',')>=0:
+                    title = re.sub(r', *', '\n', title)
+                    axes[0].set_title(title, fontsize=10)
+                else:
+                    axes[0].set_title(title)
             # 
             if output_figure.endswith('.pdf') or output_figure.endswith('.png'):
                 output_figure = os.path.splitext(output_figure)
@@ -442,9 +494,9 @@ class ImageComparer(object):
 
 # 
 @click.command()
-@click.argument('input_images', type=click.Path(exists=True), nargs=-1)
+@click.argument('input_images', type=click.Path(exists=True), nargs=-1, required=True)
 @click.argument('output_name', type=str, nargs=1)
-@click.option('--aperture-size', type=float, default=default_aperture_size, help='aperture diameter in arcsec.')
+@click.option('--aperture-size', '--aperture-diameter', 'aperture_size', type=float, default=default_aperture_size, help='aperture diameter in arcsec.')
 @click.option('--aperture-number', type=int, default=default_aperture_number, help='aperture number.')
 @click.option('--input-labels', type=str, default=None, help='a string for the labels of the input images, using comma to separate.')
 @click.option('--plot-orders', type=str, default=None, help='orders for plotting, from 0 to N-1, using comma to separate.')
@@ -452,6 +504,7 @@ class ImageComparer(object):
 @click.option('--aper-corr', type=float, default=1.0, help='aperture to psf total flux fraction, 0-1.')
 @click.option('--title', type=str, default='', help='title of this plot.')
 @click.option('--output-dir', type=click.Path(exists=False), default=None, help='not implemented, just use path in `output_name`.')
+@click.option('--legend/--no-legend', is_flag=True, default=True)
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)
 @click.option('--verbose/--no-verbose', is_flag=True, default=True)
 def main(
@@ -465,6 +518,7 @@ def main(
         aper_corr,
         title,
         output_dir,
+        legend, 
         overwrite,
         verbose, 
     ):
@@ -476,17 +530,30 @@ def main(
             imcmp.draw_apertures(output_name, aperture_size=aperture_size, aperture_number=aperture_number)
         # 
         if input_labels is not None:
-            if plot_orders is None:
-                plot_orders = ','.join(np.arange(len(input_labels)).astype(str))
-            if plot_colors is None:
-                plot_colors = ','.join(['red', 'blue', 'orange', 'cyan'][0:len(input_labels)])
+            if isinstance(input_labels, str):
+                input_labels = input_labels.split(',')
+            if plot_orders is not None:
+                if isinstance(plot_orders, str):
+                    plot_orders = plot_orders.split(',')
+            else:
+                plot_orders = np.arange(len(input_labels)).astype(str).tolist()
+            if plot_colors is not None:
+                if isinstance(plot_colors, str):
+                    plot_colors = plot_colors.split(',')
+            else:
+                plot_colors = ['red', 'blue', 'orange', 'cyan']
+                while len(plot_colors) < len(input_labels):
+                    plot_colors += ['red', 'blue', 'orange', 'cyan']
+                plot_colors = plot_colors[0:len(input_labels)]
             imcmp.plot_histogram(
-                input_labels.split(','), 
-                plot_orders.split(','), 
-                plot_colors.split(','), 
+                input_labels, 
+                plot_orders, 
+                plot_colors, 
                 output_name+'_flux_histograms',
                 aperture_psf_fraction = aper_corr,
+                save_statistics_to_json = output_name+'_stats', 
                 title = title, 
+                show_legend = legend, 
             )
     
 

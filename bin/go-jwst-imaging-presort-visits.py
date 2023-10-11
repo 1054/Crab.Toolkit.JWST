@@ -78,6 +78,8 @@ def store_into_jwst_dataset_dict(i, d, all_jwst_uncal_files, all_jwst_dataset_na
         filter_name = model.meta.instrument.filter
         detector_name = model.meta.instrument.detector
         ra_v1, dec_v1, pa_v3 = model.meta.pointing.ra_v1, model.meta.pointing.dec_v1, model.meta.pointing.pa_v3
+        obs_date = model.meta.date
+        exposure_time = model.meta.exposure.exposure_time # print(model.meta.exposure._instance)
         s_region = model.meta.wcsinfo.s_region
     dataset_name = all_jwst_dataset_name[i]
     dataset_info = all_jwst_dataset_info[i]
@@ -92,6 +94,8 @@ def store_into_jwst_dataset_dict(i, d, all_jwst_uncal_files, all_jwst_dataset_na
     d['ra_v1'][i] = ra_v1
     d['dec_v1'][i] = dec_v1
     d['pa_v3'][i] = pa_v3
+    d['obs_date'][i] = obs_date
+    d['exposure_time'][i] = exposure_time
     d['s_region'][i] = s_region
 
 
@@ -150,6 +154,8 @@ def main(
     all_jwst_dataset_dict['ra_v1'] = []
     all_jwst_dataset_dict['dec_v1'] = []
     all_jwst_dataset_dict['pa_v3'] = []
+    all_jwst_dataset_dict['obs_date'] = []
+    all_jwst_dataset_dict['exposure_time'] = []
     all_jwst_dataset_dict['s_region'] = []
     
     # for i, jwst_uncal_file in enumerate(all_jwst_uncal_files):
@@ -193,6 +199,15 @@ def main(
     
     # 
     all_jwst_dataset_table = Table(all_jwst_dataset_dict)
+    
+    # double check
+    failed_datasets = []
+    for i in range(len(all_jwst_dataset_table)):
+        if all_jwst_dataset_table['proposal_id'][i] is None:
+            failed_datasets.append(all_jwst_uncal_files[i])
+    if len(failed_datasets) > 0:
+        raise Exception('Error! {} corrupted data sets?\n'.format(len(failed_datasets)) + 
+                        '\n'.join(['  '+t for t in failed_datasets]))
     
     # 
     all_jwst_dataset_table.sort(['proposal_id', 'obs_num', 'visit_num', 'parallel', 'instrument', 'filter', 'detector'])

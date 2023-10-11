@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # 
+# 2023-03-17 fixed ds9 region bug, not affecting csv files.
+# 
 import os, sys, re, copy, json, shutil
 import numpy as np
 import matplotlib as mpl
@@ -28,9 +30,11 @@ logger = logging.getLogger()
 
 
 default_search_radius = 1.0 # arcsec
+default_min_separation = 0.5 # arcsec
 default_output_suffix = '_new2dhist'
 default_outlier_sigma = 5.0
 default_initial_offset = [0.0, 0.0] # arcsec
+default_output_dir = None
 default_output_abs_refcat = None
 default_input_index_base = '1'
 default_output_index_base = '0'
@@ -43,9 +47,11 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         abs_refcat, # The tweakreg.abs_refcat catalog file. 
                     # It must include 'RA', 'DEC', and 'ID' (or 'phot_id') columns. 
         search_radius = default_search_radius, 
+        min_separation = default_min_separation, # XYXYMatch separation, separation needed to prevent confusion of sources
         output_suffix = default_output_suffix, 
         outlier_sigma = default_outlier_sigma, # filter out outliers of large offsets
         initial_offset = default_initial_offset, 
+        output_dir = default_output_dir, 
         output_abs_refcat = default_output_abs_refcat, # also output the filtered abs_refcat
         input_index_base = default_input_index_base, # the input image catalog listed in catfile should have 1-based x y coordinates
         output_index_base = default_output_index_base, # the output catalog x y coordinate base, default is 0 because jwst pipeline tweakwcs uses that.
@@ -58,6 +64,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         outlier_sigma = 5.0
 
     # read cat_file
+    # this cat_file is a text file listing the catalog file for each science image.
+    # we read in the catalog files for each science image.
     cats = OrderedDict()
     catpaths = OrderedDict()
     with open(cat_file, 'r') as fp:
@@ -74,6 +82,7 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     # make 2dhist plot
     ncats = len(cats)
     maxsep = search_radius * u.arcsec
+    minsep = min_separation * u.arcsec
     ipanel = 0
     ncols = 2
     nrows = 5
@@ -99,6 +108,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     matched_abs_refcat_id = OrderedDict()
     matched_abs_refcat_x = OrderedDict()
     matched_abs_refcat_y = OrderedDict()
+    matched_abs_refcat_ra = OrderedDict()
+    matched_abs_refcat_dec = OrderedDict()
     for imfile in cats:
         header = fits.getheader(imfile, 'SCI')
         wcs = WCS(header, naxis=2)
@@ -130,8 +141,43 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         refid = refcat['ID'].data
         refcatcoords = SkyCoord(refra*u.deg, refdec*u.deg, frame=FK5)
         refx, refy = wcs.all_world2pix(refra, refdec, 1, quiet=True) # internally I use DS9 1-based pixcoord
+        # match coordinate - find the matched source in refcat for each cat source.
         idx, d2d, d3d = match_coordinates_sky(catcoords, refcatcoords)
-        matches = np.argwhere(np.logical_and(idx>=0, d2d<=maxsep)).ravel()
+        matchedflag = np.logical_and(idx>=0, d2d<=maxsep)
+        # 20230726: to solve the issue "Number of output coordinates exceeded allocation"
+        #           "Multiple sources within specified tolerance matched to a single reference source. "
+        #           I need to make sure the cross-matching is one-to-one only.
+        for kindex in idx:
+            kduplicates = np.argwhere(idx==kindex).ravel() # indices into 'idx' 'd2d' and 'catcoords' arrays
+            if len(kduplicates) > 1:
+                # in the case where more than one cat source is matched to the same refcat source,
+                # keep the cat source that has a distance most close to the mean distance between cat and refcat sources.
+                kkeep = kduplicates[np.argmin(
+                    np.abs(d2d[kduplicates] - np.mean(d2d[matchedflag]))
+                )]
+                for kk in kduplicates:
+                    if kk != kkeep:
+                        matchedflag[kk] = False
+        # 20230726: to solve the above problem, I also need to eliminate sources too close, closer than 'min_separation'
+        #           here 'idx_tooclose' are indices into 'matchedflag'
+        for k, kindex in enumerate(idx):
+            if matchedflag[k]:
+                d2dtooclose = catcoords[k].separation(catcoords)
+                ktooclose = np.argwhere(
+                    np.logical_and(matchedflag, d2dtooclose<minsep)
+                ).ravel() # indices into 'idx' 'd2d' and 'catcoords' arrays
+                if len(ktooclose) > 1:
+                    # in the case where there are multipe matched source within 'minsep',
+                    # keep the one that has a distance most close to the mean distance between cat and refcat sources.
+                    kkeep = ktooclose[np.argmin(
+                        np.abs(d2dtooclose[ktooclose] - np.mean(d2d[matchedflag]))
+                    )]
+                    for kk in ktooclose:
+                        if kk != kkeep:
+                            matchedflag[kk] = False
+        # get the matches (as indices into refcat)
+        matches = np.argwhere(matchedflag).ravel()
+        # make plot
         ax = axes[ipanel]
         ax.axis('on')
         if len(matches) == 0:
@@ -152,24 +198,24 @@ def match_cat_file_to_abs_refcat_with_2dhist(
                 d_px += (-ioffra/pixsc)
                 d_py += (ioffdec/pixsc)
             # 
-            for imatch in matches:
-                key = refid[imatch]
-                #if key not in check_radecs:
-                #    check_radecs[key] = OrderedDict()
-                #    check_radecs[key]['x'] = np.full([ncats,], fill_value=np.nan)
-                #    check_radecs[key]['y'] = np.full([ncats,], fill_value=np.nan)
-                #    check_radecs[key]['ra'] = np.full([ncats,], fill_value=np.nan)
-                #    check_radecs[key]['dec'] = np.full([ncats,], fill_value=np.nan)
-                #    check_radecs[key]['refra'] = np.full([ncats,], fill_value=np.nan)
-                #    check_radecs[key]['refdec'] = np.full([ncats,], fill_value=np.nan)
-                #check_radecs[key]['x'][ipanel] = x[imatch]
-                #check_radecs[key]['y'][ipanel] = y[imatch]
-                #check_radecs[key]['ra'][ipanel] = ra[imatch]
-                #check_radecs[key]['dec'][ipanel] = dec[imatch]
-                #check_radecs[key]['refra'][ipanel] = refra[idx[imatch]]
-                #check_radecs[key]['refdec'][ipanel] = refdec[idx[imatch]]
-                # 
-                matched_abs_refcat_mask[idx[imatch]] = True
+            #for imatch in matches:
+            #    key = refid[imatch]
+            #    #if key not in check_radecs:
+            #    #    check_radecs[key] = OrderedDict()
+            #    #    check_radecs[key]['x'] = np.full([ncats,], fill_value=np.nan)
+            #    #    check_radecs[key]['y'] = np.full([ncats,], fill_value=np.nan)
+            #    #    check_radecs[key]['ra'] = np.full([ncats,], fill_value=np.nan)
+            #    #    check_radecs[key]['dec'] = np.full([ncats,], fill_value=np.nan)
+            #    #    check_radecs[key]['refra'] = np.full([ncats,], fill_value=np.nan)
+            #    #    check_radecs[key]['refdec'] = np.full([ncats,], fill_value=np.nan)
+            #    #check_radecs[key]['x'][ipanel] = x[imatch]
+            #    #check_radecs[key]['y'][ipanel] = y[imatch]
+            #    #check_radecs[key]['ra'][ipanel] = ra[imatch]
+            #    #check_radecs[key]['dec'][ipanel] = dec[imatch]
+            #    #check_radecs[key]['refra'][ipanel] = refra[idx[imatch]]
+            #    #check_radecs[key]['refdec'][ipanel] = refdec[idx[imatch]]
+            #    # 
+            #    matched_abs_refcat_mask[idx[imatch]] = True
             # 
             ax.scatter(d_ra, d_dec, s=3, alpha=0.9)
             #ax.set_xlim([lim, -lim])
@@ -207,15 +253,20 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             #ax.yaxis.set_major_locator(ticker.MaxNLocator(6))
             # 
             # identify outliers
-            outliers = ( ((d_ra-d_ra_mean)/(outlier_sigma*d_ra_sigma))**2 + ((d_dec-d_dec_mean)/(outlier_sigma*d_dec_sigma))**2 > 1.0)
+            outliers = ( ((d_ra-d_ra_mean)/(outlier_sigma*d_ra_sigma))**2 
+                         + ((d_dec-d_dec_mean)/(outlier_sigma*d_dec_sigma))**2 
+                         > 1.0 )
             ax.scatter(d_ra[outliers], d_dec[outliers], s=10, marker='*', alpha=0.7, 
                        fc='none', ec='orangered')
             catmask = np.full([len(ra),], fill_value=False, dtype=bool)
             catmask[matches] = np.invert(outliers) # remove outliers, keep good ones
             catmasks[imfile] = catmask
+            matched_abs_refcat_mask[idx[matches][~outliers]] = True
             matched_abs_refcat_id[imfile] = refid[idx[matches][~outliers]]
             matched_abs_refcat_x[imfile] = refx[idx[matches][~outliers]]
             matched_abs_refcat_y[imfile] = refy[idx[matches][~outliers]]
+            matched_abs_refcat_ra[imfile] = refra[idx[matches][~outliers]]
+            matched_abs_refcat_dec[imfile] = refdec[idx[matches][~outliers]]
             # 
             ax.plot([-lim, lim], [0., 0.], color='k', ls='dashed', lw=0.6, alpha=0.7)
             ax.plot([0., 0.], [-lim, lim], color='k', ls='dashed', lw=0.6, alpha=0.7)
@@ -258,7 +309,6 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         catpath = catpaths[imfile]
         catmask = catmasks[imfile]
         newcat = cat[catmask] # remove outliers, keep good ones, mask means good here
-        chkcat = Table({'x': matched_abs_refcat_x[imfile], 'y': matched_abs_refcat_y[imfile]}) # matched refcat for check
         # 
         # output ds9 pix region
         newcatpath = os.path.splitext(catpath)[0] + output_suffix + '.ds9.pix.reg'
@@ -283,6 +333,9 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         newcatpaths[imfile] = newcatpath
         logger.info('Output to {!r}'.format(newcatpath))
         # 
+        # get matched refcat in pix
+        chkcat = Table({'x': matched_abs_refcat_x[imfile], 'y': matched_abs_refcat_y[imfile]}) # matched refcat for check
+        # 
         # output matched refcat ds9 pix region
         chkcatpath = os.path.splitext(catpath)[0] + output_suffix + '_matched_refcat.ds9.pix.reg'
         if os.path.isfile(chkcatpath):
@@ -291,20 +344,31 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             fp.write('# DS9 region file\n')
             fp.write('global color=yellow\n')
             fp.write('image\n')
-            for k in range(len(newcat)):
-                fp.write('circle({}, {}, {}")\n'.format(newcat['x'][k], newcat['y'][k],0.35))
+            for k in range(len(chkcat)):
+                fp.write('circle({}, {}, {}")\n'.format(chkcat['x'][k], chkcat['y'][k],0.35))
         logger.info('Output to {!r}'.format(chkcatpath))
         # 
-        # output matched refcat
-        chkcatpath = os.path.splitext(catpath)[0] + output_suffix + '_matched_refcat.csv'
-        if os.path.isfile(chkcatpath):
-            shutil.move(chkcatpath, chkcatpath+'.backup')
-        chkcat = Table({'x': matched_abs_refcat_x[imfile], 'y': matched_abs_refcat_y[imfile]})
+        # output matched refcat in pix
         if str(output_index_base) == '0':
             chkcat['x'] -= 1 # jwst tweakreg tweakwcs uses 0-indices, see "tweakwcs/correctors.py" `ra, dec = self._wcs.all_pix2world(x, y, 0)`
             chkcat['y'] -= 1 # jwst tweakreg tweakwcs uses 0-indices, see "tweakwcs/correctors.py" `ra, dec = self._wcs.all_pix2world(x, y, 0)`
+        chkcatpath = os.path.splitext(catpath)[0] + output_suffix + '_matched_refcat.csv'
+        if os.path.isfile(chkcatpath):
+            shutil.move(chkcatpath, chkcatpath+'.backup')
         chkcat.write(chkcatpath, format='csv', overwrite=True)
         logger.info('Output to {!r}'.format(chkcatpath))
+        # 
+        # get matched refcat in sky
+        newrefcat = Table({'ID': matched_abs_refcat_id[imfile], 
+                           'RA': matched_abs_refcat_ra[imfile],
+                           'DEC': matched_abs_refcat_dec[imfile]}) # matched refcat in sky
+        # 
+        # output matched refcat in sky
+        newrefcatpath = os.path.splitext(catpath)[0] + output_suffix + '_matched_refcat.fits'
+        if os.path.isfile(newrefcatpath):
+            shutil.move(newrefcatpath, newrefcatpath+'.backup')
+        newrefcat.write(newrefcatpath, format='fits', overwrite=True)
+        logger.info('Output to {!r}'.format(newrefcatpath))
     
     # 
     for ipage in range(npages):
@@ -346,8 +410,11 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     logger.info('Output to {!r}'.format(out_file))
     
     # save optimized abs_refcat
+    if output_dir is None:
+        output_dir = os.path.dirname(abs_refcat)
     if output_abs_refcat is None:
-        output_abs_refcat = os.path.splitext(abs_refcat)[0] + output_suffix + '.fits' # FITS-format catalog
+        output_abs_refcat = os.path.join(output_dir, 
+            os.path.splitext(os.path.basename(abs_refcat))[0] + output_suffix + '.fits') # FITS-format catalog
     if output_abs_refcat != '':
         if 'name' not in refcat.meta: 
             refcat.meta['name'] = os.path.splitext(os.path.basename(abs_refcat))[0]

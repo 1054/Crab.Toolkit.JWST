@@ -3,6 +3,8 @@
 """
 Query astroquery.MAST by program id.
 
+Do not use this, use "go-jwst-query-by-program-id.py" instead.
+
 """
 
 import os, sys, re, click

@@ -3,7 +3,7 @@
 import os, sys, re, shutil, time, datetime, copy
 import numpy as np
 import astropy.units as u
-from astropy.coordinates import SkyCoord, FK5
+from astropy.coordinates import SkyCoord, ICRS
 from astropy.io import fits # fits.ImageHDU
 #from astropy.modeling import rotations # rotations.Rotation2D
 from astropy.wcs import WCS
@@ -65,6 +65,8 @@ def parse_angle_str(angle_str, default_unit='degree', output_unit='arcsec'):
 input_image_file = None
 center_RA = None
 center_Dec = None
+recenter_to_RA = None
+recenter_to_Dec = None
 FoV_RA = None
 FoV_Dec = None
 pixel_size = None
@@ -115,6 +117,20 @@ while iarg < len(sys.argv):
             except:
                 center_Dec = str(sys.argv[iarg])
             print('Setting center_Dec = %s [degree]'%(center_Dec))
+    elif arg_str == '-recenter' or arg_str == '-recenter-to':
+        if iarg+2 < len(sys.argv):
+            iarg += 1
+            try:
+                recenter_to_RA = float(sys.argv[iarg])
+            except:
+                recenter_to_RA = str(sys.argv[iarg])
+            print('Setting recenter_to_RA = %s [degree]'%(recenter_to_RA))
+            iarg += 1
+            try:
+                recenter_to_Dec = float(sys.argv[iarg])
+            except:
+                recenter_to_Dec = str(sys.argv[iarg])
+            print('Setting recenter_to_Dec = %s [degree]'%(recenter_to_Dec))
     else:
         if input_image_file is None:
             input_image_file = sys.argv[iarg]
@@ -150,24 +166,39 @@ if input_image_file is None or center_RA is None or center_Dec is None or FoV_RA
 
 
 # read input fits image
-with fits.open(input_image_file) as hdulist:
+regex_match = re.match(r'^(.*.fits)\[(.+)\]$', input_image_file, re.IGNORECASE) # 20230428: input IRAF style fits with extension
+if regex_match:
+    input_image_file_path = regex_match.group(1)
+    input_image_extension = re.sub(r'[\"\']', r'', regex_match.group(2))
+else:
+    input_image_file_path = input_image_file
+    input_image_extension = None
+with fits.open(input_image_file_path) as hdulist:
     ihdu = 0
     while ihdu < len(hdulist):
-        print(type(hdulist[ihdu]))
+        #print(type(hdulist[ihdu]))
         if isinstance(hdulist[ihdu], fits.hdu.image.PrimaryHDU):
             main_header = copy.copy(hdulist[ihdu].header)
         if isinstance(hdulist[ihdu], fits.ImageHDU) or isinstance(hdulist[ihdu], fits.hdu.image.PrimaryHDU):
-            if hdulist[ihdu].header['NAXIS'] > 0:
-                hdu = copy.copy(hdulist[ihdu])
-                image = copy.copy(hdu.data)
-                header = copy.copy(hdu.header)
-                print('read ihdu %d'%(ihdu))
+            if hdulist[ihdu].header['NAXIS'] >= 2:
+                print('reading ihdu %d header'%(ihdu))
+                header = copy.copy(hdulist[ihdu].header)
                 break
         ihdu += 1
+    if input_image_extension is not None:
+        ihdu = input_image_extension
+    print('reading ihdu %s data'%(ihdu))
+    image = copy.copy(hdulist[ihdu].data)
+    for key in main_header:
+        try:
+            header[key] = main_header[key] # some cases extensions do not have wcs header, this solves that issue.
+        except:
+            pass
 
 
 # determine wcs, pixscale, x_size y_size
 wcs = WCS(header, naxis=2)
+wcs.sip = None
 if pixel_size is None:
     pixscales = proj_plane_pixel_scales(wcs) * 3600.0
     print('pixscales', pixscales)
@@ -206,11 +237,12 @@ cutout_header['CRPIX1'] = (x_size+1)/2. # 1-based number
 cutout_header['CRPIX2'] = (y_size+1)/2. # 1-based number
 cutout_header['CRVAL1'] = center_RA
 cutout_header['CRVAL2'] = center_Dec
-cutout_header['RADESYS'] = 'FK5'
+cutout_header['RADESYS'] = 'ICRS'
 cutout_header['EQUINOX'] = 2000
 #'NAXIS','NAXIS1','NAXIS2','CDELT1','CDELT2','CRPIX1','CRPIX2','CRVAL1','CRVAL2',
-for key in ['BUNIT','BMAJ','BMIN','BPA','TELESCOP','INSTRUME','EXPTIME',
-            'DATE-OBS','TIME-OBS','PHOTMODE','PHOTFLAM','PHTFLAM1','PHTFLAM2','PHTRATIO','PHOTFNU','PHOTZPT','PHOTPLAM','PHOTBW']:
+for key in ['BUNIT','BMAJ','BMIN','BPA','TELESCOP','INSTRUME','FILTER','EXPTIME','PA_V3',
+            'DATE-OBS','TIME-OBS','PHOTMODE','PHOTFLAM','PHTFLAM1','PHTFLAM2','PHTRATIO','PHOTFNU','PHOTZPT','PHOTPLAM','PHOTBW',
+            'S_REGION',]:
     if key in main_header:
         cutout_header[key] = main_header[key]
     if key in header:
@@ -222,12 +254,14 @@ cutout_header['HISTORY'] = 'Created cutout image at center RA Dec %s %s with FoV
 cutout_header['HISTORY'] = ''
 #print(cutout_header)
 
-try:
-    cutout_image, cutout_footprint = reproject_interp(hdu, cutout_header)
-except:
-    #cutout_image, cutout_footprint = reproject_interp((image, wcs), cutout_header)
-    wcs.sip = None
-    cutout_image, cutout_footprint = reproject_interp((image, wcs), cutout_header)
+
+cutout_image, cutout_footprint = reproject_interp((image, wcs), cutout_header)
+
+
+# optionally recenter the image to some RA Dec for astrometry correction
+if recenter_to_RA is not None and recenter_to_Dec is not None:
+    cutout_header['CRVAL1'] = recenter_to_RA
+    cutout_header['CRVAL2'] = recenter_to_Dec
 
 
 # generate fits HDU

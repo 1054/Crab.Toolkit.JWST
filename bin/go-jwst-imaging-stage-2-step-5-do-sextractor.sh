@@ -5,6 +5,9 @@
 # 
 # This requires https://github.com/1054/Crab.Toolkit.SExtractorPlus.
 # 
+# Options:
+#     --detect-thresh 4.0  -> Set the SExtractor detect threshold in sigma.
+# 
 
 # Set necessary system variables
 if [[ -z "$CRDS_PATH" ]]; then
@@ -39,8 +42,23 @@ if [[ $# -eq 0 ]]; then
     exit 255
 fi
 if [[ "$1" == *"nrca"* ]] || [[ "$1" == *"nrcb"* ]] || [[ "$1" == *"nrclong"* ]] || [[ "$1" == *"miri"* ]]; then
-    echo sextractor_classic_go_find_sources.py $@
-    sextractor_classic_go_find_sources.py $@
+    infile="$1"
+    args=()
+    iarg=2
+    detect_thresh=3.0
+    while [[ $iarg -le $# ]]; do
+        if [[ "${!iarg}" == "--detect-thresh" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                detect_thresh=${!iarg}
+            fi
+        else
+            args+=(${!iarg})
+        fi
+        iarg=$((iarg+1))
+    done
+    echo sextractor_classic_go_find_sources.py --detect-thresh $detect_thresh ${args[@]} "$infile"
+    sextractor_classic_go_find_sources.py --detect-thresh $detect_thresh ${args[@]} "$infile"
     if [[ $? -ne 0 ]]; then
         echo "Error?! Please check previous messages."
         exit 255

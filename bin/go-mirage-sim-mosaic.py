@@ -185,7 +185,7 @@ def resample_mosaic_image(
         # create a single pixel psf_file
         psf_file = re.sub(r'\.fits$', r'', mosaic_file) + '.psf.fits'
         prepare_mosaic_psf_file(psf_file, pixel_scale=pixel_scale, overwrite=True)
-        mosaic_fwhm = pixel_scale # 1
+        mosaic_fwhm = pixel_scale / 10. # 1 #<TODO><20230502># try this
         mosaic_fwhm_units = 'arcsec' # 'pixels' -- there is a bug in "mirage/seed_image/fits_seed_image.py", line 364, in crop_and_blot -- UnboundLocalError: local variable 'mosaic_fwhm_arcsec' referenced before assignment
     else:
         #if re.match(r'^[0-9eE.+-]+$', mosaic_psf):

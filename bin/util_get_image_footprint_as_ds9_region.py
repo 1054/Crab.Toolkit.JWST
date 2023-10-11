@@ -27,6 +27,10 @@ from shapely.geometry import Point, Polygon
 from jwst.associations.asn_from_list import asn_from_list
 from jwst.associations import load_asn
 
+import warnings
+from astropy.wcs import FITSFixedWarning
+warnings.filterwarnings('ignore', category=FITSFixedWarning)
+
 # code name and version
 CODE_NAME = 'util_get_image_footprint_as_ds9_region.py'
 CODE_AUTHOR = 'Daizhong Liu'
@@ -125,7 +129,7 @@ def get_image_footprint_as_ds9_region(
         footprints,
         output_region_file,
     )
-    print('Output to {!r}'.format(region_file))
+    print('Output to {!r}'.format(output_region_file))
     
     # return
     return
@@ -134,7 +138,7 @@ def get_image_footprint_as_ds9_region(
 
 
 @click.command()
-@click.argument('image_files', nargs=-1, type=click.Path(exists=True))
+@click.argument('image_files', nargs=-1, required=True, type=click.Path(exists=True))
 @click.argument('output_region_file', nargs=1, type=click.Path(exists=False))
 @click.option('--asn-file', type=click.Path(exists=True), default=None, help='We can input an asn file instead of image files.')
 def main(
@@ -142,6 +146,9 @@ def main(
         output_region_file, 
         asn_file, 
     ):
+
+    if len(image_files) == 0:
+        raise Exception('Please input image_files!')
 
     get_image_footprint_as_ds9_region(
         image_files, 

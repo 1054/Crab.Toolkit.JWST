@@ -87,8 +87,17 @@ def main(
     y_size = header['NAXIS2']
     print('x_size: {}, y_size: {}'.format(x_size, y_size))
     #print('wcs.wcs', wcs.wcs)
-    PA = np.rad2deg(np.arctan2(wcs.wcs.pc[1][0], wcs.wcs.pc[1][1]))
-    print('PC2_1: {}, PC2_2: {}, PA: {}'.format(wcs.wcs.pc[1][0], wcs.wcs.pc[1][1], PA))
+    if hasattr(wcs.wcs, 'pc'):
+        PA = np.rad2deg(np.arctan2(wcs.wcs.pc[1][0], wcs.wcs.pc[1][1]))
+        print('PC2_1: {}, PC2_2: {}, PA: {}'.format(wcs.wcs.pc[1][0], wcs.wcs.pc[1][1], PA))
+    elif hasattr(wcs.wcs, 'cd'):
+        PA = np.rad2deg(np.arctan2(wcs.wcs.cd[1][0], wcs.wcs.cd[1][1]))
+        print('CD2_1: {}, CD2_2: {}, PA: {}'.format(wcs.wcs.cd[1][0], wcs.wcs.cd[1][1], PA))
+    elif hasattr(wcs.wcs, 'crota'):
+        PA = wcs.wcs.crota[1]
+        print('CROTA1: {}, CROTA2: {}, PA: {}'.format(wcs.wcs.crota[0], wcs.wcs.crota[1], PA))
+    else:
+        raise Exception('The input fits header\'s WCS contain no pc, cd or crota! (checked `wcs.wcs.pc`, `wcs.wcs.cd` and `wcs.wcs.crota`)')
     
     # create image
     fig_margin_left = 1.0 # inch

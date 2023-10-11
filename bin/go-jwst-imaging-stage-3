@@ -17,7 +17,14 @@
 #    If the option `--combine-obsnum` is set, the output directory name will be appended with "_multiobs".
 #    If the option `--combine-visitnum` is set, the output directory name will be appended with "_multivisit".
 #    If the option `--abs-refcat` is set, the output directory name will be appended with "_absref".
-#    If the option `--reprocess-miri` is set, the output directory name will be appended with "_redone_with_source_emission_mask".
+#    If the option `--reprocess-miri` is set, we will do master dark background subtraction using the jwst pipeline 
+#        by calling our script 'go-jwst-imaging-stage-2-step-3-redo-bkgsub.py', and 
+#        the output directory name will be appended with "_redone_with_source_emission_mask".
+#    If the option `--reprocess-nircam` is set, we will do master dark background subtraction using the wisps subtraction
+#        method, i.e., a scalebale background, by calling our script 'util_remove_wisps_with_templates.py', and 
+#        the output directory name will be appended with "_redone_with_source_emission_mask".
+#        (It has been tested that the MIRI method does not work well for the NIRCam case because the NIRCam issue 
+#         only appears in a few visits but not all visits, and tend to be more like wisps thus needs to be scalable.)
 # 
 # 
 set -e
@@ -49,12 +56,15 @@ info_table_argnames=("--save-info-table-dir" "--save-info-table-name")
 info_table_kwargs=()
 info_table_dir=""
 info_table_name="mosaic_info_table" # must match the default in "go-jwst-imaging-stage-3-step-1.py"
-tweakreg_argnames=("--abs-refcat" "--use-custom-catalogs" "--enforce-user-order")
+sextractor_argnames=("--detect-thresh")
+sextractor_kwargs=()
+tweakreg_argnames=("--abs-refcat" "--abs-fitgeometry" "--use-custom-catalogs" "--enforce-user-order")
 tweakreg_optnames=("--use-catfile" "--no-use-catfile")
 tweakreg_kwargs=()
 resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
+resample_optnames=("--outlier-detection-discard-highest")
 resample_kwargs=()
-combine_argnames=("--grid-step")
+combine_argnames=("--grid-step" "--filter")
 combine_optnames=("--combine-obsnum" "--no-combine-obsnum" "--combine-visitnum" "--no-combine-visitnum" "--combine-program" "--run-individual-steps" "--very-big-mosaic")
 combine_kwargs=()
 reprocess_NIRCam=0
@@ -100,6 +110,15 @@ while [[ $iarg -le $# ]]; do
                     info_table_name="${!iarg}"
                 fi
             fi
+        # sextractor
+        elif [[ " ${sextractor_argnames[@]} " == *" $argstr "* ]]; then
+            sextractor_kwargs+=("${!iarg}")
+            echo -n "${!iarg} = "
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                sextractor_kwargs+=("${!iarg}")
+                echo "\"${!iarg}\""
+            fi
         # tweakreg
         elif [[ " ${tweakreg_argnames[@]} " == *" $argstr "* ]]; then
             tweakreg_kwargs+=("${!iarg}")
@@ -121,6 +140,9 @@ while [[ $iarg -le $# ]]; do
                 resample_kwargs+=("${!iarg}")
                 echo "\"${!iarg}\""
             fi
+        elif [[ " ${resample_optnames[@]} " == *" $argstr "* ]]; then
+            resample_kwargs+=("${!iarg}")
+            echo "${!iarg}"
         # combine
         elif [[ " ${combine_argnames[@]} " == *" $argstr "* ]]; then
             combine_kwargs+=("${!iarg}")
@@ -320,6 +342,12 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
     fi
+    if [[ "$mosaic_image" == *"MIRI"* ]]; then
+        proc_args+=(--detect-sigma 3.0)
+    elif [[ "$mosaic_image" == *"NIRCAM"* ]]; then
+        proc_args+=(--detect-sigma 15.0)
+        proc_args+=(--detect-smooth 5.0)
+    fi
     echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-2-make-dark-rates.sh \
         "$mosaic_image" "$mosaic_asn" "${proc_args[@]}"
     $script_dir/go-jwst-imaging-stage-3-step-2-make-dark-rates.sh \
@@ -369,6 +397,9 @@ for (( i = 0; i < ${#mosaic_images[@]}; i++ )); do
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
     fi
+    if [[ $reprocess_NIRCam -gt 0 ]]; then
+        proc_args+=(--subtract-as-wisps) #<20230830># for NIRCam it is better to do this way?
+    fi
     echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-3-merge-dark-rates.sh \
         ${multiobs_mosaic_asn[@]} "${proc_args[@]}"
     $script_dir/go-jwst-imaging-stage-3-step-3-merge-dark-rates.sh \
@@ -400,6 +431,9 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
                 echo "Found \"$file_out2\" and overwrite is not set. Skipping."
             else
                 proc_args=()
+                for (( i = 0; i < ${#sextractor_kwargs[@]}; i++ )); do
+                    proc_args+=(${sextractor_kwargs[i]})
+                done
                 if [[ $overwrite -gt 0 ]]; then
                     proc_args+=(--overwrite)
                 fi
@@ -442,8 +476,15 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
     fi
-    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-1.py ${redo_files_in[@]} $redo_dir_out "${proc_args[@]}"
-    $script_dir/go-jwst-imaging-stage-3-step-1.py ${redo_files_in[@]} $redo_dir_out "${proc_args[@]}"
+    redo_file_list="tmp_file_list_for_${redo_dir_out}.txt"
+    echo "# N=${#redo_files_in[@]}" > $redo_file_list
+    for (( i = 0; i < ${#redo_files_in[@]}; i++ )); do
+        echo "${redo_files_in[i]}" >> $redo_file_list
+    done
+    #echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-1.py ${redo_files_in[@]} $redo_dir_out "${proc_args[@]}"
+    #$script_dir/go-jwst-imaging-stage-3-step-1.py ${redo_files_in[@]} $redo_dir_out "${proc_args[@]}"
+    echo "*** Running ***" $script_dir/go-jwst-imaging-stage-3-step-1.py $redo_file_list $redo_dir_out "${proc_args[@]}"
+    $script_dir/go-jwst-imaging-stage-3-step-1.py $redo_file_list $redo_dir_out "${proc_args[@]}"
     ret=$?
     if [[ $ret -ne 0 ]]; then
         echo "Error occurred?!"
