@@ -1,0 +1,28 @@
+#!/bin/bash
+# 
+set -e
+
+find . -maxdepth 2 -mindepth 2 -type d -name "calibrated1*" -print0 | \
+    while IFS= read -r -d $'\0' line; do 
+        #process $line
+        #echo $line
+        if [[ ! -z $line ]]; then
+            echo "rm -rf $line/*rate* $line/*ramp*"
+            rm -rf $line/*rate* $line/*ramp* $line/*trapsfilled*
+        fi
+    done
+
+
+
+find . -maxdepth 2 -mindepth 2 -type d -name "calibrated2*" -print0 | \
+    while IFS= read -r -d $'\0' line; do 
+        #process $line
+        #echo $line
+        if [[ ! -z $line ]]; then
+            echo "rm -rf $line/*before* $line/*skymatch* $line/*run_sextractor*"
+            rm -rf $line/*before* $line/*skymatch* $line/*run_sextractor*
+        fi
+    done
+
+
+
