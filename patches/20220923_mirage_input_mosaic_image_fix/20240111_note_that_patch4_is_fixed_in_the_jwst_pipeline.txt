@@ -1,0 +1,11 @@
+patch4 is now fixed in the lastest officially released jwst pipeline (1.12.5)
+
+    def blot_median(self, median_model):
+        
+            # apply blot to re-create model.data from median image
+            blotted_median.data = gwcs_blot(median_model, model, interp=interp,
+                                            sinscl=sinscl)
+
+            model_path = self.make_output_path(basepath=model.meta.filename, suffix='blot')
+            blotted_median.save(model_path)
+            log.info(f"Saved model in {model_path}")
