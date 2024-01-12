@@ -308,11 +308,11 @@ def detect_source_and_background_for_image(
         if 'ERR' in hdulist:
             err_data, err_header = hdulist['ERR'].data, hdulist['ERR'].header
         else:
-            err_data, err_header = None
+            err_data, err_header = None, None
         if 'DQ' in hdulist:
             dq_data, dq_header = hdulist['DQ'].data, hdulist['DQ'].header
         else:
-            dq_data, dq_header = None
+            dq_data, dq_header = None, None
     #image, header = fits.getdata(fits_image, header=True)
     #if len(image.shape) == 0 or image.shape == (0,):
     #    image, header1 = fits.getdata(fits_image, ext=1, header=True)

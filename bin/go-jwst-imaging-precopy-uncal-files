@@ -85,7 +85,9 @@ done
 if [[ ${#data_files[@]} -eq 0 ]]; then
     echo "No input JWST uncal file!"
     echo "Usage: "
-    echo "    go-jwst-imaging-precopy-uncal-files INPUT_CAL_FILES"
+    echo "    go-jwst-imaging-precopy-uncal-files INPUT_UNCAL_FILES"
+    echo "Example: "
+    echo "    go-jwst-imaging-precopy-uncal-files ../downloading/mastDownload/JWST/jw*/jw*_uncal.fits"
     echo "Options:"
     echo "    --check-grism"
     echo "    --check-fitlers \"F090W,F115W\""

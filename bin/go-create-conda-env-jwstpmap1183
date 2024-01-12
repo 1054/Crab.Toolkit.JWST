@@ -7,15 +7,22 @@ pip install jwst # jwst==1.12.5
 pip install click tqdm astroquery lmfit reproject shapely regions
 pip install opencv-python # jwst pipeline snowball needs it
 conda install -c conda-forge -y astromatic-source-extractor
-# also need https://github.com/1054/Crab.Toolkit.SExtractorPlus
+pip install mirage
+pip install soc_roman_tools # needed by webbpsf/distortion.py
 [ ! -d $CONDA_PREFIX/etc/conda/activate.d ] && mkdir -p $CONDA_PREFIX/etc/conda/activate.d
 echo "export CRDS_CONTEXT=\"$crds_context\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
 echo "export CRDS_PATH=\"\$HOME/jwst_crds_cache\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
 echo "export CRDS_SERVER_URL=\"https://jwst-crds.stsci.edu\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
 
-# apply patches:
-#   patches/20230614_outlier_detection_numpy_median_two_elements_bug/
-#       ls $CONDA_PREFIX/lib/python3.10/site-packages/jwst/outlier_detection/outlier_detection.py
+# also need to apply patches:
+repo_dir=$(dirname $(dirname ${BASH_SOURCE[0]}))
+bash ${repo_dir}/patches/20230614_outlier_detection_numpy_median_two_elements_bug/dzliu_tweakreg_step_model_container_from_asn_bug.apply_patch.sh
+bash ${repo_dir}/patches/20220923_mirage_input_mosaic_image_fix/dzliu_mirage_input_mosaic_image_fix_patch.apply.sh
+
+
+# also need to manually download: 
+#     https://github.com/1054/Crab.Toolkit.SExtractorPlus
+# which is needed for my pipeline wrappers to run.
 
 
 # pip install jwst
@@ -187,6 +194,5 @@ echo "export CRDS_SERVER_URL=\"https://jwst-crds.stsci.edu\"" >> $CONDA_PREFIX/e
 #     websocket-client-1.7.0
 #     widgetsnbextension-4.0.9
 
-# pip install soc_roman_tools # needed by webbpsf/distortion.py
 
 
