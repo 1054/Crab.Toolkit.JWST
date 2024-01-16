@@ -125,7 +125,8 @@ def find_image_containing_coordinate(
 
 @click.command()
 @click.argument('image_files', nargs=-1, type=click.Path(exists=True))
-@click.argument('coordinate', nargs=2, type=str)
+#@click.argument('coordinate', nargs=2, type=str)
+@click.option('--radec', 'coordinate', nargs=2, type=str)
 @click.option('--asn-file', type=click.Path(exists=True), default=None, help='We can input an asn file instead of image files.')
 def main(
         image_files, 
