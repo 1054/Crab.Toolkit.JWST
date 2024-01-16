@@ -108,6 +108,7 @@ def check_guide_star_data(product):
 @click.option('--only-grism', is_flag=True, default=False)
 @click.option('--download/--no-download', is_flag=True, default=False)
 @click.option('--download-dir', type=click.Path(exists=False), default='.')
+@click.option('--login-token', type=str, default=None, help='API token for accessing private data, see `https://astroquery.readthedocs.io/en/latest/api/astroquery.mast.MastClass.html#astroquery.mast.MastClass.login`.')
 def main(
         program, 
         obs_num, 
@@ -121,6 +122,7 @@ def main(
         only_grism, 
         download, 
         download_dir, 
+        login_token, 
     ):
 
     # setup logger
@@ -160,6 +162,10 @@ def main(
             sys.exit(255)
     
         logger.info('obs_num: {}'.format(obs_num))
+    
+    # login with token if available 
+    if login_token is not None and login_token != '':
+        my_session = Observations.login(login_token, store_token=False)
     
     # query the MAST databse
     logger.info('Running Observations.query_criteria')
@@ -309,6 +315,11 @@ def main(
                     ))
         else:
             logger.info('No product list in obs "{}"'.format(obs['obs_id']))
+    
+    
+    # logout if token is available 
+    if login_token is not None and login_token != '':
+        Observations.logout()
 
 
 
