@@ -251,8 +251,8 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
             echo "Found \"$file_out2\" and overwrite is not set. Skipping."
         else
             proc_args=()
-            for (( i = 0; i < ${#sextractor_kwargs[@]}; i++ )); do
-                proc_args+=(${sextractor_kwargs[i]})
+            for (( k = 0; k < ${#sextractor_kwargs[@]}; k++ )); do
+                proc_args+=(${sextractor_kwargs[k]})
             done
             if [[ $overwrite -gt 0 ]]; then
                 proc_args+=(--overwrite)

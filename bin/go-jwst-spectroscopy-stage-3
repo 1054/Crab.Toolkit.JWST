@@ -181,14 +181,14 @@ done
 # Run step 1
 dir_out="${output_dir}"
 proc_args=()
-for (( i = 0; i < ${#info_table_kwargs[@]}; i++ )); do
-    proc_args+=(${info_table_kwargs[i]})
+for (( k = 0; k < ${#info_table_kwargs[@]}; k++ )); do
+    proc_args+=(${info_table_kwargs[k]})
 done
-for (( i = 0; i < ${#tweakreg_kwargs[@]}; i++ )); do
-    proc_args+=(${tweakreg_kwargs[i]})
+for (( k = 0; k < ${#tweakreg_kwargs[@]}; k++ )); do
+    proc_args+=(${tweakreg_kwargs[k]})
 done
-for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
-    proc_args+=(${resample_kwargs[i]})
+for (( k = 0; k < ${#resample_kwargs[@]}; k++ )); do
+    proc_args+=(${resample_kwargs[k]})
 done
 if [[ $overwrite -gt 0 ]]; then
     proc_args+=(--overwrite)

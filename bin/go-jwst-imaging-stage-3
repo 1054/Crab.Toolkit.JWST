@@ -241,31 +241,31 @@ done
 # Run step 1
 dir_out="${output_dir}"
 proc_args=()
-for (( i = 0; i < ${#info_table_kwargs[@]}; i++ )); do
-    proc_args+=(${info_table_kwargs[i]})
+for (( k = 0; k < ${#info_table_kwargs[@]}; k++ )); do
+    proc_args+=(${info_table_kwargs[k]})
 done
-for (( i = 0; i < ${#combine_kwargs[@]}; i++ )); do
-    proc_args+=(${combine_kwargs[i]})
-    if [[ "${combine_kwargs[i]}" == "--combine-obsnum" ]] || [[ "${combine_kwargs[i]}" == "--combine-obs" ]]; then
+for (( k = 0; k < ${#combine_kwargs[@]}; k++ )); do
+    proc_args+=(${combine_kwargs[k]})
+    if [[ "${combine_kwargs[k]}" == "--combine-obsnum" ]] || [[ "${combine_kwargs[k]}" == "--combine-obs" ]]; then
         if [[ "$dir_out" != *"_multiobs"* ]]; then
             dir_out="${dir_out}_multiobs"
         fi
-    elif [[ "${combine_kwargs[i]}" == "--combine-visitnum" ]] || [[ "${combine_kwargs[i]}" == "--combine-visit" ]]; then
+    elif [[ "${combine_kwargs[k]}" == "--combine-visitnum" ]] || [[ "${combine_kwargs[k]}" == "--combine-visit" ]]; then
         if [[ "$dir_out" != *"_multivisit"* ]] && [[ "$dir_out" != *"_multiobs"* ]]; then
             dir_out="${dir_out}_multivisit"
         fi
     fi
 done
-for (( i = 0; i < ${#tweakreg_kwargs[@]}; i++ )); do
-    proc_args+=(${tweakreg_kwargs[i]})
-    if [[ "${tweakreg_kwargs[i]}" == "--abs-refcat" ]]; then
+for (( k = 0; k < ${#tweakreg_kwargs[@]}; k++ )); do
+    proc_args+=(${tweakreg_kwargs[k]})
+    if [[ "${tweakreg_kwargs[k]}" == "--abs-refcat" ]]; then
         if [[ "$dir_out" != *"_absref"* ]]; then
             dir_out="${dir_out}_absref"
         fi
     fi
 done
-for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
-    proc_args+=(${resample_kwargs[i]})
+for (( k = 0; k < ${#resample_kwargs[@]}; k++ )); do
+    proc_args+=(${resample_kwargs[k]})
 done
 if [[ $overwrite -gt 0 ]]; then
     proc_args+=(--overwrite)
@@ -431,8 +431,8 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
                 echo "Found \"$file_out2\" and overwrite is not set. Skipping."
             else
                 proc_args=()
-                for (( i = 0; i < ${#sextractor_kwargs[@]}; i++ )); do
-                    proc_args+=(${sextractor_kwargs[i]})
+                for (( k = 0; k < ${#sextractor_kwargs[@]}; k++ )); do
+                    proc_args+=(${sextractor_kwargs[k]})
                 done
                 if [[ $overwrite -gt 0 ]]; then
                     proc_args+=(--overwrite)
@@ -461,17 +461,17 @@ if [[ $reprocess_with_source_emission_mask -gt 0 ]]; then
     # Redo stage 3 step 1 mosaic
     redo_dir_out="${dir_out}_redone_with_source_emission_mask"
     proc_args=()
-    for (( i = 0; i < ${#info_table_kwargs[@]}; i++ )); do
-        proc_args+=(${info_table_kwargs[i]})
+    for (( k = 0; k < ${#info_table_kwargs[@]}; k++ )); do
+        proc_args+=(${info_table_kwargs[k]})
     done
-    for (( i = 0; i < ${#combine_kwargs[@]}; i++ )); do
-        proc_args+=(${combine_kwargs[i]})
+    for (( k = 0; k < ${#combine_kwargs[@]}; k++ )); do
+        proc_args+=(${combine_kwargs[k]})
     done
-    for (( i = 0; i < ${#tweakreg_kwargs[@]}; i++ )); do
-        proc_args+=(${tweakreg_kwargs[i]})
+    for (( k = 0; k < ${#tweakreg_kwargs[@]}; k++ )); do
+        proc_args+=(${tweakreg_kwargs[k]})
     done
-    for (( i = 0; i < ${#resample_kwargs[@]}; i++ )); do
-        proc_args+=(${resample_kwargs[i]})
+    for (( k = 0; k < ${#resample_kwargs[@]}; k++ )); do
+        proc_args+=(${resample_kwargs[k]})
     done
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
