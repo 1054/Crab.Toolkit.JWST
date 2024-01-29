@@ -181,6 +181,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
                             matchedflag[kk] = False
         # get the matches (as indices into refcat)
         matches = np.argwhere(matchedflag).ravel()
+        # also get the non-matches
+        nonmatches = np.argwhere(~matchedflag).ravel()
         # make plot
         ax = axes[ipanel]
         ax.axis('on')
@@ -272,8 +274,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             matched_abs_refcat_ra[imfile] = refra[idx[matches][~outliers]]
             matched_abs_refcat_dec[imfile] = refdec[idx[matches][~outliers]]
             # 
-            non_matched_cat_ra[imfile] = ra[~matches] - d_ra_mean / 3600.0 * np.cos(np.deg2rad(dec[~matches]))
-            non_matched_cat_dec[imfile] = dec[~matches] - d_dec_mean / 3600.0
+            non_matched_cat_ra[imfile] = ra[nonmatches] - d_ra_mean / 3600.0 / np.cos(np.deg2rad(dec[nonmatches]))
+            non_matched_cat_dec[imfile] = dec[nonmatches] - d_dec_mean / 3600.0
             # 
             ax.plot([-lim, lim], [0., 0.], color='k', ls='dashed', lw=0.6, alpha=0.7)
             ax.plot([0., 0.], [-lim, lim], color='k', ls='dashed', lw=0.6, alpha=0.7)
