@@ -126,10 +126,14 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         ra, dec = wcs.all_pix2world(x, y, 1) # wcs.wcs_pix2world(x, y) is not enough # internally I use DS9 1-based pixcoord
         if initial_offset is not None:
             ioffra, ioffdec = initial_offset
-            if ioffra != 0 and ioffdec != 0:
+            if ioffra != 0 or ioffdec != 0:
                 logger.info('Applying initial offset {} {} arcsec for {}'.format(ioffra, ioffdec, imfile))
+            if ioffra != 0:
                 dec -= ioffdec / 3600.0
+            if ioffdec != 0:
                 ra -= ioffra / 3600.0 / np.cos(np.deg2rad(dec))
+        else:
+            ioffra, ioffdec = 0.0, 0.0
         catcoords = SkyCoord(ra*u.deg, dec*u.deg, frame=FK5)
         colra = [colname for colname in ['RA', 'ra', 'ALPHA_J2000'] if colname in refcat.colnames][0]
         coldec = [colname for colname in ['DEC', 'Dec', 'dec', 'DELTA_J2000'] if colname in refcat.colnames][0]
@@ -203,6 +207,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
                 d_dec += ioffdec
                 d_px += (-ioffra/pixsc)
                 d_py += (ioffdec/pixsc)
+                ra += ioffra / 3600.0 / np.cos(np.deg2rad(dec))
+                dec += ioffdec / 3600.0
             # 
             #for imatch in matches:
             #    key = refid[imatch]
