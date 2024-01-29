@@ -9,7 +9,7 @@ mpl.rcParams['figure.max_open_warning'] = 0
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import astropy.units as u
-from astropy.table import Table
+from astropy.table import Table, vstack
 from astropy.io import fits
 from astropy.wcs import WCS, FITSFixedWarning
 from astropy.wcs.utils import proj_plane_pixel_area
@@ -36,6 +36,7 @@ default_outlier_sigma = 5.0
 default_initial_offset = [0.0, 0.0] # arcsec
 default_output_dir = None
 default_output_abs_refcat = None
+default_expand_abs_refcat = False
 default_input_index_base = '1'
 default_output_index_base = '0'
 
@@ -53,12 +54,13 @@ def match_cat_file_to_abs_refcat_with_2dhist(
         initial_offset = default_initial_offset, 
         output_dir = default_output_dir, 
         output_abs_refcat = default_output_abs_refcat, # also output the filtered abs_refcat
+        expand_abs_refcat = default_expand_abs_refcat, # expand the output abs refcat or not?
         input_index_base = default_input_index_base, # the input image catalog listed in catfile should have 1-based x y coordinates
         output_index_base = default_output_index_base, # the output catalog x y coordinate base, default is 0 because jwst pipeline tweakwcs uses that.
     ):
 
     # check user input
-    if output_suffix is None:
+    if output_suffix is None or output_suffix == '':
         output_suffix = '_new2dhist'
     if outlier_sigma is None:
         outlier_sigma = 5.0
@@ -110,6 +112,8 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     matched_abs_refcat_y = OrderedDict()
     matched_abs_refcat_ra = OrderedDict()
     matched_abs_refcat_dec = OrderedDict()
+    non_matched_cat_ra = OrderedDict()
+    non_matched_cat_dec = OrderedDict()
     for imfile in cats:
         header = fits.getheader(imfile, 'SCI')
         wcs = WCS(header, naxis=2)
@@ -268,6 +272,9 @@ def match_cat_file_to_abs_refcat_with_2dhist(
             matched_abs_refcat_ra[imfile] = refra[idx[matches][~outliers]]
             matched_abs_refcat_dec[imfile] = refdec[idx[matches][~outliers]]
             # 
+            non_matched_cat_ra[imfile] = ra[~matches] - d_ra_mean
+            non_matched_cat_dec[imfile] = dec[~matches] - d_dec_mean
+            # 
             ax.plot([-lim, lim], [0., 0.], color='k', ls='dashed', lw=0.6, alpha=0.7)
             ax.plot([0., 0.], [-lim, lim], color='k', ls='dashed', lw=0.6, alpha=0.7)
         # 
@@ -418,10 +425,30 @@ def match_cat_file_to_abs_refcat_with_2dhist(
     if output_abs_refcat != '':
         if 'name' not in refcat.meta: 
             refcat.meta['name'] = os.path.splitext(os.path.basename(abs_refcat))[0]
-        refcat = refcat[matched_abs_refcat_mask]
+        if expand_abs_refcat:
+            # expand the abs refcat with the catalogs in the catfile, with astrometry correction
+            #<TODO><20240129># we do not check if the catalogs from the catfile have overlaps!
+            expandcats = [refcat]
+            expanding_id = len(refcat)
+            if type(refcat['ID'][0]) != int:
+                refcat['ID'] = np.arange(len(refcat), dtype=int) + 1
+            for imfile in cats:
+                cat = cats[imfile]
+                expanding_ra = non_matched_cat_ra[imfile]
+                expanding_dec = non_matched_cat_dec[imfile]
+                expandcats.append(Table({
+                    'ID': np.arange(len(expanding_ra), dtype=int) + 1 + expanding_id, 
+                    'RA': expanding_ra, 
+                    'DEC': expanding_dec
+                }))
+                expanding_id += len(expanding_ra)
+            refcat = vstack(expandcats)
+        else:
+            # trim abs refcat to the matched ones
+            refcat = refcat[matched_abs_refcat_mask]
         if os.path.isfile(output_abs_refcat):
             shutil.move(output_abs_refcat, output_abs_refcat+'.backup')
-        refcat.write(output_abs_refcat)
+        refcat.write(output_abs_refcat) # , format='fits'
         logger.info('Output to {!r}'.format(output_abs_refcat))
     
     # return
@@ -435,20 +462,26 @@ def match_cat_file_to_abs_refcat_with_2dhist(
 @click.argument('cat_file', type=click.Path(exists=True))
 @click.argument('abs_refcat', type=click.Path(exists=True))
 @click.option('--search-radius', type=float, default=default_search_radius, help='coordinate matching max search radius in arcsec.')
+@click.option('--min-separation', type=float, default=default_min_separation, help='min separation.')
 @click.option('--output-suffix', type=str, default=default_output_suffix, help='output suffix.')
 @click.option('--outlier-sigma', type=float, default=default_outlier_sigma, help='filter outlier by large offsets, in sigma of the offset distribution.')
 @click.option('--initial-offset', type=float, nargs=2, default=default_initial_offset, help='initial offset (RA_offset, Dec_offset) in arcsec, increasing towards East and North, for all images in the input catfile.')
+@click.option('--output-dir', type=click.Path(exists=False), default=default_output_dir, help='')
 @click.option('--output-abs-refcat', type=click.Path(exists=False), default=default_output_abs_refcat, help='also output the filtered abs_refcat.')
+@click.option('--expand-abs-refcat', type=bool, default=default_expand_abs_refcat, help='expand abs refcat? Default is False.')
 @click.option('--input-index-base', type=click.Choice(['0', '1']), default=default_input_index_base, help='x y pixcoord base for input sextractor catalog listed in catfile. The default is 1 because sextractor uses 1-based pixcoord.')
 @click.option('--output-index-base', type=click.Choice(['0', '1']), default=default_output_index_base, help='x y pixcoord base for output matched csv. The default is 0 because jwst pipeline tweakwcs correctors.py uses 0-based pixcoord.')
 def main(
         cat_file,
         abs_refcat,
         search_radius,
+        min_separation,
         output_suffix,
         outlier_sigma, 
         initial_offset, 
+        output_dir, 
         output_abs_refcat, 
+        expand_abs_refcat, 
         input_index_base, 
         output_index_base, 
     ):
@@ -456,13 +489,16 @@ def main(
     match_cat_file_to_abs_refcat_with_2dhist(
         cat_file, 
         abs_refcat, 
-        search_radius, 
-        output_suffix, 
-        outlier_sigma, 
-        initial_offset, 
-        output_abs_refcat, 
-        input_index_base, 
-        output_index_base, 
+        search_radius = search_radius, 
+        min_separation = min_separation, 
+        output_suffix = output_suffix, 
+        outlier_sigma = outlier_sigma, 
+        initial_offset = initial_offset, 
+        output_dir = output_dir, 
+        output_abs_refcat = output_abs_refcat, 
+        expand_abs_refcat = expand_abs_refcat, 
+        input_index_base = input_index_base, 
+        output_index_base = output_index_base, 
     )
 
 

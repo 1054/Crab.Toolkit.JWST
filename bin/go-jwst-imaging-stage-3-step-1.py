@@ -643,10 +643,10 @@ DEFAULT_ABS_FITGEOMETRY = 'rshift' # rotate and shift only
                                         help='Save the dataset-grouped info table to disk. Default file name is "info_table" and two formats are saved, "csv" and "txt".')
 @click.option('--use-custom-catalogs', type=bool, 
                                        default=True, 
-                                       help='Set use_custom_catalogs to True. Only valid if each "*_cal.fits" has a catalog named "*_cal_cat_for_tweakreg.csv" in the same directory.')
+                                       help='Set use_custom_catalogs to True (default is True). Only valid if each "*_cal.fits" has a catalog named "*_cal_cat_for_tweakreg.csv" in the same directory.')
 @click.option('--enforce-user-order', type=bool, 
                                       default=False, 
-                                      help='Set enforce_user_order to True for tweakreg_step. Align images in user specified order.')
+                                      help='Set enforce_user_order to True for tweakreg_step (default is False). Align images in user specified order.')
 @click.option('--grid-step', type=float, 
                              default=3.0, 
                              help='If `--very-big-mosaic` is set, this will be the box size to divide the full mosaic into. In arcminutes.')
@@ -656,8 +656,8 @@ DEFAULT_ABS_FITGEOMETRY = 'rshift' # rotate and shift only
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite?')
 @click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
-@click.option('--very-big-mosaic/--no-very-big-mosaic', is_flag=True, default=False, help='Very big mosaic mode! If Ture, we will divide images into boxes with size set by `grid_step` in arcmin.')
-@click.option('--outlier-detection-discard-highest', is_flag=True, default=False, help='Outlier detection discard the highest frame when making the median.')
+@click.option('--very-big-mosaic/--no-very-big-mosaic', is_flag=True, default=False, help='Very big mosaic mode! If Ture, we will divide images into boxes with size set by `grid_step` in arcmin. Default is False.')
+@click.option('--outlier-detection-discard-highest', is_flag=True, default=False, help='Outlier detection discard the highest frame when making the median. Default is False.')
 @click.option('--north-up', is_flag=True, default=False, help='Make image north-up.')
 def main(
         input_cal_files, 

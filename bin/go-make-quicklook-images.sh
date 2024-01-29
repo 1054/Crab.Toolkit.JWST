@@ -15,8 +15,8 @@ echo "script_dir: $script_dir"
 for (( i = 1; i <= $#; i++ )); do
     filepath="${!i}"
     if [[ "$filepath" == *".fits" ]]; then
-        echo $script_dir/go-make-quicklook-image.py "$filepath" "($i/$#)"
-        $script_dir/go-make-quicklook-image.py "$filepath"
+        echo $script_dir/util_make_quicklook_image.py "$filepath" "($i/$#)"
+        $script_dir/util_make_quicklook_image.py "$filepath"
     fi
 done
 
