@@ -1,9 +1,9 @@
 #!/bin/bash
-conda create -n jwstpmap1183 python=3.10
-conda_env="jwstpmap1183" # 2024-01-10, Affected data - MIRI, all MIRIMAGE modes, pars-outlierdetectionstep reference files. NIRCam, several subarray modes and full frame modes using the ALONG and BLONG detectors, dark reference files. 
-crds_context="jwst_1183.pmap"
+conda create -n jwstpmap1193 python=3.10
+conda_env="jwstpmap1193" # 2024-02-07
+crds_context="jwst_1193.pmap"
 source $(dirname $CONDA_EXE)/activate $conda_env
-pip install jwst # jwst==1.12.5
+pip install jwst # jwst==1.13.4
 pip install click tqdm astroquery lmfit reproject shapely regions
 pip install opencv-python # jwst pipeline snowball needs it
 conda install -c conda-forge -y astromatic-source-extractor
@@ -16,7 +16,7 @@ echo "export CRDS_SERVER_URL=\"https://jwst-crds.stsci.edu\"" >> $CONDA_PREFIX/e
 
 # also need to apply patches:
 repo_dir=$(dirname $(dirname ${BASH_SOURCE[0]}))
-bash ${repo_dir}/patches/20230614_outlier_detection_numpy_median_two_elements_bug/dzliu_tweakreg_step_model_container_from_asn_bug.apply_patch.sh
+#bash ${repo_dir}/patches/20230614_outlier_detection_numpy_median_two_elements_bug/dzliu_tweakreg_step_model_container_from_asn_bug.apply_patch.sh # no need after 1.13
 bash ${repo_dir}/patches/20220923_mirage_input_mosaic_image_fix/dzliu_mirage_input_mosaic_image_fix_patch.apply.sh
 
 
@@ -28,7 +28,7 @@ bash ${repo_dir}/patches/20220923_mirage_input_mosaic_image_fix/dzliu_mirage_inp
 # pip install jwst
 # Successfully installed: 
 #     BayesicFitting-3.2.0
-#     asdf-2.15.2
+#     asdf-3.0.1
 #     asdf-astropy-0.5.0
 #     asdf-coordinates-schemas-0.2.0
 #     asdf-standard-1.0.3
@@ -36,60 +36,65 @@ bash ${repo_dir}/patches/20220923_mirage_input_mosaic_image_fix/dzliu_mirage_inp
 #     asdf-unit-schemas-0.1.0
 #     asdf-wcs-schemas-0.3.0
 #     astropy-6.0.0
-#     astropy-iers-data-0.2024.1.8.0.30.55
+#     astropy-iers-data-0.2024.2.5.0.30.52
 #     attrs-23.2.0
-#     certifi-2023.11.17
+#     certifi-2024.2.2
 #     charset-normalizer-3.3.2
 #     contourpy-1.2.0
-#     crds-11.17.14
+#     crds-11.17.16
 #     cycler-0.12.1
 #     drizzle-1.14.4
 #     filelock-3.13.1
-#     fonttools-4.47.2
+#     fonttools-4.48.1
 #     future-0.18.3
-#     gwcs-0.19.0
+#     gwcs-0.20.0
 #     idna-3.6
+#     imageio-2.33.1
 #     importlib-metadata-7.0.1
 #     jmespath-1.0.1
-#     jsonschema-4.20.0
+#     jsonschema-4.21.1
 #     jsonschema-specifications-2023.12.1
-#     jwst-1.12.5
+#     jwst-1.13.4
 #     kiwisolver-1.4.5
+#     lazy_loader-0.3
 #     matplotlib-3.8.2
-#     numpy-1.25.2
+#     networkx-3.2.1
+#     numpy-1.26.4
 #     opencv-python-headless-4.9.0.80
 #     packaging-23.2
 #     parsley-1.3
 #     photutils-1.10.0
 #     pillow-10.2.0
 #     poppy-1.1.1
-#     psutil-5.9.7
+#     psutil-5.9.8
 #     pyerfa-2.0.1.1
 #     pyparsing-3.1.1
 #     python-dateutil-2.8.2
 #     pyyaml-6.0.1
-#     referencing-0.32.1
+#     referencing-0.33.0
 #     requests-2.31.0
-#     rpds-py-0.16.2
-#     scipy-1.9.3
+#     rpds-py-0.17.1
+#     scikit-image-0.22.0
+#     scipy-1.12.0
 #     semantic-version-2.10.0
 #     six-1.16.0
 #     spherical-geometry-1.3.1
-#     stcal-1.4.4
-#     stdatamodels-1.8.4
+#     stcal-1.5.2
+#     stdatamodels-1.9.1
 #     stpipe-0.5.1
 #     stsci.image-2.3.5
 #     stsci.imagestats-1.8.0
 #     stsci.stimage-0.2.6
+#     tifffile-2024.1.30
 #     tweakwcs-0.8.6
-#     urllib3-2.1.0
+#     urllib3-2.2.0
 #     wiimatch-0.3.2
 #     zipp-3.17.0
 
 # pip install mirage
 # Successfully installed: 
 #     Jinja2-3.1.3
-#     MarkupSafe-2.1.3
+#     MarkupSafe-2.1.5
 #     alabaster-0.7.16
 #     anyio-4.2.0
 #     argon2-cffi-23.1.0
@@ -112,12 +117,15 @@ bash ${repo_dir}/patches/20220923_mirage_input_mosaic_image_fix/dzliu_mirage_inp
 #     fastjsonschema-2.19.1
 #     fqdn-1.5.1
 #     grismconf-1.42
+#     h11-0.14.0
 #     h5py-3.10.0
 #     healpy-1.16.6
 #     hotsoss-0.1.7
+#     httpcore-1.0.2
+#     httpx-0.26.0
 #     imagesize-1.4.1
-#     ipykernel-6.28.0
-#     ipython-8.20.0
+#     ipykernel-6.29.2
+#     ipython-8.21.0
 #     ipywidgets-8.1.1
 #     isoduration-20.11.0
 #     jedi-0.19.1
@@ -128,10 +136,10 @@ bash ${repo_dir}/patches/20220923_mirage_input_mosaic_image_fix/dzliu_mirage_inp
 #     jupyter-console-6.6.3
 #     jupyter-core-5.7.1
 #     jupyter-events-0.9.0
-#     jupyter-lsp-2.2.1
-#     jupyter-server-2.12.4
-#     jupyter-server-terminals-0.5.1
-#     jupyterlab-4.0.10
+#     jupyter-lsp-2.2.2
+#     jupyter-server-2.12.5
+#     jupyter-server-terminals-0.5.2
+#     jupyterlab-4.1.0
 #     jupyterlab-pygments-0.3.0
 #     jupyterlab-server-2.25.2
 #     jupyterlab-widgets-3.0.9
@@ -141,20 +149,20 @@ bash ${repo_dir}/patches/20220923_mirage_input_mosaic_image_fix/dzliu_mirage_inp
 #     mirage-2.4.0
 #     mistune-3.0.2
 #     nbclient-0.9.0
-#     nbconvert-7.14.1
+#     nbconvert-7.16.0
 #     nbformat-5.9.2
-#     nest-asyncio-1.5.8
+#     nest-asyncio-1.6.0
 #     nircam-gsim-1.60
-#     notebook-7.0.6
+#     notebook-7.0.7
 #     notebook-shim-0.2.3
 #     numpy-1.23.4
 #     numpydoc-1.6.0
 #     openpyxl-3.1.2
-#     overrides-7.4.0
-#     pandocfilters-1.5.0
+#     overrides-7.7.0
+#     pandocfilters-1.5.1
 #     parso-0.8.3
 #     pexpect-4.9.0
-#     platformdirs-4.1.0
+#     platformdirs-4.2.0
 #     prometheus-client-0.19.0
 #     prompt-toolkit-3.0.43
 #     ptyprocess-0.7.0
@@ -171,12 +179,12 @@ bash ${repo_dir}/patches/20220923_mirage_input_mosaic_image_fix/dzliu_mirage_inp
 #     sniffio-1.3.0
 #     snowballstemmer-2.2.0
 #     sphinx-7.2.6
-#     sphinxcontrib-applehelp-1.0.7
-#     sphinxcontrib-devhelp-1.0.5
-#     sphinxcontrib-htmlhelp-2.0.4
+#     sphinxcontrib-applehelp-1.0.8
+#     sphinxcontrib-devhelp-1.0.6
+#     sphinxcontrib-htmlhelp-2.0.5
 #     sphinxcontrib-jsmath-1.0.1
-#     sphinxcontrib-qthelp-1.0.6
-#     sphinxcontrib-serializinghtml-1.1.9
+#     sphinxcontrib-qthelp-1.0.7
+#     sphinxcontrib-serializinghtml-1.1.10
 #     stack-data-0.6.3
 #     synphot-1.3.post0
 #     tabulate-0.9.0
@@ -194,16 +202,5 @@ bash ${repo_dir}/patches/20220923_mirage_input_mosaic_image_fix/dzliu_mirage_inp
 #     websocket-client-1.7.0
 #     widgetsnbextension-4.0.9
 
-
-
-
-# 20240207 -- JWST pipeline problem??
-# Command: 
-#   strun asdf_skymatch_export_config.asdf asn_skymatch.json
-# Screen Output:
-#   - stpipe.skymatch - INFO - Step skymatch done
-#   munmap_chunk(): invalid pointer
-#   Aborted (core dumped)
-# 
 
 

@@ -19,8 +19,8 @@ find . -maxdepth 2 -mindepth 2 -type d -name "calibrated2*" -print0 | \
         #process $line
         #echo $line
         if [[ ! -z $line ]]; then
-            echo "rm -rf $line/*before* $line/*skymatch* $line/*run_sextractor*"
-            rm -rf $line/*before* $line/*skymatch* $line/*run_sextractor*
+            echo "rm -rf $line/*before* $line/*skymatch* $line/*run_sextractor* $line/*_i2d.fits"
+            rm -rf $line/*before* $line/*skymatch* $line/*run_sextractor* $line/*_i2d.fits
         fi
     done
 

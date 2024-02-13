@@ -1,1 +1,22 @@
 
+New pipeline >=1.12 already has
+
+jwst/tweakreg/tweakreg_step.py:
+
+                if isinstance(input, str):
+                    asn_dir = path.dirname(input)
+                    asn_data = images.read_asn(input)
+                    for member in asn_data['products'][0]['members']:
+                        filename = member['expname']
+                        member['expname'] = path.join(asn_dir, filename)
+                        if filename in catdict:
+                            member['tweakreg_catalog'] = catdict[filename]
+                        elif 'tweakreg_catalog' in member:
+                            del member['tweakreg_catalog']
+
+                    images.from_asn(asn_data)
+
+                elif is_association(input):
+                    images.from_asn(input)
+
+
