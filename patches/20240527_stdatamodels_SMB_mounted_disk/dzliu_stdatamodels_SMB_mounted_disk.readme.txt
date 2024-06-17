@@ -1,0 +1,20 @@
+When running the scripts in an SMB-mounted disk, it reports an error:
+
+  File "/home/dzliu/Cloud/Github/Crab.Toolkit.JWST/bin/go-jwst-imaging-stage-1-step-1.py", line 224, in main
+    model.save(output_filepath, overwrite=True)
+  File "/home/dzliu/Software/CONDA/miniconda3/envs/jwstpmap1230/lib/python3.10/site-packages/stdatamodels/model_base.py", line 561, in save
+    self.to_fits(output_path, *args, **kwargs)
+  File "/home/dzliu/Software/CONDA/miniconda3/envs/jwstpmap1230/lib/python3.10/site-packages/stdatamodels/model_base.py", line 688, in to_fits
+    hdulist.writeto(init, *args, **kwargs)
+  File "/home/dzliu/Software/CONDA/miniconda3/envs/jwstpmap1230/lib/python3.10/site-packages/astropy/io/fits/hdu/hdulist.py", line 1032, in writeto
+    fileobj = _File(fileobj, mode=mode, overwrite=overwrite)
+  File "/home/dzliu/Software/CONDA/miniconda3/envs/jwstpmap1230/lib/python3.10/site-packages/astropy/io/fits/file.py", line 218, in __init__
+    self._open_filename(fileobj, mode, overwrite)
+  File "/home/dzliu/Software/CONDA/miniconda3/envs/jwstpmap1230/lib/python3.10/site-packages/astropy/io/fits/file.py", line 653, in _open_filename
+    self._file = open(self.name, IO_FITS_MODES[mode])
+FileNotFoundError: [Errno 2] No such file or directory: 'calibrated1_rates/jw01181010001_03201_00001_nrca1_rate.fits'
+
+
+This should be some bugs related to the SMB I/O in Python nested processes. Directly running `open('existing_folder/filepath.fits', 'wb')` creates no error. 
+
+The solution is adding an `open()` command in the "stdatamodels/model_base.py" before calling the astropy.io.fits `hdulist.writeto()` command. This solves the problem in an unexpected way. 

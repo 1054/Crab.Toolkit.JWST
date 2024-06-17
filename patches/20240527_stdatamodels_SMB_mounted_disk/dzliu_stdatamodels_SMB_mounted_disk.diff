@@ -1,0 +1,11 @@
+--- /home/dzliu/Software/CONDA/miniconda3/envs/jwstpmap1230/lib/python3.10/site-packages/stdatamodels/model_base.py.ori	2024-05-27 10:06:46.146011401 +0800
++++ /home/dzliu/Software/CONDA/miniconda3/envs/jwstpmap1230/lib/python3.10/site-packages/stdatamodels/model_base.py	2024-05-27 10:06:27.176905019 +0800
+@@ -684,6 +684,8 @@
+                 # Avoid this.
+                 if "ASDF" in hdulist:
+                     del hdulist["ASDF"]
++            #<DZLIU><20240527># print('DZLIU DEBUGGING stdatamodels model_base.py to_fits', 'init', str(init), 'args', str(args), 'kwargs', str(kwargs))
++            fp = open(init, 'wb') #<DZLIU><20240527># This solves open problem in an SMB mounted disk.
+             fp.close()
+             hdulist.writeto(init, *args, **kwargs)
+ 
