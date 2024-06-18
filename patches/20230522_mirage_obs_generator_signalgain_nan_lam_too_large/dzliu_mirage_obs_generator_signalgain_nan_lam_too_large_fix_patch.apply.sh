@@ -17,7 +17,7 @@ fi
 
 patch \
     ${site_packages_dir}/mirage/ramp_generator/obs_generator.py \
-    < ${script_dir}/dzliu_seed_image/fits_seed_image_fix_patch.txt
+    < ${script_dir}/dzliu_mirage_obs_generator_signalgain_nan_lam_too_large_fix_patch.txt
 
 
 # 20240619: still needed for jwst==1.14.0 and mirage==2.4.0
