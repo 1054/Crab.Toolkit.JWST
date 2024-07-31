@@ -15,8 +15,10 @@ from matplotlib import rcParams
 #rcParams['font.family'] = 'NGC'
 from matplotlib import pyplot as plt
 from matplotlib import patheffects as path_effects
-from scipy.spatial.qhull import ConvexHull
+#from scipy.spatial.qhull import ConvexHull
+from scipy.spatial import ConvexHull
 from scipy.spatial.distance import euclidean
+from photutils.segmentation import detect_sources, deblend_sources
 import pylab as p
 n = np
 
@@ -104,57 +106,73 @@ def convex_hull(points, graphic=True, smidgen=0.0075):
 
 
 @click.command()
-@click.argument('input_catalog_file', type=click.Path(exists=True))
-def main(input_catalog_file):
-    click.echo('Opening catalog file %r'%(input_catalog_file))
+@click.argument('input_fits_image_file', type=click.Path(exists=True))
+@click.option('--threshold', type=float, default=0.5, help='A pixel value threshold above which to extract convex hull regions.')
+@click.option('--minpixels', type=int, default=5, help='The minimum number of connected pixels, each greater than threshold, that an object must have to be detected.')
+def main(
+        input_fits_image_file,
+        threshold,
+        minpixels,
+    ):
+    click.echo('Opening FITS image file %r'%(input_fits_image_file))
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
+    ax.xaxis.set_inverted(True)
     
-    tb = Table.read(input_catalog_file)
-    # col_ra = [t for t in tb.colnames if t.upper() in ['RA']]
-    # col_dec = [t for t in tb.colnames if t.upper() in ['DEC']]
-    col_ra = [t for q in ['RA_DEG', 'RA', 'ALPHA_J2000'] for t in tb.colnames if t.upper() == q.upper()]
-    col_dec = [t for q in ['DEC_DEG', 'DEC', 'DELTA_J2000'] for t in tb.colnames if t.upper() == q.upper()]
-    assert len(col_ra) > 0
-    assert len(col_dec) > 0
-    x = tb[col_ra[0]].data
-    y = tb[col_dec[0]].data
-    if np.ma.isMaskedArray(x) and np.ma.isMaskedArray(y):
-        mask = np.logical_and(x.mask == False, y.mask == False)
-        x = x[mask].filled()
-        y = y[mask].filled()
-    points = np.column_stack([x, y])
-    print('points.shape', points.shape)
-    print('points.mean()', points.mean())
-    print('x.max() - x.min()', x.max() - x.min())
-    print('y.max() - y.min()', y.max() - y.min())
-    
-    ax.plot(x, y)
-    
-    hull = ConvexHull(points)
-    vertices = hull.vertices.tolist()
-    vertices.append(hull.vertices[0])
-    vertices = np.array(vertices).astype(int)
-    # perimeter = np.sum([euclidean(t1, t2) for t1, t2 in zip(points[vertices], points[vertices][1:])])
-    # print('hull.vertices', hull.vertices)
-    # print('hull.simplices', hull.simplices)
-    for simplex in hull.simplices:
-        ax.plot(points[simplex, 0], points[simplex, 1], 'r-')
-    
-    polygon_str = ''
-    for vertex in vertices:
-        if polygon_str != '':
-            polygon_str += ' '
-        polygon_str += '{} {}'.format(points[vertex][0], points[vertex][1])
-    
-    print('polygon_str: ')
-    print(polygon_str)
-    
-    # hull_points = convex_hull(points.T, graphic=False)
-    # ax.plot(hull_points[0], hull_points[1], 'g-') # not working
+    image, header = fits.getdata(input_fits_image_file, header=True)
+    wcs = WCS(header, naxis=2)
 
-    ax.set_xlim(ax.get_xlim()[::-1])
+    if isinstance(image[0,0], bool):
+        image = image.astype(int).astype(float)
+    elif not isinstance(image[0, 0], float):
+        image = image.astype(float)
+    ny, nx = image.shape
+    gy, gx = np.mgrid[0:ny, 0:nx]
+    all_ra, all_dec = wcs.wcs_pix2world(gx, gy, 0)
+
+    segment_image = detect_sources(image, threshold, minpixels)
+    print('segment_image.max_label', segment_image.max_label)
+
+    for seg_label in range(1, segment_image.max_label+1):
+        seg_mask = (segment_image.data == seg_label)
+        if np.count_nonzero(seg_mask) == 0:
+            continue
+
+        x = all_ra[seg_mask].ravel()
+        y = all_dec[seg_mask].ravel()
+        points = np.column_stack([x, y])
+        print('points.shape', points.shape)
+        print('points.mean()', points.mean())
+        print('x.max() - x.min()', x.max() - x.min())
+        print('y.max() - y.min()', y.max() - y.min())
+        
+        ax.plot(x, y)
+        
+        hull = ConvexHull(points)
+        vertices = hull.vertices.tolist()
+        vertices.append(hull.vertices[0])
+        vertices = np.array(vertices).astype(int)
+        # perimeter = np.sum([euclidean(t1, t2) for t1, t2 in zip(points[vertices], points[vertices][1:])])
+        # print('hull.vertices', hull.vertices)
+        # print('hull.simplices', hull.simplices)
+        for simplex in hull.simplices:
+            ax.plot(points[simplex, 0], points[simplex, 1], 'r-')
+        
+        polygon_str = ''
+        for vertex in vertices:
+            if polygon_str != '':
+                polygon_str += ' '
+            polygon_str += '{} {}'.format(points[vertex][0], points[vertex][1])
+        
+        print('polygon_str: ')
+        print(polygon_str)
+        
+        # hull_points = convex_hull(points.T, graphic=False)
+        # ax.plot(hull_points[0], hull_points[1], 'g-') # not working
+
+        #ax.set_xlim(ax.get_xlim()[::-1])
+    
     plt.show(block=True)
 
 
