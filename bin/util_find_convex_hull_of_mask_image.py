@@ -109,10 +109,12 @@ def convex_hull(points, graphic=True, smidgen=0.0075):
 @click.argument('input_fits_image_file', type=click.Path(exists=True))
 @click.option('--threshold', type=float, default=0.5, help='A pixel value threshold above which to extract convex hull regions.')
 @click.option('--minpixels', type=int, default=5, help='The minimum number of connected pixels, each greater than threshold, that an object must have to be detected.')
+@click.option('--output-file', type=click.Path(exists=False), default='extracted_regions.reg', help='The output regions file path.')
 def main(
         input_fits_image_file,
         threshold,
         minpixels,
+        output_file,
     ):
     click.echo('Opening FITS image file %r'%(input_fits_image_file))
 
@@ -133,6 +135,8 @@ def main(
 
     segment_image = detect_sources(image, threshold, minpixels)
     print('segment_image.max_label', segment_image.max_label)
+
+    regions_str_list = []
 
     for seg_label in range(1, segment_image.max_label+1):
         seg_mask = (segment_image.data == seg_label)
@@ -160,19 +164,36 @@ def main(
             ax.plot(points[simplex, 0], points[simplex, 1], 'r-')
         
         polygon_str = ''
+        polygon_region_str = 'polygon('
         for vertex in vertices:
             if polygon_str != '':
                 polygon_str += ' '
             polygon_str += '{} {}'.format(points[vertex][0], points[vertex][1])
-        
-        print('polygon_str: ')
+            if polygon_region_str != 'polygon(':
+                polygon_region_str += ' ,'
+            polygon_region_str += '{}, {}'.format(points[vertex][0], points[vertex][1])
+        polygon_region_str += ') # text={'+str(seg_label)+'}'
+
+        print(f'region {seg_label} polygon_str: ')
         print(polygon_str)
+
+        regions_str_list.append(polygon_region_str)
         
         # hull_points = convex_hull(points.T, graphic=False)
         # ax.plot(hull_points[0], hull_points[1], 'g-') # not working
 
         #ax.set_xlim(ax.get_xlim()[::-1])
     
+    if os.path.isfile(output_file):
+        shutil.move(output_file, output_file+'.backup')
+
+    with open(output_file, 'w') as fp:
+        fp.write('# DS9 Region File\n')
+        fp.write('fk5\n')
+        for region_str in regions_str_list:
+            fp.write(region_str+'\n')
+    print(f'Output to {output_file!r}')
+
     plt.show(block=True)
 
 
