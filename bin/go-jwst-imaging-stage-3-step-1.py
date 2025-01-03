@@ -101,6 +101,7 @@ from jwst.assign_wcs.util import update_fits_wcsinfo
 import jwst
 
 # Import stpipe.Pipeline
+import stpipe
 from stpipe import Pipeline
 
 # Import AsdfFile
@@ -261,7 +262,7 @@ def clean_up_intermediate_outlier_i2d_files(
     # for example the "outlier_i2d.fits", so that we do not find them when doing an `ls *_i2d.fits`
     reloading_image_model_files = []
     for i in range(len(image_list)):
-        image_file = image_list[i]
+        #20241229# image_file = image_list[i] # stpipe sice 0.7.0 ModelLibray is not subscripable
         # add all possible files to move
         files_to_move = []
         files_to_move.append(f'{output_name}_{i}_outlier_i2d.fits')
@@ -289,9 +290,13 @@ def clean_up_intermediate_outlier_i2d_files(
             reloading_image_model_files.append(f'{output_name}_{i}_{asn_id}_outlierdetection.fits')
     if reload_image_models: # not tested 20230412
         asn_from_list_to_file(reloading_image_model_files, 'asn_outlier_detection_reloading.json')
-        reloaded_image_models = datamodels.ModelContainer()
-        asn_data = reloaded_image_models.read_asn('asn_outlier_detection_reloading.json')
-        reloaded_image_models.from_asn(asn_data)
+        #20241229# -- https://github.com/spacetelescope/jwst/pull/8683 -- JP-3690: Switch from ModelContainer to ModelLibrary for image3 pipeline
+        if tuple(map(int, jwst.__version__.split('.'))) < tuple(map(int, str('1.16.0').split('.'))): # 20241229
+            reloaded_image_models = datamodels.ModelContainer()
+            asn_data = reloaded_image_models.read_asn('asn_outlier_detection_reloading.json')
+            reloaded_image_models.from_asn(asn_data)
+        else:
+            reloaded_image_models = datamodels.ModelLibrary('asn_outlier_detection_reloading.json')
         return reloaded_image_models
 
 
@@ -320,16 +325,35 @@ def run_individual_steps_for_one_asn_file(
         pipeline_object.tweakreg.save_results = True
         pipeline_object.tweakreg.search_output_file = False
         image_models = pipeline_object.tweakreg(input_models)
+        # 20241228 fix for new jwst stpipe/library.py
+        #20241229 if hasattr(image_models, '_open'):
+        #20241229     image_models._open = True
         # TODO: sometimes tweakreg update_fits_wcsinfo fails because `max_pix_error` is too small, 
         # we can run this manually with a larger `max_pix_error`, then save_model.
         #from jwst.assign_wcs.util import update_fits_wcsinfo
-        for image_model in image_models:
-            update_fits_wcsinfo(image_model,
-                max_pix_error=1.,
-                npoints=16)
-        pipeline_object.tweakreg.save_model(image_models, 
-            idx=None, suffix='tweakreg',
-            format=pipeline_object.tweakreg.name_format, force=True)
+        if tuple(map(int, stpipe.__version__.split('.'))) < tuple(map(int, str('0.7.0').split('.'))): # 20241229
+            for image_model in image_models:
+                update_fits_wcsinfo(image_model,
+                    max_pix_error=1.,
+                    npoints=16)
+        else:
+            with image_models:
+                for image_model in image_models:
+                    update_fits_wcsinfo(image_model,
+                        max_pix_error=1.,
+                        npoints=16)
+                    image_models.shelve(image_model)
+                    # see https://github.com/spacetelescope/stpipe/commit/a2a53bd1e6ea8db9da1dde62c85eed731fd03967
+        #20241229 if hasattr(image_models, '_open'): # 20241228 fix for new jwst stpipe/library.py
+        #20241229     image_models._open = False
+        if tuple(map(int, stpipe.__version__.split('.'))) < tuple(map(int, str('0.6.0').split('.'))): # 20241229
+            pipeline_object.tweakreg.save_model(image_models, 
+                idx=None, suffix='tweakreg',
+                format=pipeline_object.tweakreg.name_format, force=True)
+        else:
+            pipeline_object.tweakreg.save_model(image_models, 
+                idx=None, suffix='tweakreg',
+                force=True)
         # 
         # 2. skymatch bkgmatch
         pipeline_object.skymatch.output_file = output_name
@@ -443,14 +467,32 @@ def run_individual_steps_for_image_files(
                 image_models = pipeline_object.tweakreg('asn_tweakreg_{}_{}.json'.format(i, one_image_name))
                 # TODO: sometimes tweakreg update_fits_wcsinfo fails because `max_pix_error` is too small, 
                 # we can run this manually with a larger `max_pix_error`, then save_model.
-                #from jwst.assign_wcs.util import update_fits_wcsinfo
-                for image_model in image_models:
-                    update_fits_wcsinfo(image_model,
-                        max_pix_error=1.,
-                        npoints=16)
-                pipeline_object.tweakreg.save_model(image_models, 
-                    idx=None, suffix='tweakreg', # will save as '{dataset_name}_tweakreg.fits' (without '_cal')
-                    format=pipeline_object.tweakreg.name_format, force=True)
+                #20241229 from jwst.assign_wcs.util import update_fits_wcsinfo
+                #20241229 if hasattr(image_models, '_open'): # 20241228 fix for new jwst stpipe/library.py
+                #    image_models._open = True
+                if tuple(map(int, stpipe.__version__.split('.'))) < tuple(map(int, str('0.7.0').split('.'))): # 20241229
+                    for image_model in image_models:
+                        update_fits_wcsinfo(image_model,
+                            max_pix_error=1.,
+                            npoints=16)
+                else:
+                    with image_models:
+                        for image_model in image_models:
+                            update_fits_wcsinfo(image_model,
+                                max_pix_error=1.,
+                                npoints=16)
+                            image_models.shelve(image_model)
+                            # see https://github.com/spacetelescope/stpipe/commit/a2a53bd1e6ea8db9da1dde62c85eed731fd03967
+                #20241229 if hasattr(image_models, '_open'): # 20241228 fix for new jwst stpipe/library.py
+                #20241229     image_models._open = False
+                if tuple(map(int, stpipe.__version__.split('.'))) < tuple(map(int, str('0.6.0').split('.'))): # 20241229
+                    pipeline_object.tweakreg.save_model(image_models, 
+                        idx=None, suffix='tweakreg', # will save as '{dataset_name}_tweakreg.fits' (without '_cal')
+                        format=pipeline_object.tweakreg.name_format, force=True)
+                else:
+                    pipeline_object.tweakreg.save_model(image_models, 
+                        idx=None, suffix='tweakreg', # will save as '{dataset_name}_tweakreg.fits' (without '_cal')
+                        force=True)
             pipeline_object.tweakreg.abs_fitgeometry = temp_abs_fitgeometry
             pipeline_object.tweakreg.catfile = temp_catfile
             pipeline_object.tweakreg.abs_refcat = temp_abs_refcat
@@ -488,14 +530,23 @@ def run_individual_steps_for_image_files(
     pipeline_object.skymatch.search_output_file = False
     processing_image_files = processed_image_files
     if len(processing_image_files) == 1:
+        if os.path.exists(f'{output_name}_0_skymatch.fits') and not os.path.exists(f'{output_name}_skymatch.fits'):
+            shutil.copy2(f'{output_name}_0_skymatch.fits', f'{output_name}_skymatch.fits') # 20241231
         processed_image_files = [f'{output_name}_skymatch.fits']
     else:
         processed_image_files = [f'{output_name}_{i}_skymatch.fits' for i in range(len(processing_image_files))]
     pipeline_object.log.info('Checking skymatch output file existence: {}'.format(repr(processed_image_files)))
     if not np.all(list(map(os.path.exists, processed_image_files))):
+        if os.path.exists(f'{output_name}_0_skymatch.fits'): 
+            os.remove(f'{output_name}_0_skymatch.fits') # 20241231
+        if os.path.exists(f'{output_name}_skymatch.fits'):
+            os.remove(f'{output_name}_skymatch.fits') # 20241231
         asn_from_list_to_file(processing_image_files, 'asn_skymatch.json')
         asdf_from_step_to_file(pipeline_object.skymatch, 'asdf_skymatch.txt')
         image_models = pipeline_object.skymatch('asn_skymatch.json')
+        if len(processing_image_files) == 1:
+            if os.path.exists(f'{output_name}_0_skymatch.fits') and not os.path.exists(f'{output_name}_skymatch.fits'):
+                shutil.copy2(f'{output_name}_0_skymatch.fits', f'{output_name}_skymatch.fits') # 20241231
         del image_models
         gc.collect()
     else:
@@ -543,11 +594,17 @@ def run_individual_steps_for_image_files(
         asn_from_list_to_file(processing_image_files, 'asn_resample.json', asn_id=asn_id)
         asdf_from_step_to_file(pipeline_object.resample, 'asdf_resample.txt')
         #result_model = pipeline_object.resample('asn_resample.json') #-- NOT WORKING? WHY?
-        image_models = datamodels.ModelContainer()
-        asn_data = image_models.read_asn('asn_resample.json')
-        image_models.from_asn(asn_data) # see "tweakreg_step.py"
-        result_model = pipeline_object.resample(image_models)
-        del result_model, image_models, asn_data
+        #20241229# -- https://github.com/spacetelescope/jwst/pull/8683 -- JP-3690: Switch from ModelContainer to ModelLibrary for image3 pipeline
+        if tuple(map(int, jwst.__version__.split('.'))) < tuple(map(int, str('1.16.0').split('.'))): # 20241229
+            image_models = datamodels.ModelContainer()
+            asn_data = image_models.read_asn('asn_resample.json')
+            image_models.from_asn(asn_data) # see "tweakreg_step.py"
+            result_model = pipeline_object.resample(image_models)
+            del result_model, image_models, asn_data
+        else:
+            image_models = datamodels.ModelLibrary('asn_resample.json')
+            result_model = pipeline_object.resample(image_models)
+            del result_model, image_models
         gc.collect()
     else:
         pipeline_object.log.info('Step outlier_detection is skipped because all output files exist: {}'.format(repr(processed_image_files)))
@@ -562,11 +619,22 @@ def run_individual_steps_for_image_files(
     if not np.all(list(map(os.path.exists, processed_image_files))):
         asn_from_list_to_file(processing_image_files, 'asn_source_catalog.json')
         asdf_from_step_to_file(pipeline_object.source_catalog, 'asdf_source_catalog.txt')
-        image_models = datamodels.ModelContainer()
-        asn_data = image_models.read_asn('asn_source_catalog.json')
-        image_models.from_asn(asn_data) # see "tweakreg_step.py"
-        result_catalog = pipeline_object.source_catalog(image_models[0])
-        del result_catalog, image_models, asn_data
+        #20241229# -- https://github.com/spacetelescope/jwst/pull/8683 -- JP-3690: Switch from ModelContainer to ModelLibrary for image3 pipeline
+        if tuple(map(int, jwst.__version__.split('.'))) < tuple(map(int, str('1.16.0').split('.'))): # 20241229
+            image_models = datamodels.ModelContainer()
+            asn_data = image_models.read_asn('asn_source_catalog.json')
+            image_models.from_asn(asn_data) # see "tweakreg_step.py"
+            result_catalog = pipeline_object.source_catalog(image_models[0])
+            del result_catalog, image_models, asn_data
+        else:
+            image_models = datamodels.ModelLibrary('asn_source_catalog.json')
+            result_catalog = None
+            with image_models:
+                for image_model in image_models:
+                    result_catalog = pipeline_object.source_catalog(image_model)
+                    image_models.shelve(image_model)
+                    break
+            del result_catalog, image_models
         gc.collect()
     else:
         pipeline_object.log.info('Step source_catalog is skipped because all output files exist: {}'.format(repr(processed_image_files)))

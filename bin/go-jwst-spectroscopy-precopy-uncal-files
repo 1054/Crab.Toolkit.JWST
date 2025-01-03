@@ -26,6 +26,18 @@ fi
 script_dir=$(perl -MCwd -e 'print Cwd::abs_path shift' $(dirname "${BASH_SOURCE[0]}"))
 
 
+# Usage
+usage() {
+    echo "Usage:"
+    echo "    go-jwst-spectroscopy-precopy-uncal-files ../downloading/mastDownload/JWST/jw*/jw*_uncal.fits"
+    echo "Options:"
+    echo "    --check-grims # this selects wfss data only"
+    echo "Notes:"
+    echo "    This script will create directory structures to process spectroscopic data."
+    echo "    Only spectroscopic data with certain EXP_TYPE will be copied/linked to the current directory for further processing."
+}
+
+
 # Read user input
 iarg=1
 argstr=""
@@ -36,6 +48,7 @@ overwrite=0
 data_files=()
 check_grism=0
 dry_run=0
+print_usage=0
 unused_args=()
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^[-]+/--/g')
@@ -55,6 +68,8 @@ while [[ $iarg -le $# ]]; do
         elif [[ "$argstr" == "--dry-run" ]]; then
             dry_run=1
             echo "dry_run = $dry_run"
+        elif [[ "$argstr" == "--help" ]] || [[ "$argstr" == "--usage" ]]; then
+            print_usage=1
         else
             unused_args+=("${!iarg}")
         fi
@@ -67,8 +82,13 @@ done
 
 
 # Check user input
+if [[ $print_usage -gt 0 ]]; then
+    usage
+    exit
+fi
 if [[ ${#data_files[@]} -eq 0 ]]; then
     echo "No input JWST uncal file!"
+    usage
     exit 2
 fi
 
@@ -97,8 +117,16 @@ for (( i = 0; i < ${#data_files[@]}; i++ )); do
             continue
         fi
     fi
+
+    # check fits header EXP_TYPE, exclude imaging data sets
+    exp_type=$(fitsheader -k EXP_TYPE -e 0 "$data_file" | tail -n 1 | perl -pe 's/[^a-zA-Z0-9_ ]//g' | awk '{print $2}')
+    data_name=$(basename $data_file)
+    if [[ "$exp_type" == "NRC_IMAGE" ]] || [[ "$exp_type" == "MIR_IMAGE" ]]; then
+        echo "** Skipping imaging data set: $data_name (EXP_TYPE=$exp_type) *** " 
+        continue
+    fi
     
-    echo "*** Processing $data_file ***"
+    echo "*** Processing $data_name ***"
     
     if [[ $dry_run -gt 0 ]]; then
         continue

@@ -97,7 +97,7 @@ def setup_logger():
 @click.command()
 @click.argument('input_uncal_file', type=click.Path(exists=True))
 @click.argument('output_rate_file', type=click.Path(exists=False))
-@click.option('--maximum-cores', type=str, default='all')
+@click.option('--maximum-cores', type=str, default='1') # default='all'
 @click.option('--remove-snowballs/--no-remove-snowballs', is_flag=True, default=True)
 @click.option('--use-ellipses/--no-use-ellipses', is_flag=True, default=False, help='The jwst.jump `use_ellipses` paramter, for NIRCam only. Default is False. For MIRI this will always be True.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False)

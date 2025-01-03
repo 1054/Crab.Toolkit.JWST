@@ -245,6 +245,11 @@ def main(
     
     
     # check bkgsub output
+    print('Checking {!r}'.format(skymatchstep_filepath))
+    if not os.path.isfile(skymatchstep_filepath):
+        skymatchstep_filepath2 = skymatchstep_filepath.replace('cal_skymatchstep.fits', '0_cal_skymatchstep.fits') # 20241217
+        if os.path.isfile(skymatchstep_filepath2):
+            shutil.copy2(skymatchstep_filepath2, skymatchstep_filepath)
     assert os.path.isfile(skymatchstep_filepath)
     
     

@@ -108,27 +108,27 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--obsnum', 'select_obsnum', type=str, multiple=True, default=None, help='Specify a obsnum.')
 @click.option('--instrument', 'select_instrument', type=str, multiple=True, default=None, help='Specify an instrument.')
 @click.option('--filter', 'select_filter', type=str, multiple=True, default=None, help='Specify a filter.')
-@click.option('--kernel', type=click.Choice(['point', 'square', 'gaussian', 'tophat', 'turbo', 'lanczos2', 'lanczos3']), 
-                          default=DEFAULT_KERNEL, 
-                          help='Drizzle kernel.'+
-                               'The form of the kernel function used to distribute flux onto the output image. '+
-                               'Available kernels are square, gaussian, point, tophat, turbo, lanczos2, and lanczos3.')
-@click.option('--pixfrac', type=float, 
-                           default=DEFAULT_PIXFRAC, 
-                           help='Drizzle pixfrac.')
-@click.option('--pixel-scale-ratio', type=float, 
-                                     default=DEFAULT_PIXEL_SCALE_RATIO, 
-                                     help='Drizzle pixel scale ratio. Ratio of input to output pixel scale. '+
-                                          'A value of 0.5 means the output image would have 4 pixels sampling '+
-                                          'each input pixel. Ignored when --pixel-scale are provided.')
-@click.option('--pixel-scale', type=float, 
-                               default=DEFAULT_PIXEL_SCALE, 
-                               help='Drizzle pixel scale. '+
-                                    'Absolute pixel scale in arcsec. '+
-                                    'When provided, overrides pixel_scale_ratio.')
-@click.option('--abs-refcat', type=click.Path(exists=True), 
-                              default=None, 
-                              help='Absolute reference catalog, must contain `RA` and `DEC` columns, optionally `weight`. See `tweakwcs/imalign.py` `align_wcs`.')
+# @click.option('--kernel', type=click.Choice(['point', 'square', 'gaussian', 'tophat', 'turbo', 'lanczos2', 'lanczos3']), 
+#                           default=DEFAULT_KERNEL, 
+#                           help='Drizzle kernel.'+
+#                                'The form of the kernel function used to distribute flux onto the output image. '+
+#                                'Available kernels are square, gaussian, point, tophat, turbo, lanczos2, and lanczos3.')
+# @click.option('--pixfrac', type=float, 
+#                            default=DEFAULT_PIXFRAC, 
+#                            help='Drizzle pixfrac.')
+# @click.option('--pixel-scale-ratio', type=float, 
+#                                      default=DEFAULT_PIXEL_SCALE_RATIO, 
+#                                      help='Drizzle pixel scale ratio. Ratio of input to output pixel scale. '+
+#                                           'A value of 0.5 means the output image would have 4 pixels sampling '+
+#                                           'each input pixel. Ignored when --pixel-scale are provided.')
+# @click.option('--pixel-scale', type=float, 
+#                                default=DEFAULT_PIXEL_SCALE, 
+#                                help='Drizzle pixel scale. '+
+#                                     'Absolute pixel scale in arcsec. '+
+#                                     'When provided, overrides pixel_scale_ratio.')
+# @click.option('--abs-refcat', type=click.Path(exists=True), 
+#                               default=None, 
+#                               help='Absolute reference catalog, must contain `RA` and `DEC` columns, optionally `weight`. See `tweakwcs/imalign.py` `align_wcs`.')
 @click.option('--save-info-table-dir', type=click.Path(exists=False), 
                                        default=None, 
                                        help='Save the dataset-grouped info table to disk. Default directory is the `output_dir`.')
@@ -139,7 +139,7 @@ DEFAULT_PIXEL_SCALE = None
 @click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite?')
-@click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
+#@click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')
 def main(
         input_cal_files, 
         output_dir, 
@@ -147,18 +147,18 @@ def main(
         select_obsnum, 
         select_instrument, 
         select_filter, 
-        kernel, 
-        pixfrac, 
-        pixel_scale_ratio, 
-        pixel_scale, 
-        abs_refcat, 
+        #kernel, 
+        #pixfrac, 
+        #pixel_scale_ratio, 
+        #pixel_scale, 
+        #abs_refcat, 
         save_info_table_dir, 
         save_info_table_name, 
         combine_program, 
         combine_obsnum, 
         combine_filter, 
         overwrite, 
-        run_individual_steps,
+        #run_individual_steps,
     ):
     
     # Add script dir to sys path
@@ -468,9 +468,9 @@ def main(
         #     catfile = catfilename # we will run the process inside the output_subdir, so set only filename here
         
         
-        if abs_refcat is not None and abs_refcat != '':
-            abs_refcat = os.path.abspath(abs_refcat)
-            run_individual_steps = True
+        # if abs_refcat is not None and abs_refcat != '':
+        #     abs_refcat = os.path.abspath(abs_refcat)
+        #     run_individual_steps = True
         
         
         # Print progress
@@ -499,7 +499,10 @@ def main(
 
         
         # run
-        pipeline_object.run(asn_filename)
+        if not os.path.isfile(asn_filename+'.done'):
+            pipeline_object.run(asn_filename)
+            with open(asn_filename+'.done', 'w') as ofp:
+                ofp.write('\n')
         
         
         # here we output source table
@@ -524,8 +527,14 @@ def main(
                     x1d_table['source_dec'].append(hdul[1].header['SRCDEC'])
                     x1d_table['source_xpos'].append(hdul[1].header['SRCXPOS'])
                     x1d_table['source_ypos'].append(hdul[1].header['SRCYPOS'])
-                    x1d_table['source_name'].append(hdul[1].header['SRCNAME'])
-                    x1d_table['source_alias'].append(hdul[1].header['SRCALIAS'])
+                    if 'SRCNAME' in hdul[1].header:
+                        x1d_table['source_name'].append(hdul[1].header['SRCNAME'])
+                    else:
+                        x1d_table['source_name'].append(hdul[1].header['SLTNAME'])
+                    if 'SRCALIAS' in hdul[1].header:
+                        x1d_table['source_alias'].append(hdul[1].header['SRCALIAS'])
+                    else:
+                        x1d_table['source_alias'].append('NULL')
                     x1d_ascii_file = os.path.splitext(x1d_file)[0] + '.dat'
                     Table(hdul[1].data).write(x1d_ascii_file, format='ascii.fixed_width', 
                                               delimiter=' ', bookend=True, overwrite=True)
