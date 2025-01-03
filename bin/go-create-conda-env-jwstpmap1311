@@ -1,0 +1,47 @@
+#!/bin/bash
+conda create -n jwstpmap1311 python=3.11
+conda_env="jwstpmap1311" # 2024-12-11
+crds_context="jwst_1311.pmap"
+source $(dirname $CONDA_EXE)/activate $conda_env
+pip install jwst # jwst==1.16.1
+pip install click tqdm astroquery lmfit reproject shapely regions
+pip install opencv-python # jwst pipeline snowball needs it
+conda install -c conda-forge -y astromatic-source-extractor
+pip install soc_roman_tools # needed by webbpsf/distortion.py
+pip install mirage
+pip install --upgrade webbpsf # webbpsf-1.1.1 -> webbpsf-1.5.0, pysiaf-0.19.0 --> pysiaf-0.24.1
+pip install numpy==1.26.4 # jwst 1.16.1 requires numpy<2.0,>=1.22, mirage 2.4.0 requires numpy==1.23.4,
+pip install --upgrade photutils
+pip install --upgrade asdf-astropy
+pip install --upgrade scipy
+pip install --upgrade opencv-python-headless
+[ ! -d $CONDA_PREFIX/etc/conda/activate.d ] && mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+echo "export CRDS_CONTEXT=\"$crds_context\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+echo "export CRDS_PATH=\"\$HOME/jwst_crds_cache\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+echo "export CRDS_SERVER_URL=\"https://jwst-crds.stsci.edu\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+
+# also need to apply patches:
+repo_dir=$(dirname $(dirname ${BASH_SOURCE[0]}))
+#bash ${repo_dir}/patches/20230614_outlier_detection_numpy_median_two_elements_bug/dzliu_tweakreg_step_model_container_from_asn_bug.apply_patch.sh # no need after 1.13
+bash ${repo_dir}/patches/20220923_mirage_input_mosaic_image_fix/dzliu_mirage_input_mosaic_image_fix_patch.apply.sh
+
+
+# also need to manually download: 
+#     https://github.com/1054/Crab.Toolkit.SExtractorPlus
+# which is needed for my pipeline wrappers to run.
+
+
+# pip install jwst
+#     Successfully installed BayesicFitting-3.2.3 asdf-3.5.0 asdf-astropy-0.7.0 asdf-coordinates-schemas-0.3.0 asdf-standard-1.1.1 asdf-transform-schemas-0.5.0 asdf-wcs-schemas-0.4.0 astropy-7.0.0 astropy-iers-data-0.2024.12.9.0.36.21 attrs-24.2.0 certifi-2024.8.30 charset-normalizer-3.4.0 contourpy-1.3.1 crds-12.0.8 cycler-0.12.1 drizzle-2.0.0 filelock-3.16.1 fonttools-4.55.3 future-1.0.0 gwcs-0.21.0 idna-3.10 imageio-2.36.1 importlib-metadata-8.5.0 jmespath-1.0.1 jsonschema-4.23.0 jsonschema-specifications-2024.10.1 jwst-1.16.1 kiwisolver-1.4.7 lazy-loader-0.4 matplotlib-3.9.4 networkx-3.4.2 numpy-1.26.4 opencv-python-headless-4.10.0.84 packaging-24.2 parsley-1.3 photutils-2.0.2 pillow-11.0.0 poppy-1.1.1 psutil-6.1.0 pyerfa-2.0.1.5 pyparsing-3.2.0 python-dateutil-2.9.0.post0 pyyaml-6.0.2 referencing-0.35.1 requests-2.32.3 rpds-py-0.22.3 scikit-image-0.24.0 scipy-1.14.1 semantic-version-2.10.0 six-1.17.0 spherical-geometry-1.3.2 stcal-1.9.0 stdatamodels-2.1.2 stpipe-0.7.0 stsci.imagestats-1.8.3 stsci.stimage-0.2.9 synphot-1.5.0 tifffile-2024.12.12 tweakwcs-0.8.9 urllib3-2.2.3 wiimatch-0.3.2 zipp-3.21.0
+
+# pip install mirage
+#     Successfully uninstalled numpy-1.26.4
+#     Successfully uninstalled scipy-1.14.1
+#     Successfully uninstalled opencv-python-headless-4.10.0.84
+#     Successfully uninstalled photutils-2.0.2
+#     Successfully uninstalled asdf-astropy-0.7.0
+#     Successfully uninstalled pysiaf-0.24.1
+#     Successfully installed Jinja2-3.1.4 MarkupSafe-3.0.2 alabaster-1.0.0 anyio-4.7.0 argon2-cffi-23.1.0 argon2-cffi-bindings-21.2.0 arrow-1.3.0 asdf-astropy-0.6.1 asttokens-3.0.0 async-lru-2.0.4 babel-2.16.0 batman-package-2.4.9 bleach-6.2.0 bokeh-2.4.3 comm-0.2.2 debugpy-1.8.9 decorator-5.1.1 defusedxml-0.7.1 docutils-0.21.2 executing-2.1.0 fastjsonschema-2.21.1 fqdn-1.5.1 grismconf-1.51 h11-0.14.0 h5py-3.12.1 healpy-1.18.0 hotsoss-0.1.7 httpcore-1.0.7 httpx-0.28.1 imagesize-1.4.1 ipykernel-6.29.5 ipython-8.30.0 ipywidgets-8.1.5 isoduration-20.11.0 jedi-0.19.2 json5-0.10.0 jsonpointer-3.0.0 jupyter-1.1.1 jupyter-client-8.6.3 jupyter-console-6.6.3 jupyter-core-5.7.2 jupyter-events-0.10.0 jupyter-lsp-2.2.5 jupyter-server-2.14.2 jupyter-server-terminals-0.5.3 jupyterlab-4.3.3 jupyterlab-pygments-0.3.0 jupyterlab-server-2.27.3 jupyterlab-widgets-3.0.13 jwst-backgrounds-1.3.0 matplotlib-inline-0.1.7 mirage-2.4.0 mistune-3.0.2 nbclient-0.10.1 nbconvert-7.16.4 nbformat-5.10.4 nest-asyncio-1.6.0 nircam-gsim-1.71 notebook-7.3.1 notebook-shim-0.2.4 numpy-1.23.4 numpydoc-1.8.0 opencv-python-headless-4.7.0.72 overrides-7.7.0 pandocfilters-1.5.1 parso-0.8.4 pexpect-4.9.0 photutils-1.13.0 platformdirs-4.3.6 prometheus-client-0.21.1 prompt_toolkit-3.0.48 ptyprocess-0.7.0 pure-eval-0.2.3 pygments-2.18.0 pysiaf-0.19.0 python-json-logger-3.2.0 pyzmq-26.2.0 rfc3339-validator-0.1.4 rfc3986-validator-0.1.1 scipy-1.13.1 send2trash-1.8.3 sniffio-1.3.1 snowballstemmer-2.2.0 sphinx-8.1.3 sphinxcontrib-applehelp-2.0.0 sphinxcontrib-devhelp-2.0.0 sphinxcontrib-htmlhelp-2.1.0 sphinxcontrib-jsmath-1.0.1 sphinxcontrib-qthelp-2.0.0 sphinxcontrib-serializinghtml-2.0.0 stack_data-0.6.3 tabulate-0.9.0 terminado-0.18.1 tinycss2-1.4.0 tornado-6.4.2 traitlets-5.14.3 types-python-dateutil-2.9.0.20241206 typing-extensions-4.12.2 uri-template-1.3.0 wcwidth-0.2.13 webbpsf-1.1.1 webcolors-24.11.1 websocket-client-1.8.0 widgetsnbextension-4.0.13
+
+
+
