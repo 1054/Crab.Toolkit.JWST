@@ -128,15 +128,15 @@ fi
 
 
 # copy uncal files
-echo "${script_dir}/go-jwst-imaging-precopy-uncal-files ${unused_args[@]} $mast_download_dir/jw*/jw*_uncal.fits"
-${script_dir}/go-jwst-imaging-precopy-uncal-files ${unused_args[@]} $mast_download_dir/jw*/jw*_uncal.fits
+echo "${script_dir}/go-jwst-spectroscopy-precopy-uncal-files ${unused_args[@]} $mast_download_dir/jw*/jw*_uncal.fits"
+${script_dir}/go-jwst-spectroscopy-precopy-uncal-files ${unused_args[@]} $mast_download_dir/jw*/jw*_uncal.fits
 
 
 
 
 # precache crds reference files
 if [[ $skip_precache -eq 0 ]]; then
-    ${script_dir}/go-jwst-imaging-precache-crds-reference-files
+    ${script_dir}/go-jwst-spectroscopy-precache-crds-reference-files
 fi
 
 
@@ -146,9 +146,8 @@ ${script_dir}/go-jwst-imaging-presort-visits.py
 
 
 
-
-# create qsub job array script
-${script_dir}/go-qsub-jwst-imaging-jobarray-group.bash
+# 
+echo "Then please run stage 1 2 3"
 
 
 

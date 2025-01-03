@@ -39,12 +39,6 @@ info_table_argnames=("--save-info-table-dir" "--save-info-table-name")
 info_table_kwargs=()
 info_table_dir=""
 info_table_name="mosaic_info_table" # must match the default in "go-jwst-spectroscopy-stage-3-step-1.py"
-tweakreg_argnames=("--abs-refcat")
-tweakreg_kwargs=()
-resample_argnames=("--kernel" "--pixfrac" "--pixel-scale-ratio" "--pixel-scale")
-resample_kwargs=()
-reprocess_NIRCam=0
-reprocess_MIRI=1 # we will reprocess MIRI using masked source image as the background then redo stage 2 with image-for-image background subtraction
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
     if [[ "$argstr" == "--"* ]]; then
@@ -60,12 +54,6 @@ while [[ $iarg -le $# ]]; do
                 output_dir="${!iarg}"
                 echo "output_dir = \"$output_dir\""
             fi
-        elif [[ "$argstr" == "--reprocess-nircam" ]]; then
-            reprocess_NIRCam=1
-            echo "reprocess_NIRCam = $reprocess_NIRCam"
-        elif [[ "$argstr" == "--reprocess-miri" ]]; then
-            reprocess_MIRI=1
-            echo "reprocess_MIRI = $reprocess_MIRI"
         elif [[ " ${info_table_argnames[@]} " == *" $argstr "* ]]; then
             info_table_kwargs+=("${!iarg}")
             echo -n "${!iarg} = "
@@ -78,22 +66,6 @@ while [[ $iarg -le $# ]]; do
                 elif [[ " $argstr " == " --save-info-table-name " ]]; then
                     info_table_name="${!iarg}"
                 fi
-            fi
-        elif [[ " ${tweakreg_argnames[@]} " == *" $argstr "* ]]; then
-            tweakreg_kwargs+=("${!iarg}")
-            echo -n "${!iarg} = "
-            iarg=$((iarg+1))
-            if [[ $iarg -le $# ]]; then
-                tweakreg_kwargs+=("${!iarg}")
-                echo "\"${!iarg}\""
-            fi
-        elif [[ " ${resample_argnames[@]} " == *" $argstr "* ]]; then
-            resample_kwargs+=("${!iarg}")
-            echo -n "${!iarg} = "
-            iarg=$((iarg+1))
-            if [[ $iarg -le $# ]]; then
-                resample_kwargs+=("${!iarg}")
-                echo "\"${!iarg}\""
             fi
         else
             echo "Unkonwn argument: ${!iarg}"
@@ -183,12 +155,6 @@ dir_out="${output_dir}"
 proc_args=()
 for (( k = 0; k < ${#info_table_kwargs[@]}; k++ )); do
     proc_args+=(${info_table_kwargs[k]})
-done
-for (( k = 0; k < ${#tweakreg_kwargs[@]}; k++ )); do
-    proc_args+=(${tweakreg_kwargs[k]})
-done
-for (( k = 0; k < ${#resample_kwargs[@]}; k++ )); do
-    proc_args+=(${resample_kwargs[k]})
 done
 if [[ $overwrite -gt 0 ]]; then
     proc_args+=(--overwrite)

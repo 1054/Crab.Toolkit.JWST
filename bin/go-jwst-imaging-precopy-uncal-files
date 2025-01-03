@@ -26,6 +26,23 @@ fi
 script_dir=$(perl -MCwd -e 'print Cwd::abs_path shift' $(dirname "${BASH_SOURCE[0]}"))
 
 
+# Usage
+usage() {                                                                                                                      
+    echo "Usage: "
+    echo "    go-jwst-imaging-precopy-uncal-files INPUT_UNCAL_FILES"
+    echo "Example: "
+    echo "    go-jwst-imaging-precopy-uncal-files ../downloading/mastDownload/JWST/jw*/jw*_uncal.fits"
+    echo "Options:"
+    echo "    --check-grism # for grism direct imaging data, check grism header to exclude wfss and only keep direct imaging"
+    echo "    --check-fitlers \"F090W,F115W\" # only these filters"
+    echo "    --no-miri"
+    echo "    --only-miri"
+    echo "Notes:"
+    echo "    This script will create directory structures to process imaging data."
+    echo "    Only imaging data with certain EXP_TYPE will be copied/linked to the current directory for further processing."
+}                                                                                                                              
+
+
 # Read user input
 iarg=1
 argstr=""
@@ -36,7 +53,10 @@ overwrite=0
 data_files=()
 check_grism=0
 check_filters=()
+no_miri=0
+only_miri=0
 dry_run=0
+print_usage=0
 unused_args=()
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^[-]+/--/g')
@@ -49,10 +69,16 @@ while [[ $iarg -le $# ]]; do
             fi
         elif [[ "$argstr" == "--hard-copy" ]] || [[ "$argstr" == "--hardcopy" ]]; then
             hardcopy=1
-            echo "hardcopy = $hardcopy"
+           C echo "hardcopy = $hardcopy"
         elif [[ "$argstr" == "--check-grism" ]]; then
             check_grism=1
             echo "check_grism = $check_grism"
+        elif [[ "$argstr" == "--no-miri" ]]; then
+            no_miri=1
+            echo "no_miri = $no_miri"
+        elif [[ "$argstr" == "--only-miri" ]]; then
+            only_miri=1
+            echo "only_miri = $only_miri"
         elif [[ "$argstr" == "--check-filter" ]] || [[ "$argstr" == "--check-filters" ]]; then
             iarg=$((iarg+1))
             if [[ $iarg -le $# ]]; then
@@ -67,6 +93,8 @@ while [[ $iarg -le $# ]]; do
                 done
             fi
             echo "check_filters = ${check_filters[@]} (${#check_filters[@]})"
+        elif [[ "$argstr" == "--help" ]] || [[ "$argstr" == "--usage" ]]; then
+            print_usage=1
         elif [[ "$argstr" == "--dry-run" ]]; then
             dry_run=1
             echo "dry_run = $dry_run"
@@ -74,7 +102,18 @@ while [[ $iarg -le $# ]]; do
             unused_args+=("${!iarg}")
         fi
     else
-        data_files+=("${!iarg}")
+        if [[ "${!iarg}" == *"*"* ]]; then
+            temp_files=($(ls -1 ${!iarg}))
+            if [[ ${#temp_files[@]} -eq 0 ]]; then
+                echo "Error! Input file not found: ${!iarg}"
+                exit 255
+            fi
+        else
+            temp_files=("${!iarg}")
+        fi
+        for (( k=0; k<${#temp_files[@]}; k++ )); do
+            data_files+=("${temp_files[k]}")
+        done
     fi
     # 
     iarg=$((iarg+1))
@@ -82,15 +121,13 @@ done
 
 
 # Check user input
+if [[ $print_usage -gt 0 ]]; then
+    usage
+    exit
+fi
 if [[ ${#data_files[@]} -eq 0 ]]; then
     echo "No input JWST uncal file!"
-    echo "Usage: "
-    echo "    go-jwst-imaging-precopy-uncal-files INPUT_UNCAL_FILES"
-    echo "Example: "
-    echo "    go-jwst-imaging-precopy-uncal-files ../downloading/mastDownload/JWST/jw*/jw*_uncal.fits"
-    echo "Options:"
-    echo "    --check-grism"
-    echo "    --check-fitlers \"F090W,F115W\""
+    usage
     exit 2
 fi
 
@@ -116,7 +153,7 @@ for (( i = 0; i < ${#data_files[@]}; i++ )); do
     
     data_file="${data_files[i]}"
     
-    # 20221226 check_grism
+    # 20221226 check_grism --> 20241216 always check fits header
     if [[ $check_grism -gt 0 ]]; then
         exp_type=$(fitsheader -k EXP_TYPE -e 0 "$data_file" | tail -n 1 | perl -pe 's/[^a-zA-Z0-9_ ]//g' | awk '{print $2}')
         echo "** Checking $data_file (EXP_TYPE=$exp_type) *** "
@@ -124,12 +161,29 @@ for (( i = 0; i < ${#data_files[@]}; i++ )); do
             continue
         fi
     fi
+
+    # process only NRC_IMAGE and MIR_IMAGE
+    exp_type=$(fitsheader -k EXP_TYPE -e 0 "$data_file" | tail -n 1 | perl -pe 's/[^a-zA-Z0-9_ ]//g' | awk '{print $2}')
+    if [[ "$exp_type" != "NRC_IMAGE" ]] && [[ "$exp_type" != "MIR_IMAGE" ]]; then
+        echo "** Skipping non-image data set $data_file (EXP_TYPE=$exp_type) ***"
+        continue
+    fi
     
     # 20230921 check_filters
     if [[ ${#check_filters[@]} -gt 0 ]]; then
         filter_key=$(fitsheader -k FILTER -e 0 "$data_file" | tail -n 1 | perl -pe 's/[^a-zA-Z0-9_ ]//g' | awk '{print $2}')
         echo "** Checking $data_file (FILTER in ${check_filters[@]}) *** "
         if [[ " ${check_filters[@]} " != *" $filter_key "* ]]; then
+            continue
+        fi
+    fi
+
+    # 20241226 check miri
+    if [[ $no_miri -gt 0 ]] || [[ $only_miri -gt 0 ]]; then
+        if [[ $no_miri -gt 0 ]] && [[ $(echo "$data_file" | grep "_mirimage" | wc -l) -gt 0 ]]; then
+            continue
+        fi
+        if [[ $only_miri -gt 0 ]] && [[ $(echo "$data_file" | grep "_mirimage" | wc -l) -eq 0 ]]; then
             continue
         fi
     fi
