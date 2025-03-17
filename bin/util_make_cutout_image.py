@@ -151,9 +151,9 @@ def make_cutout_using_reproject(
 @click.command()
 @click.argument('input_fits_file', type=click.Path(exists=True))
 @click.argument('output_fits_file', type=click.Path(exists=False), required=False, default=None)
-@click.option('--fov', type=float, nargs=2, default=(None, None), help='Field of view in arcsec.')
-@click.option('--pixsc', type=float, default=None, help='Pixel size in arcsec.')
-@click.option('--center', type=float, nargs=2, default=(None, None), help='Center.')
+@click.option('--fov', type=float, nargs=2, default=(None, None), help='Field of view in arcsec, two float values.')
+@click.option('--pixsc', type=float, default=None, help='Pixel size in arcsec, one float value.')
+@click.option('--center', type=float, nargs=2, default=(None, None), help='Center RA Dec, two float values.')
 def main(
         input_fits_file, 
         output_fits_file, 
