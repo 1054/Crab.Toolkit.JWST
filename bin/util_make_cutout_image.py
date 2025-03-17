@@ -37,6 +37,7 @@ def make_cutout_using_reproject(
             ndim = 0
         if ndim == 2:
             break
+        ihdu += 1
     image = hdul[ihdu].data
     if ihdu == 0:
         header = hdul[ihdu].header
