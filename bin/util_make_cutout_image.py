@@ -48,7 +48,10 @@ def make_cutout_using_reproject(
         header['COMMENT'] = ''
         for key in hdul[ihdu].header:
             if key in header:
-                header[key+str(ihdu)] = hdul[ihdu].header[key]
+                try:
+                    header[key+str(ihdu)] = hdul[ihdu].header[key]
+                except:
+                    pass
             else:
                 header[key] = hdul[ihdu].header[key]
     hdul.close()
