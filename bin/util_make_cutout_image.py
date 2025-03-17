@@ -44,7 +44,7 @@ def make_cutout_using_reproject(
     else:
         header = copy.copy(hdul[0].header)
         header['COMMENT'] = ''
-        header['COMMENT'] = 'Header for extension {} (1-{})'.format(ihdu, len(hdulist))
+        header['COMMENT'] = 'Header for extension {} (1-{})'.format(ihdu, len(hdul))
         header['COMMENT'] = ''
         for key in hdul[ihdu].header:
             if key in header:
