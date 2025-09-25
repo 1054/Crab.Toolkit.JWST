@@ -41,7 +41,7 @@ if [[ $# -eq 0 ]]; then
     echo "    see sextractor_classic_go_find_sources.py --help"
     exit 255
 fi
-if [[ "$1" == *"nrca"* ]] || [[ "$1" == *"nrcb"* ]] || [[ "$1" == *"nrclong"* ]] || [[ "$1" == *"miri"* ]]; then
+if [[ "$1" == *"nrca"* ]] || [[ "$1" == *"nrcb"* ]] || [[ "$1" == *"nrclong"* ]] || [[ "$1" == *"miri"* ]] || [[ "$1" == *"_nis_"* ]]; then
     infile="$1"
     args=()
     iarg=2
@@ -64,7 +64,7 @@ if [[ "$1" == *"nrca"* ]] || [[ "$1" == *"nrcb"* ]] || [[ "$1" == *"nrclong"* ]]
         exit 255
     fi
 else
-    echo "Error! The input data is not a NIRCam or MIRI imaging data?"
+    echo "Error! The input data is not a NIRCam or MIRI or NIRISS imaging data?"
     exit 255
 fi
 

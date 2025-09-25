@@ -843,6 +843,8 @@ def main(
         info_dict['filter'] = header['FILTER'].strip()
         if 'PUPIL' in header:
             info_dict['pupil'] = header['PUPIL'].strip()
+            if info_dict['instrument'] == 'NIRISS' and info_dict['filter'] == 'CLEAR':
+                info_dict['filter'] = 'CLEAR_' + info_dict['pupil']
         else:
             info_dict['pupil'] = '""'
         info_dict['file_path'] = input_filepath

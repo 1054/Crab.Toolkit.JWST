@@ -15,6 +15,7 @@ import click
 import numpy as np
 from collections import namedtuple
 from astroquery.mast import Observations
+from astropy.table import Table
 
 JWST_Dataset_Name = namedtuple('JWST_Dataset_Name', 
                                ['proposal_id', 'obs_num', 'visit_num', 
@@ -153,15 +154,23 @@ def main(
         if obs_num.startswith('obs'):
             obs_num = re.sub(r'^obs', r'', obs_num)
         
-        if re.match(r'^[0-9]+$', obs_num):
-            obs_num = '{:03d}'.format(int(obs_num))
-        elif re.match(r'^[0-9]+(,[0-9]+)+$', obs_num):
-            obs_num = ['{:03d}'.format(int(t)) for t in obs_num.split(',')]
+        if obs_num.find(',') >= 0:
+            obs_num_list = obs_num.split(',')
         else:
-            logger.error('Error! Cannot understand the input obs_num. Example: 001')
+            obs_num_list = [obs_num]
+        try:
+            obs_num_integers = [int(t) for t in obs_num_list]
+        except:
+            logger.error('Error! Cannot understand the input obs_num "{}". Example: 001'.format(obs_num))
             sys.exit(255)
+        
+        for iobs in range(len(obs_num_list)):
+            if obs_num_integers[iobs] < 1000:
+                obs_num_list[iobs] = '{:03d}'.format(obs_num_integers[iobs])
+            else:
+                obs_num_list[iobs] = str(obs_num_integers[iobs])
     
-        logger.info('obs_num: {}'.format(obs_num))
+        logger.info('obs_num_list: {}'.format(obs_num_list))
     
     # login with token if available 
     if login_token is not None and login_token != '':
@@ -169,11 +178,18 @@ def main(
     
     # query the MAST databse
     logger.info('Running Observations.query_criteria')
-    obs_list = Observations.query_criteria(
-        obs_collection = "JWST",
-        proposal_id = proposal_id,
-        #calib_level = [3], # cannot directly find level 1 products, must search level3 first then call get_product_list
-    )
+    if os.path.exists(os.path.join(download_dir, 'obs_list.csv')):
+        logger.info('Loading from {}'.format(os.path.join(download_dir, 'obs_list.csv')))
+        obs_list = Table.read(os.path.join(download_dir, 'obs_list.csv'))
+        obs_list['obs_id'] = [str(t) for t in obs_list['obs_id']]
+    else:
+        obs_list = Observations.query_criteria(
+            obs_collection = "JWST",
+            proposal_id = proposal_id,
+            #calib_level = [3], # cannot directly find level 1 products, must search level3 first then call get_product_list
+        )
+        obs_list.write(os.path.join(download_dir, 'obs_list.csv'))
+        logger.info('Writing to {}'.format(os.path.join(download_dir, 'obs_list.csv')))
     logger.info('Returned {} rows'.format(len(obs_list)))
     
     # parse user input calib_level, extension, etc. for later filtering the product list
@@ -197,6 +213,10 @@ def main(
     if auxiliary:
         productType.append("AUXILIARY")
     logger.info('productType: {}'.format(productType))
+
+    # 20250925 skip non-first grism sources
+    grism_source_matcher = re.compile(r'^jw([0-9]+)\-o([0-9]+)_s([0-9]+)_nircam_(f[0-9]+[wm2]+)\-(grism[a-z]+)$')
+    grism_duplicate_list = []
     
     # loop obs list
     for iobs, obs in enumerate(obs_list):
@@ -206,10 +226,6 @@ def main(
         is_obs_num_matched = True
         if obs_num is not None:
             is_obs_num_matched = False
-            if isinstance(obs_num, str):
-                obs_num_list = [obs_num]
-            else:
-                obs_num_list = obs_num
             for obs_num_str in obs_num_list:
                 # example: jw01345-o052_t022_nircam_clear-f200w
                 #          jw01345-o061_s00410_nirspec_f170lp-g235m
@@ -224,6 +240,16 @@ def main(
                     if re.match(check_obs_id, obs['obs_id']) is not None:
                         is_obs_num_matched = True
                         break
+                    else:
+                        check_obs_id = 'jw{}-c{}_[ts][0-9]+_niriss.*'.format(proposal_id, obs_num_str)
+                        if re.match(check_obs_id, obs['obs_id']) is not None:
+                            is_obs_num_matched = True
+                            break
+                #logger.info('obs_id {}, proposal_id {}, obs_num {}'.format(obs['obs_id'], proposal_id, obs_num_str))
+                #if not is_obs_num_matched and obs['obs_id'].find('jw{}{}'.format(proposal_id, obs_num_str))>=0:
+                #     logger.info('obs_id {}, proposal_id {}, obs_num {}'.format(obs['obs_id'], proposal_id, obs_num_str))
+                #     is_obs_num_matched = True
+                #     break
         if not is_obs_num_matched:
             continue
         
@@ -241,16 +267,16 @@ def main(
                 raise Exception('Unexpected image_type {!r}'.format(image_type))
             # example: jw01345-o052_t022_nircam_clear-f200w
             check_image_type = 'jw{}-o[0-9]+_(t|s)[0-9]+_{}_.*'.format(proposal_id, check_ending1)
-            print("obs['obs_id']", obs['obs_id'], 'check_image_type', check_image_type)
+            #print("obs['obs_id']", obs['obs_id'], 'check_image_type', check_image_type)
             if re.match(check_image_type, obs['obs_id']) is not None:
                 is_image_type_matched = True
             else:
                 # example: jw01837004001_02101_00002_mirimage
                 check_image_type = 'jw{}[0-9]+_[x0-9]+_[0-9]+_{}_.*'.format(proposal_id, check_ending1)
-                print("obs['obs_id']", obs['obs_id'], 'check_image_type', check_image_type)
+                #print("obs['obs_id']", obs['obs_id'], 'check_image_type', check_image_type)
                 if re.match(check_image_type, obs['obs_id']) is not None:
                     is_image_type_matched = True
-        print("obs['obs_id']", obs['obs_id'], 'is_image_type_matched', is_image_type_matched)
+        #print("obs['obs_id']", obs['obs_id'], 'is_image_type_matched', is_image_type_matched)
         if not is_image_type_matched:
             continue
         
@@ -264,9 +290,21 @@ def main(
                 print("obs['obs_id']", obs['obs_id'], 'skipped due to only grism option')
                 continue
         
-        # 
+        # print progress
         logger.info('*** --- ({}/{}) "{}" --- ***'.format(iobs+1, len(obs_list), obs['obs_id']))
-        product_list = Observations.get_product_list(obs)
+        
+        # skip grism non-first targets
+        grism_source_matching = grism_source_matcher.match(obs['obs_id'])
+        if grism_source_matching:
+            grism_proj, grism_obs, grism_src, grism_filt, grism_row = grism_source_matching.groups()
+            grism_key = '_'.join([grism_proj, grism_obs, grism_filt, grism_row])
+            if grism_key in grism_duplicate_list:
+                logger.info('        skipping non-first grism source')
+                continue
+            grism_duplicate_list.append(grism_key)
+        
+        # get product list
+        product_list = Observations.get_product_list(str(obs['obsid']))
         if len(product_list) > 0:
             #print('product_list', product_list)
             products = Observations.filter_products(

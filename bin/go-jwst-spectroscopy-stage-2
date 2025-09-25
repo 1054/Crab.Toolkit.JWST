@@ -48,6 +48,7 @@ no_bkgsub=0
 no_sextractor=0
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^-([a-z]+.*)/--\1/g')
+    echo "argstr: ${argstr}"
     if [[ "$argstr" == "--"* ]]; then
         if [[ "$argstr" == "--work-dir" ]]; then
             iarg=$((iarg+1))
@@ -184,6 +185,7 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     if [[ $overwrite -gt 0 ]]; then
         proc_args+=(--overwrite)
     fi
+    echo "python -c \"from jwst import datamodels; print(datamodels.open('$file_in').meta.exposure.type)\" 2>/dev/null"
     exp_type=$(python -c "from jwst import datamodels; print(datamodels.open('$file_in').meta.exposure.type)" 2>/dev/null)
     echo "exp_type = \"$exp_type\""
     if [[ x"$exp_type" == x"" ]]; then
@@ -265,6 +267,74 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
         if [[ "$direct_image_t"x == ""x ]]; then
             echo "The file \$direct_image is not set, trying to find it from ../../processing_NIRCam_WFSS_direct_imaging/calibrated3_mosaics/jw${pronum}_obs${obsnum}_${scatfil}*/jw${pronum}_obs${obsnum}_${scatfil}*_i2d.fits"
             direct_image_t=$(ls "../../processing_NIRCam_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_${scatfil}*/jw${pronum}_obs${obsnum}_${scatfil}*_i2d.fits 2>/dev/null | tail -n 1)
+        fi
+        if [[ "$direct_image_t"x == ""x ]]; then
+            echo "Error! Could not find \"direct_image\". Please set one --direct-image!"
+            exit 255
+        else
+            proc_args+=(--direct-image "$direct_image_t")
+        fi
+        # 
+        echo "*** Running ***" python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+        python $script_dir/go-jwst-spectroscopy-stage-2-step-1.py "$file_in" "$file_out" "${proc_args[@]}"
+        
+    elif [[ "$exp_type" == "NIS_WFSS" ]]; then
+        
+        # use user input sourcecat or find sourcecat from ../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/
+        
+        pronum_obsnum_visnum=($(echo "$dataset_name" | perl -p -e 's/^jw([0-9]{5})([0-9]{3})([0-9]{3})_([0-9]+)_([0-9]+)_([a-zA-Z0-9]+)$/\1 \2 \3/g'))
+        if [[ ${#pronum_obsnum_visnum[@]} -ne 3 ]]; then
+            echo "Error! Could not match proposal number, observation number and visit number from the dataset name \"$dataset_name\"!"
+            exit 255
+        fi
+        pronum=${pronum_obsnum_visnum[0]}
+        obsnum=${pronum_obsnum_visnum[1]}
+        visnum=${pronum_obsnum_visnum[2]}
+        if [[ "$sourcecat_filter"x == ""x ]]; then
+            scatfil="NIRISS_"
+        else
+            scatfil="NIRISS_${sourcecat_filter}"
+        fi
+        sourcecat_t="$sourcecat"
+        if [[ "$sourcecat_t"x == ""x ]]; then
+            echo "The file \$sourcecat is not set, trying to find it from ../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*/jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*_cat.ecsv"
+            sourcecat_t=$(ls "../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*/jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*_cat.ecsv 2>/dev/null | tail -n 1)
+        fi
+        if [[ "$sourcecat_t"x == ""x ]]; then
+            echo "The file \$sourcecat is not set, trying to find it from ../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/jw${pronum}_obs${obsnum}_${scatfil}*/jw${pronum}_obs${obsnum}_${scatfil}*_cat.ecsv"
+            sourcecat_t=$(ls "../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_${scatfil}*/jw${pronum}_obs${obsnum}_${scatfil}*_cat.ecsv 2>/dev/null | tail -n 1)
+        fi
+        if [[ "$sourcecat_t"x == ""x ]]; then
+            echo "Error! Could not find \"sourcecat\". Please set one --sourcecat!"
+            exit 255
+        else
+            proc_args+=(--sourcecat "$sourcecat_t")
+        fi
+        # 
+        segmap_t="$segmap"
+        if [[ "$segmap_t"x == ""x ]]; then
+            echo "The file \$segmap is not set, trying to find it from ../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*/jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*_segm.fits"
+            segmap_t=$(ls "../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*/jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*_segm.fits 2>/dev/null | tail -n 1)
+        fi
+        if [[ "$segmap_t"x == ""x ]]; then
+            echo "The file \$segmap is not set, trying to find it from ../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/jw${pronum}_obs${obsnum}_${scatfil}*/jw${pronum}_obs${obsnum}_${scatfil}*_segm.fits"
+            segmap_t=$(ls "../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_${scatfil}*/jw${pronum}_obs${obsnum}_${scatfil}*_segm.fits 2>/dev/null | tail -n 1)
+        fi
+        if [[ "$segmap_t"x == ""x ]]; then
+            echo "Error! Could not find \"segmap\". Please set one --segmap!"
+            exit 255
+        else
+            proc_args+=(--segmap "$segmap_t")
+        fi
+        # 
+        direct_image_t="$direct_image"
+        if [[ "$direct_image_t"x == ""x ]]; then
+            echo "The file \$direct_image is not set, trying to find it from ../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*/jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*_i2d.fits"
+            direct_image_t=$(ls "../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*/jw${pronum}_obs${obsnum}_visit${visnum}_${scatfil}*_i2d.fits 2>/dev/null | tail -n 1)
+        fi
+        if [[ "$direct_image_t"x == ""x ]]; then
+            echo "The file \$direct_image is not set, trying to find it from ../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/jw${pronum}_obs${obsnum}_${scatfil}*/jw${pronum}_obs${obsnum}_${scatfil}*_i2d.fits"
+            direct_image_t=$(ls "../../processing_NIRISS_WFSS_direct_imaging/calibrated3_mosaics/"jw${pronum}_obs${obsnum}_${scatfil}*/jw${pronum}_obs${obsnum}_${scatfil}*_i2d.fits 2>/dev/null | tail -n 1)
         fi
         if [[ "$direct_image_t"x == ""x ]]; then
             echo "Error! Could not find \"direct_image\". Please set one --direct-image!"

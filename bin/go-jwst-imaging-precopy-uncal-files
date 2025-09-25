@@ -157,14 +157,14 @@ for (( i = 0; i < ${#data_files[@]}; i++ )); do
     if [[ $check_grism -gt 0 ]]; then
         exp_type=$(fitsheader -k EXP_TYPE -e 0 "$data_file" | tail -n 1 | perl -pe 's/[^a-zA-Z0-9_ ]//g' | awk '{print $2}')
         echo "** Checking $data_file (EXP_TYPE=$exp_type) *** "
-        if [[ "$exp_type" == "NRC_WFSS" ]]; then
+        if [[ "$exp_type" == "NRC_WFSS" ]] || [[ "$exp_type" == "NIS_WFSS" ]]; then
             continue
         fi
     fi
 
     # process only NRC_IMAGE and MIR_IMAGE
     exp_type=$(fitsheader -k EXP_TYPE -e 0 "$data_file" | tail -n 1 | perl -pe 's/[^a-zA-Z0-9_ ]//g' | awk '{print $2}')
-    if [[ "$exp_type" != "NRC_IMAGE" ]] && [[ "$exp_type" != "MIR_IMAGE" ]]; then
+    if [[ "$exp_type" != "NRC_IMAGE" ]] && [[ "$exp_type" != "MIR_IMAGE" ]] && [[ "$exp_type" != "NIS_IMAGE" ]]; then
         echo "** Skipping non-image data set $data_file (EXP_TYPE=$exp_type) ***"
         continue
     fi
