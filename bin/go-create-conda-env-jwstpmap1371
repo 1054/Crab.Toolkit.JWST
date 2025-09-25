@@ -1,0 +1,44 @@
+#!/bin/bash
+conda create -n jwstpmap1371 python=3.12
+conda_env="jwstpmap1371" # 2025-05-23
+crds_context="jwst_1371.pmap"
+source $(dirname $CONDA_EXE)/activate $conda_env
+pip install jwst # jwst==1.18.0 2025-04-09
+pip install click tqdm astroquery lmfit reproject shapely regions
+pip install opencv-python # jwst pipeline snowball needs it
+conda install -c conda-forge -y astromatic-source-extractor
+pip install soc_roman_tools # needed by webbpsf/distortion.py
+pip install mirage
+#pip install --upgrade webbpsf # webbpsf-1.1.1 -> webbpsf-1.5.0, pysiaf-0.19.0 --> pysiaf-0.24.1
+#pip install --upgrade stpsf
+#pip install numpy==1.26.4 # jwst 1.16.1 requires numpy<2.0,>=1.22, mirage 2.4.0 requires numpy==1.23.4,
+#pip install --upgrade photutils
+#pip install --upgrade asdf-astropy
+#pip install --upgrade scipy
+#pip install --upgrade opencv-python-headless
+[ ! -d $CONDA_PREFIX/etc/conda/activate.d ] && mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+echo "export CRDS_CONTEXT=\"$crds_context\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+echo "export CRDS_PATH=\"\$HOME/jwst_crds_cache\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+echo "export CRDS_SERVER_URL=\"https://jwst-crds.stsci.edu\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+echo "export MIRAGE_DATA=\"\$HOME/jwst_mirage_data/mirage_data\"" >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+
+# also need to apply patches:
+repo_dir=$(dirname $(dirname ${BASH_SOURCE[0]}))
+#bash ${repo_dir}/patches/20230614_outlier_detection_numpy_median_two_elements_bug/dzliu_tweakreg_step_model_container_from_asn_bug.apply_patch.sh # no need after 1.13
+bash ${repo_dir}/patches/20220923_mirage_input_mosaic_image_fix/dzliu_mirage_input_mosaic_image_fix_patch.apply.sh
+
+
+# also need to manually download: 
+#     https://github.com/1054/Crab.Toolkit.SExtractorPlus
+# which is needed for my pipeline wrappers to run.
+
+
+# pip install jwst
+#     Successfully installed 
+
+# pip install mirage
+#     Successfully uninstalled 
+#     Successfully installed 
+
+
+

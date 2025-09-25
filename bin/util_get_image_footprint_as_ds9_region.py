@@ -8,6 +8,7 @@ By Daizhong Liu @MPE.
 Last updates: 
     2023-01-08
     2025-01-19 edge_detection
+    2025-07-10 bug fix: ValueError: array and kernel have differing number of dimensions.
 
 """
 import os, sys, re, copy, shutil
@@ -27,8 +28,8 @@ from matplotlib import colors as mpl_colors
 from shapely.geometry import Point, Polygon
 from reproject import reproject_interp
 
-from jwst.associations.asn_from_list import asn_from_list
-from jwst.associations import load_asn
+#from jwst.associations.asn_from_list import asn_from_list
+#from jwst.associations import load_asn
 
 import warnings
 from astropy.wcs import FITSFixedWarning
@@ -37,7 +38,8 @@ warnings.filterwarnings('ignore', category=FITSFixedWarning)
 # code name and version
 CODE_NAME = 'util_get_image_footprint_as_ds9_region.py'
 CODE_AUTHOR = 'Daizhong Liu'
-CODE_VERSION = '20230108'
+#CODE_VERSION = '20230108'
+CODE_VERSION = '20250710'
 CODE_HOMEPAGE = ''
 
 # logging
@@ -109,6 +111,11 @@ def get_one_image_footprint(
                     break
         if header is None:
             raise Exception('Error! Could not read an image data from {!r}'.format(image_file))
+    # 
+    # 2025-07-10
+    while len(data.shape) > 2:
+        print('Warning! Data shape is {}, collapsing along the 0th axis'.format(data.shape))
+        data = np.nanmean(data, axis=0)
     # 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', category=Warning)
@@ -253,6 +260,7 @@ def get_image_footprint_as_ds9_region(
     
     # check if an asn_file has been given
     if asn_file is not None:
+        from jwst.associations import load_asn
         with open(asn_file, 'r') as fp:
             asn_dict = load_asn(fp)
             image_files = [t['expname'] for t in asn_dict['products'][0]['members'] if t['exptype']=='science']
@@ -312,8 +320,8 @@ def get_image_footprint_as_ds9_region(
 @click.option('--edge-detection', type=bool, is_flag=True, default=False, help='Use slow edge detection to get the precise footprint. Default is False.')
 @click.option('--invalid-pixels', type=float, multiple=True, default=[], help='Invalid pixel values. Default is just NaN pixels.')
 @click.option('--resample-pixel-size', type=float, default=None, help='Resampling at this pixel size for faster processing. In arcsec unit. In default the resampling is done at an image size of 300x300.')
-@click.option('--edge-diff-min', type=float, default=0.1, help='Smooth - original, value 0.0 - 1.0.')
-@click.option('--edge-diff-max', type=float, default=0.9, help='Smooth - original, value 0.0 - 1.0.')
+@click.option('--edge-diff-min', type=float, default=0.1, help='Flux changing fraction in diff map of Smooth - Original, value 0.0 - 1.0. default 0.1.')
+@click.option('--edge-diff-max', type=float, default=0.9, help='Flux changing fraction in diff map of Smooth - Original, value 0.0 - 1.0. default 0.9.')
 @click.option('--output-masked-image', type=click.Path(exists=False), default=None, help='Save masked image as FITS file.')
 @click.option('--output-edge-image', type=click.Path(exists=False), default=None, help='Save edge image as FITS file.')
 @click.option('--ncpu', 'n_parallel', type=int, default=None, help='Parallel processing.')

@@ -35,9 +35,21 @@ def make_cutout_using_reproject(
             ndim = len(hdul[ihdu].data.shape)
         except:
             ndim = 0
-        if ndim == 2:
+        if ndim >= 2:
             break
         ihdu += 1
+    
+    if ndim > 2:
+        while ndim > 2:
+            if hdul[ihdu].data.shape[0] == 1:
+                hdul[ihdu].data = hdul[ihdu].data[0]
+                if f'NAXIS{ndim}' in hdul[ihdu].header:
+                    del hdul[ihdu].header[f'NAXIS{ndim}']
+                hdul[ihdu].header['NAXIS'] -= 1
+                ndim -= 1
+            else:
+                raise Exception('Error! The input data is not a 2D image nor could be reduced to a 2D image!')
+    
     image = hdul[ihdu].data
     if ihdu == 0:
         header = hdul[ihdu].header
@@ -158,12 +170,14 @@ def make_cutout_using_reproject(
 @click.option('--fov', type=float, nargs=2, default=(None, None), help='Field of view in arcsec, two float values.')
 @click.option('--pixsc', type=float, default=None, help='Pixel size in arcsec, one float value.')
 @click.option('--center', type=float, nargs=2, default=(None, None), help='Center RA Dec, two float values.')
+@click.option('--set-output-bitpix-32', type=bool, is_flag=True, default=False, help='Set output BITPIX to -32 for compatibility.')
 def main(
         input_fits_file, 
         output_fits_file, 
         fov, 
         pixsc, 
         center, 
+        set_output_bitpix_32, 
     ):
     
     make_cutout_using_reproject(
@@ -174,6 +188,7 @@ def main(
         pixel_size = pixsc, 
         center_RA = center[0], 
         center_Dec = center[1], 
+        set_output_bitpix_32 = set_output_bitpix_32, 
     )
 
 

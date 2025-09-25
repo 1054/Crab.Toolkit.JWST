@@ -10,10 +10,13 @@ The default download dir is
 
 """
 
-import os, sys, re, datetime
-import click
+import os, sys, shutil, re, datetime
 import numpy as np
+import click
+import astropy.units as u
 from collections import namedtuple
+from astropy.coordinates import SkyCoord
+from astropy.table import Table
 from astroquery.mast import Observations
 
 JWST_Dataset_Name = namedtuple('JWST_Dataset_Name', 
@@ -95,81 +98,224 @@ def check_guide_star_data(product):
 
 
 
+class SkyCoordParamType(click.ParamType):
+    name = "SkyCoord"
+
+    def convert(self, value, param, ctx):
+        scoord = None
+        if isinstance(value, SkyCoord):
+            scoord = value
+        
+        elif isinstance(value, str):
+            if value.find(':') >= 0 or value.find('h') >= 0:
+                try:
+                    scoord = SkyCoord(value, unit=(u.hourangle, u.deg))
+                except ValueError:
+                    self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
+            else:
+                try:
+                    scoord = SkyCoord(value, unit=(u.deg, u.deg))
+                except ValueError:
+                    self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
+        
+        elif isinstance(value, (tuple, list)) and len(value) == 2:
+            if str(value[0]).find(':') >= 0 or str(value[0]).find('h') >= 0:
+                try:
+                    scoord = SkyCoord(value[0], value[1], unit=(u.hourangle, u.deg))
+                except ValueError:
+                    self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
+            else:
+                try:
+                    scoord = SkyCoord(value[0], value[1], unit=(u.deg, u.deg))
+                except ValueError:
+                    self.fail(f"{value!r} is not a valid SkyCoord", param, ctx)
+        
+        return scoord
+
+SkyCoordParamType_ = SkyCoordParamType()
+
+
+class SkyCoordArgument(click.Argument):
+    
+    def type_cast_value(self, ctx, value) -> list:
+        #print('SkyCoordArgument type_cast_value')
+        try:
+            #print('SkyCoordArgument type_cast_value value {} type {}'.format(value, type(value)))
+            assert len(value)%2==0
+            ra_dec_list = []
+            for ra, dec in zip(value[0::2], value[1::2]):
+                ra_dec_list.append(SkyCoordParamType_.convert((ra, dec), param=self, ctx=ctx))
+            #print('SkyCoordArgument type_cast_value ra_dec_list {}'.format(ra_dec_list))
+            return ra_dec_list
+        except Exception:
+            raise click.BadParameter(value)
+
+
+class SkyCoordOption(click.Option):
+    
+    def type_cast_value(self, ctx, value) -> list:
+        if value is None:
+            return None
+        #print('SkyCoordOption type_cast_value')
+        try:
+            #print('SkyCoordOption type_cast_value value {} type {}'.format(value, type(value)))
+            #assert len(value)%2==0
+            ra_dec_list = []
+            for ra_dec_pair in value:
+                ra, dec = ra_dec_pair
+                #print('SkyCoordOption type_cast_value ra dec {} {}'.format(ra, dec))
+                ra_dec_list.append(SkyCoordParamType_.convert((ra, dec), param=self, ctx=ctx))
+                #print('SkyCoordOption type_cast_value ra_dec_list {}'.format(ra_dec_list))
+            return ra_dec_list
+        except Exception:
+            raise click.BadParameter(value)
+
+
+
+
 @click.command()
-@click.argument('program', type=str)
-@click.option('--obs-num', '--obsnum', '--obs', type=str, default=None, help='Observation number as listed in the program information webpage.')
-@click.option('--calib-level', type=str, default='1', help='Selecting calib level. "1" for uncal data, "2" for rate data, "3" for drizzled image data. Can be multiple like "1,2,3".')
+@click.argument('skycoord', nargs=2, cls=SkyCoordArgument, type=SkyCoordParamType_)
+@click.option('--calib-level', type=str, default='3', help='Selecting calib level. "1" for uncal data, "2" for rate data, "3" for drizzled image data. Can be multiple like "1,2,3".')
 @click.option('--extension', type=str, default='fits', help='Selecting extension. Usually just "fits". Can be "fits,json,jpg,ecsv" if you want to get those files too.')
 @click.option('--preview', is_flag=True, default=False, help='Selecting preview files, e.g., i2d quicklook image in jpg format.')
 @click.option('--auxiliary', is_flag=True, default=False, help='Selecting auxiliary files, e.g., guide star data.')
-@click.option('--image-type', type=click.Choice(['nircam', 'miri']), default=None, help='Selecting nircam or miri image only, i.e., data set name ending with "nrc(a|b)(1|2|3|4|5|long)" or "mirimage".')
-@click.option('--guide-star-data/--no-guide-star-data', is_flag=True, default=False, help='Keeping or de-selecting guide star data by name matching ".*_gs-fg_*"')
-@click.option('--no-grism/--with-grism', is_flag=True, default=False)
-@click.option('--only-grism', is_flag=True, default=False)
+@click.option('--with-image', is_flag=True, default=True)
+@click.option('--with-nircam-imaging/--no-nircam-imaging', is_flag=True, default=True)
+@click.option('--with-miri-imaging/--no-miri-imaging', is_flag=True, default=True)
+@click.option('--with-niriss-imaging/--no-niriss-imaging', is_flag=True, default=True)
+@click.option('--with-spectroscopy', is_flag=True, default=True)
+@click.option('--with-nirspec-msa/--no-nirspec-msa', is_flag=True, default=True)
+@click.option('--with-nirspec-slit/--no-nirspec-slit', is_flag=True, default=True)
+@click.option('--with-nircam-wfss/--no-nircam-wfss', is_flag=True, default=True)
+@click.option('--with-niriss-wfss/--no-niriss-wfss', is_flag=True, default=True)
+@click.option('--with-niriss-soss/--no-niriss-soss', is_flag=True, default=True)
+@click.option('--with-ifu/--no-ifu', is_flag=True, default=True)
+@click.option('--with-nirspec-ifu/--no-nirspec-ifu', is_flag=True, default=True)
+@click.option('--with-miri-ifu/--no-miri-ifu', is_flag=True, default=True)
 @click.option('--download/--no-download', is_flag=True, default=False)
 @click.option('--download-dir', type=click.Path(exists=False), default='.')
+@click.option('--overwrite', is_flag=True, default=False)
 def main(
-        program, 
-        obs_num, 
+        skycoord, 
         calib_level, 
         extension, 
         preview, 
         auxiliary, 
-        image_type, 
-        guide_star_data, 
-        no_grism, 
-        only_grism, 
+        with_image, 
+        with_nircam_imaging, 
+        with_miri_imaging, 
+        with_niriss_imaging, 
+        with_spectroscopy, 
+        with_nirspec_msa, 
+        with_nirspec_slit, 
+        with_nircam_wfss, 
+        with_niriss_wfss, 
+        with_niriss_soss, 
+        with_ifu, 
+        with_nirspec_ifu, 
+        with_miri_ifu, 
         download, 
         download_dir, 
+        overwrite, 
     ):
 
     # setup logger
     logger, log_file = setup_logger()
     logger.info('log file: {}'.format(log_file))
     
-    # print user input program
-    logger.info('program: {}'.format(program))
+    # print user input skycoord
+    logger.info('skycoord: {}'.format(skycoord))
     
     # print user input download
     logger.info('download: {}'.format(download))
+
+    # determine instrument_names
+    # available names: https://outerspace.stsci.edu/display/MASTDOCS/JWST+Instrument+Names
+    instrument_names = []
+    if with_image:
+        if with_nircam_imaging:
+            instrument_names.append('NIRCAM/IMAGE')
+        if with_miri_imaging:
+            instrument_names.append('MIRI/IMAGE')
+        if with_niriss_imaging:
+            instrument_names.append('NIRISS/IMAGE')
+    if with_spectroscopy:
+        if with_nirspec_msa:
+            instrument_names.append('NIRSPEC/MSA')
+        if with_nirspec_slit:
+            instrument_names.append('NIRSPEC/SLIT')
+        if with_nircam_wfss:
+            instrument_names.append('NIRCAM/WFSS')
+        if with_niriss_wfss:
+            instrument_names.append('NIRISS/WFSS')
+        if with_niriss_soss:
+            instrument_names.append('NIRISS/SOSS')
+    if with_ifu:
+        if with_nirspec_ifu:
+            instrument_names.append('NIRSPEC/IFU')
+        if with_miri_ifu:
+            instrument_names.append('MIRI/IFU')
     
-    # check if program is a proposal ID or a known survey name
-    if re.match(r'^[0-9]+$', program):
-        proposal_id = '{:05d}'.format(int(program))
-    else:
-        proposal_id = get_proposal_id_from_survey_name(program)
-    
-    if proposal_id is None:
-        logger.error('Error! Cannot understand the input program ID. Example: 01345')
-        sys.exit(255)
-    
-    # print proposal id to query
-    logger.info('proposal_id: {}'.format(proposal_id))
-    
-    # check if user has specified an obs num
-    if obs_num is not None:
-        if obs_num.startswith('obs'):
-            obs_num = re.sub(r'^obs', r'', obs_num)
-        
-        if re.match(r'^[0-9]+$', obs_num):
-            obs_num = '{:03d}'.format(int(obs_num))
-        elif re.match(r'^[0-9]+(,[0-9]+)+$', obs_num):
-            obs_num = ['{:03d}'.format(int(t)) for t in obs_num.split(',')]
-        else:
-            logger.error('Error! Cannot understand the input obs_num. Example: 001')
-            sys.exit(255)
-    
-        logger.info('obs_num: {}'.format(obs_num))
-    
+    # skycoord_str
+    skycoord_str = skycoord.to_string('hmsdms', precision=1).replace(' ', '_')
+
     # query the MAST databse
     logger.info('Running Observations.query_criteria')
-    obs_list = Observations.query_criteria(
-        obs_collection = "JWST",
-        proposal_id = proposal_id,
-        #calib_level = [3], # cannot directly find level 1 products, must search level3 first then call get_product_list
-    )
-    logger.info('Returned {} rows'.format(len(obs_list)))
+    obs_lists = {}
+    product_lists = {}
+    for instrument_name in instrument_names:
+        instrument_name_str = instrument_name.lower().replace('/','_').replace('*','')
+        obs_list_csv_file = os.path.join(download_dir, f'obs_list_{skycoord_str}_{instrument_name_str}.csv')
+        if os.path.exists(obs_list_csv_file) and not overwrite:
+            logger.info(f'Reading from existing query "{obs_list_csv_file}". (Use --overwrite to force re-query.)')
+            obs_list = Table.read(obs_list_csv_file)
+            obs_list['obsid'] = [str(t) for t in obs_list['obsid']]
+        elif os.path.exists(obs_list_csv_file+'.nodata') and not overwrite:
+            logger.info(f'According to "{obs_list_csv_file}.nodata", no data found for this query. Skipping. (Use --overwrite to force re-query.)')
+            obs_list = None
+        else:
+            logger.info('Running query with Observations.query_criteria(instrument_name={!r})'.format(instrument_name))
+            radius = "0.0 deg"
+            if instrument_name.find('WFSS')>=0:
+                radius = "5.0 arcsec"
+            obs_list = Observations.query_criteria(
+                obs_collection = "JWST",
+                instrument_name = instrument_name,
+                coordinates = skycoord,
+                radius = radius,
+                #calib_level = [3], # cannot directly find level 1 products, must search level3 first then call get_product_list
+            )
+            logger.info('Returned {} rows'.format(len(obs_list)))
+            if obs_list is not None and len(obs_list) == 0:
+                obs_list = None
+                logger.info(f'Writing to "{obs_list_csv_file}.nodata".')
+                with open(obs_list_csv_file+'.nodata', 'w') as fp:
+                    fp.write('')
+            else:
+                logger.info(f'Writing to "{obs_list_csv_file}".')
+                if os.path.exists(obs_list_csv_file):
+                    shutil.move(obs_list_csv_file, obs_list_csv_file+'.backup')
+                obs_list.write(obs_list_csv_file)
+        
+        obs_lists[instrument_name] = obs_list
+
+        if obs_list is None:
+            continue
     
+        # get level-1 (uncal) product list
+        product_lists[instrument_name] = {}
+        for obs in obs_list:
+            if obs['provenance_name'] != 'APT': # APT means planned observations, there are no real data.
+                product_list = Observations.get_product_list(obs) # str(obs['obsID'])
+                product_lists[instrument_name][obs['obs_id']] = product_list
+
+
+
+
+
+
+
+
     # parse user input calib_level, extension, etc. for later filtering the product list
     if calib_level.find(',')>=0:
         calib_level = [int(t) for t in calib_level.replace(' ','').split(',')]
@@ -247,16 +393,6 @@ def main(
         print("obs['obs_id']", obs['obs_id'], 'is_image_type_matched', is_image_type_matched)
         if not is_image_type_matched:
             continue
-        
-        # check no_grism
-        if no_grism:
-            if obs['obs_id'].find('grism') >= 0:
-                print("obs['obs_id']", obs['obs_id'], 'skipped due to no grism option')
-                continue
-        elif only_grism:
-            if not (obs['obs_id'].find('grism') >= 0):
-                print("obs['obs_id']", obs['obs_id'], 'skipped due to only grism option')
-                continue
         
         # 
         logger.info('*** --- ({}/{}) "{}" --- ***'.format(iobs+1, len(obs_list), obs['obs_id']))
