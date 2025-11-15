@@ -55,6 +55,7 @@ overwrite=0
 mast_download_dirs=()
 crds_context=""
 skip_precache=0
+name_filter="jw*"
 unused_args=()
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^[-]+/--/g')
@@ -78,6 +79,12 @@ while [[ $iarg -le $# ]]; do
         elif [[ "$argstr" == "--skip-precache" ]]; then
             skip_precache=1
             echo "skip_precache = \"$skip_precache\""
+        elif [[ "$argstr" == "--name-filter" ]]; then
+            iarg=$((iarg+1))
+            if [[ $iarg -le $# ]]; then
+                name_filter="${!iarg}"
+                echo "name_filter = \"$name_filter\""
+            fi
         else
             unused_args+=("${!iarg}")
         fi
@@ -128,8 +135,8 @@ fi
 
 
 # copy uncal files
-echo "${script_dir}/go-jwst-spectroscopy-precopy-uncal-files ${unused_args[@]} $mast_download_dir/jw*/jw*_uncal.fits"
-${script_dir}/go-jwst-spectroscopy-precopy-uncal-files ${unused_args[@]} $mast_download_dir/jw*/jw*_uncal.fits
+echo "${script_dir}/go-jwst-spectroscopy-precopy-uncal-files ${unused_args[@]} $mast_download_dir/$name_filter/jw*_uncal.fits"
+${script_dir}/go-jwst-spectroscopy-precopy-uncal-files ${unused_args[@]} $mast_download_dir/$name_filter/jw*_uncal.fits
 
 
 

@@ -720,7 +720,7 @@ DEFAULT_ABS_FITGEOMETRY = 'rshift' # rotate and shift only
                              help='If `--very-big-mosaic` is set, this will be the box size to divide the full mosaic into. In arcminutes.')
 @click.option('--combine-program/--no-combine-program', is_flag=True, default=False, help='Combine all programs into one.')
 @click.option('--combine-obsnum/--no-combine-obsnum', is_flag=True, default=False, help='Combine all obsnum into one.')
-@click.option('--combine-visitnum/--no-combine-visitnum', is_flag=True, default=False, help='Combine all visitnum into one. If `--combine-obsnum` is set then this will also be set to True.')
+@click.option('--combine-visitnum/--no-combine-visitnum', is_flag=True, default=True, help='Combine all visitnum into one. If `--combine-obsnum` is set then this will also be set to True.')
 @click.option('--combine-filter/--no-combine-filter', is_flag=True, default=False, help='Combine all filters into one.')
 @click.option('--overwrite/--no-overwrite', is_flag=True, default=False, help='Overwrite?')
 @click.option('--run-individual-steps/--no-run-individual-steps', is_flag=True, default=False, help='Run individual step of JWST stage3 pipeline? This is turned on if abs_refcat is provided!')

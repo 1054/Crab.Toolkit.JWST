@@ -51,6 +51,7 @@ work_dir="."
 output_dir="calibrated3_mosaics"
 current_dir=$(pwd)
 overwrite=0
+help=0
 dataset_names=()
 info_table_argnames=("--save-info-table-dir" "--save-info-table-name")
 info_table_kwargs=()
@@ -94,6 +95,9 @@ while [[ $iarg -le $# ]]; do
         elif [[ "$argstr" == "--reprocess-nircam" ]]; then
             reprocess_NIRCam=1
             echo "reprocess_NIRCam = $reprocess_NIRCam"
+        elif [[ "$argstr" == "--help" ]]; then
+            help=1
+            echo "help = $help"
         elif [[ "$argstr" == "--reprocess-miri" ]]; then
             reprocess_MIRI=1
             echo "reprocess_MIRI = $reprocess_MIRI"

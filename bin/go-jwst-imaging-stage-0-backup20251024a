@@ -54,7 +54,7 @@ current_dir=$(pwd)
 overwrite=0
 mast_download_dirs=()
 crds_context=""
-skip_precache=1
+skip_precache=0
 unused_args=()
 while [[ $iarg -le $# ]]; do
     argstr=$(echo "${!iarg}" | tr '[:upper:]' '[:lower:]' | perl -p -e 's/_/-/g' | perl -p -e 's/^[-]+/--/g')
@@ -77,9 +77,6 @@ while [[ $iarg -le $# ]]; do
             fi
         elif [[ "$argstr" == "--skip-precache" ]]; then
             skip_precache=1
-            echo "skip_precache = \"$skip_precache\""
-        elif [[ "$argstr" == "--precache" ]]; then
-            skip_precache=0
             echo "skip_precache = \"$skip_precache\""
         else
             unused_args+=("${!iarg}")
@@ -131,8 +128,7 @@ fi
 
 
 # copy uncal files
-ntotfiles=0
-for (( i=0; i<${#mast_download_dirs[@]}; i++ )); do
+for (( i=0; i<${mast_download_dirs[@]}; i++ )); do
     mast_download_dir="${mast_download_dirs[i]}"
     nfiles=$(ls "$mast_download_dir"/jw*/jw*_uncal.fits 2>/dev/null | wc -l)
     if [[ $nfiles -eq 0 ]]; then
@@ -141,20 +137,13 @@ for (( i=0; i<${#mast_download_dirs[@]}; i++ )); do
             mast_download_dir="$mast_download_dir/JWST"
         fi
     fi
-    if [[ $nfiles -eq 0 ]]; then
-        echo "Warning! Could not find uncal files: \"$mast_download_dir\"/jw*/jw*_uncal.fits"
-        #exit 255
-    else
-        echo "${script_dir}/go-jwst-imaging-precopy-uncal-files ${unused_args[@]} \"$mast_download_dir\"/jw*/jw*_uncal.fits"
-        ${script_dir}/go-jwst-imaging-precopy-uncal-files ${unused_args[@]} "$mast_download_dir"/jw*/jw*_uncal.fits
-	ntotfiles=$(bc <<< "($ntotfiles)+($nfiles)")
-    fi
+    #if [[ $nfiles -eq 0 ]]; then
+    #    echo "Error! Could not find uncal files: \"$mast_download_dir\"/jw*/jw*_uncal.fits"
+    #    exit 255
+    #fi
+    echo "${script_dir}/go-jwst-imaging-precopy-uncal-files ${unused_args[@]} \"$mast_download_dir\"/jw*/jw*_uncal.fits"
+    ${script_dir}/go-jwst-imaging-precopy-uncal-files ${unused_args[@]} "$mast_download_dir"/jw*/jw*_uncal.fits
 done
-
-if [[ $ntotfiles -eq 0 ]]; then
-    echo "Error! No uncal file was found!"
-    exit 255
-fi
 
 
 

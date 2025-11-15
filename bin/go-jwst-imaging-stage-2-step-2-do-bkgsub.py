@@ -152,9 +152,14 @@ def main(
             #    return
             for entry in model.history:
                 for k,v in entry.items():
-                    if 'Done background subtraction; go-jwst-imaging-stage-2-step-2-do-bkgsub.py' in v:
-                        logger.warning(f'{input_filepath} already had background subtraction. Skipping!')
-                        return
+                    if 'Done background subtraction; go-jwst-imaging-stage-2-step-2-do-bkgsub.py' in v: 
+                        if os.path.isfile(skymatchstep_filepath):
+                            logger.warning(f'{input_filepath} already had background subtraction. Skipping!')
+                            return
+                        else:
+                            break
+        if os.path.isfile(skymatchstep_filepath):
+            shutil.move(skymatchstep_filepath, skymatchstep_filepath+'.backup')
     else:
         # Check skymatchstep_filepath existence
         if os.path.isfile(skymatchstep_filepath):

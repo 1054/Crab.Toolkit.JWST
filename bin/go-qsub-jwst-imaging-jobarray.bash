@@ -92,16 +92,31 @@ if [[ \${PBS_ARRAYID} -gt \${#dataset_names[@]} ]]; then
 fi
 
 EOF
-# 
-echo "Prepared qsub script: $goscript"
-while true; do
-    read -p "Ready to submit the qsub job? [y/n] " yn
-    case $yn in
-        [Yy]* ) echo "Submitting the qsub job!"; qsub $goscript; echo "Job submitted! Please check your qstat then!"; break;;
-        [Nn]* ) echo "Not submitting the job! Exit!"; exit;;
-        * ) echo "Please answer yes or no.";;
-    esac
-done
+ 
+
+hasQsub=$(type qsub 2>/dev/null | wc -l)
+
+if [[ $hasQsub -gt 0 ]]; then
+    echo "Prepared qsub script: $goscript"
+    while true; do
+        read -p "Ready to submit the qsub job? [y/n] " yn
+        case $yn in
+            [Yy]* ) echo "Submitting the qsub job!"; qsub $goscript; echo "Job submitted! Please check your qstat then!"; break;;
+            [Nn]* ) echo "Not submitting the job! Exit!"; exit;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+else
+    echo "Prepared parallel script: $goscript"
+    while true; do
+        read -p "Ready to run parallel screen jobs? [y/n] " yn
+        case $yn in
+            [Yy]* ) echo "Running the parallel screen jobs!"; echo "go-run-qsub-script-with-screen-in-parallel.bash $goscript"; go-run-qsub-script-with-screen-in-parallel.bash $goscript; echo "Jobs started! Please check your screen -ls then!"; break;;
+            [Nn]* ) echo "Not running the parallel screen jobs! Exit!"; exit;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+fi
 
 
 

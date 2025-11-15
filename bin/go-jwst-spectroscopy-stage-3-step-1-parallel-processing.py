@@ -682,16 +682,23 @@ def main(
             run_in_parallel = False
             nsources = 0
             asn_exptypes = ['science', 'background']
+            logger.info('Examining ASN file: {}'.format(asn_filename))
             with datamodels.open(asn_filename, asn_exptypes=asn_exptypes) as models:
                 exptype = models[0].meta.exposure.type # 'NRC_WFSS'
                 if exptype == 'NRC_WFSS':
                     sources = [(name, model) for name, model in multislit_to_container(models).items()]
                     nsources = len(sources)
-                    if len(sources) > nsource_per_process:
+                    if len(sources) > 1:
+                        if len(sources) > nparallel:
+                            nparallel = len(sources)
+                        if len(sources) > nparallel*nsource_per_process:
+                            nsource_per_process = int(np.ceil(len(sources)/nparallel))
                         run_in_parallel = True
                 models.close()
             # run in parallel
             if run_in_parallel:
+                logger.info('nparallel: {}'.format(nparallel))
+                logger.info('nsource_per_process: {}'.format(nsource_per_process))
                 with mp.Pool(nparallel) as pool:
                     proc_list = []
                     for i in range(0, nsources, nsource_per_process):
@@ -732,8 +739,14 @@ def main(
                     x1d_table['source_dec'].append(hdul[1].header['SRCDEC'])
                     x1d_table['source_xpos'].append(hdul[1].header['SRCXPOS'])
                     x1d_table['source_ypos'].append(hdul[1].header['SRCYPOS'])
-                    x1d_table['source_name'].append(hdul[1].header['SRCNAME'])
-                    x1d_table['source_alias'].append(hdul[1].header['SRCALIAS'])
+                    if 'SRCNAME' in hdul[1].header:
+                        x1d_table['source_name'].append(hdul[1].header['SRCNAME'])
+                    else:
+                        x1d_table['source_name'].append(hdul[1].header['SLTNAME'])
+                    if 'SRCALIAS' in hdul[1].header:
+                        x1d_table['source_alias'].append(hdul[1].header['SRCALIAS'])
+                    else:
+                        x1d_table['source_alias'].append('NULL')
                     x1d_ascii_file = os.path.splitext(x1d_file)[0] + '.dat'
                     Table(hdul[1].data).write(x1d_ascii_file, format='ascii.fixed_width', 
                                               delimiter=' ', bookend=True, overwrite=True)
