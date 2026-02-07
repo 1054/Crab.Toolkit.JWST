@@ -508,6 +508,8 @@ def main(
         # here we output source table
         if not target_acquisition_mode:
             x1d_files = glob.glob(f'{output_name}_s*_x1d.fits')
+            if len(x1d_files) == 0:  # 20260202
+                x1d_files = glob.glob(f'{output_name}_x1d.fits') # 20260202
             x1d_table = OrderedDict()
             x1d_table['source_id'] = []
             x1d_table['source_ra'] = []

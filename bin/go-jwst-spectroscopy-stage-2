@@ -13,7 +13,7 @@
 #        {dataset_name}/calibrated2_cals/{dataset_name}_cal.fits
 # 
 # 
-set -e
+#set -e
 
 # Set necessary system variables
 if [[ -z "$CRDS_PATH" ]]; then
@@ -363,11 +363,11 @@ for (( i = 0; i < ${#dataset_names[@]}; i++ )); do
     ret=$?
     if [[ $ret -ne 0 ]]; then
         echo "Error occurred?!"
-        exit 255
+        #exit 255
     fi
     if [[ ! -f "$file_out" ]] && [[ ! -L "$file_out" ]]; then
         echo "Error! Failed to produce the output file: $file_out"
-        exit 255
+        #exit 255
     fi
     
     # TODO: no further steps
