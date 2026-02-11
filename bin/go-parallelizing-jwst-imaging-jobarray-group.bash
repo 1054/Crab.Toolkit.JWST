@@ -45,15 +45,22 @@ echo "" >> $goscript
 echo "ARRAYID=\$PBS_ARRAYID" >> $goscript
 echo "" >> $goscript
 elif [[ $hasSlurm -gt 0 ]]; then
-echo "#SBATCH -J JW${timestamp}" >> $goscript
+partitions=($(scontrol show partitions | grep -B1 "AllowAccounts=.*${USER}.*" | grep -v "AllowAccounts=.*${USER}.*" | grep -v "^--$" | sed -e 's/PartitionName=//g'))
+if [[ ${#partitions[@]} -eq 0 ]]; then
+    echo "Error! No Slurm partition is accessible to the current user ${USER}! Please check: scontrl show partitions"
+    exit 255
+fi
+echo "#SBATCH --job-name=JW${timestamp}" >> $goscript
+#echo "#SBATCH --partition=${partition}" >> $goscript
 echo "#SBATCH --nodes=1" >> $goscript
 echo "#SBATCH --ntasks=1" >> $goscript
 echo "#SBATCH --cpus-per-task=${ncpu}" >> $goscript
 echo "#SBATCH --mem-per-cpu=16G" >> $goscript
-echo "#SBATCH --walltime=24:00:00" >> $goscript
+echo "#SBATCH --time=24:00:00" >> $goscript
 echo "#SBATCH --chdir=${currentdir}/" >> $goscript
-echo "#SBATCH --output=log_processing_jwst_imaging_${timestamp}" >> $goscript
-echo "#SBATCH --error=log_processing_jwst_imaging_${timestamp}-err" >> $goscript
+echo "#SBATCH --output=log_processing_jwst_imaging_${timestamp}_%A_%a.out" >> $goscript
+echo "#SBATCH --error=log_processing_jwst_imaging_${timestamp}_%A_%a.err" >> $goscript
+echo "#SBATCH --array=1-${ngroups}%${concurrent}" >> $goscript
 echo "" >> $goscript
 echo "ARRAYID=\$SLURM_ARRAY_TASK_ID" >> $goscript
 echo "" >> $goscript
@@ -229,7 +236,7 @@ elif [[ $hasSlurm -gt 0 ]]; then
     while true; do
         read -p "Ready to submit the slurm job? [y/n] " yn
         case $yn in
-            [Yy]* ) echo "Submitting the slurm job!"; sbatch --array=1-${ngroups}%${concurrent} $goscript; echo "Job submitted! Please check your sstat then!"; break;;
+            [Yy]* ) echo "Submitting the slurm job!"; sbatch $goscript; echo "Job submitted! Please check your sstat then!"; break;;
             [Nn]* ) echo "Not submitting the job! Exit!"; exit;;
             * ) echo "Please answer yes or no.";;
         esac
