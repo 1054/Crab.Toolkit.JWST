@@ -12,6 +12,7 @@ from astropy.coordinates import SkyCoord
 from astropy.stats import sigma_clipped_stats
 from astropy.wcs import WCS
 from astropy.wcs.utils import proj_plane_pixel_area
+from jwst import datamodels as dm
 from pprint import pprint
 from tqdm import tqdm
 import matplotlib as mpl
@@ -35,6 +36,27 @@ def main(c2d_file, x1d_file, lsigma, usigma, xflip, makefig, figfile):
     print('Input c2d/cal file: {}'.format(c2d_file))
     print('Input c1d/x1d file: {}'.format(x1d_file))
     image_data, image_header = fits.getdata(c2d_file, header=True)
+    if 'CD1_1' not in image_header and 'CDELT1' not in image_header:
+        with dm.open(c2d_file) as model:
+            image_header['CD1_1'] = model.meta.wcsinfo.cd1_1
+            image_header['CD1_2'] = model.meta.wcsinfo.cd1_2
+            image_header['CD2_1'] = model.meta.wcsinfo.cd2_1
+            image_header['CD2_2'] = model.meta.wcsinfo.cd2_2
+            image_header['CRPIX1'] = model.meta.wcsinfo.crpix1
+            image_header['CRPIX2'] = model.meta.wcsinfo.crpix2
+            image_header['CRVAL1'] = model.meta.wcsinfo.crval1
+            image_header['CRVAL2'] = model.meta.wcsinfo.crval2
+            image_header['CTYPE1'] = model.meta.wcsinfo.ctype1
+            image_header['CTYPE2'] = model.meta.wcsinfo.ctype2
+            image_header['CUNIT1'] = model.meta.wcsinfo.cunit1
+            image_header['CUNIT2'] = model.meta.wcsinfo.cunit2
+            image_header['WCSAXES'] = model.meta.wcsinfo.wcsaxes
+            if 'PA_APER' not in image_header:
+                image_header['PA_APER'] = model.meta.wcsinfo.roll_ref + model.meta.wcsinfo.v3yangle
+                # see -- https://jwst-pipeline.readthedocs.io/en/latest/api/jwst.ami.instrument_data.NIRISS.html
+                #   Notes
+                #   Nov. 2024 email discussion with Tony Sohn, Paul Goudfrooij confirmed V2/V3 coordinate rotation back to ?North up? equatorial orientation should use ROLL_REF + V3I_YANG (= PA_APER).
+    #dispersion_direction = 1
     image_header0 = fits.getheader(c2d_file, 0)
     spec_data, spec_header = fits.getdata(x1d_file, header=True)
     wcs = WCS(image_header, naxis=2)
@@ -52,13 +74,24 @@ def main(c2d_file, x1d_file, lsigma, usigma, xflip, makefig, figfile):
         image_data = image_data[:, ::-1]
         extent[0] *= -1
         extent[1] *= -1
-    wave = spec_data['WAVELENGTH']
-    flux = spec_data['FLUX']
     print('spec_data', type(spec_data), spec_data._coldefs.names)
-    try:
+    columns = spec_data._coldefs.names
+    wave = spec_data['WAVELENGTH']
+    if len(wave.shape) > 0 and wave.shape[0] == 1:
+        wave = wave[0]
+    flux = spec_data['FLUX']
+    if len(flux.shape) > 0 and flux.shape[0] == 1:
+        flux = flux[0]
+    if 'FLUX_ERROR' in columns:
         fluxerr = spec_data['FLUX_ERROR']
-    except:
+    elif 'FLUX_ERR' in columns:
         fluxerr = spec_data['FLUX_ERR']
+    elif 'ERROR' in columns:
+        fluxerr = spec_data['ERROR']
+    else:
+        raise Exception('Error! FLUX_ERROR/FLUX_ERR/ERROR column is not found!')
+    if len(fluxerr.shape) > 0 and fluxerr.shape[0] == 1:
+        fluxerr = fluxerr[0]
     fluxunit = spec_header['TUNIT2']
 
     wmin = np.nanmin(wave)
@@ -67,7 +100,13 @@ def main(c2d_file, x1d_file, lsigma, usigma, xflip, makefig, figfile):
     wave2 = np.nanpercentile(wave, 85.0)
     wave_mask = np.logical_and(wave>=wave1, wave<=wave2)
 
-    image_mask = np.repeat(wave_mask[np.newaxis, :], image_data.shape[0], axis=0)
+    #image_mask = np.repeat(wave_mask[np.newaxis, :], image_data.shape[0], axis=0)
+    image_mask = np.zeros(image_data.shape, dtype=bool)
+    ny, nx = image_data.shape
+    x1, x2 = int(nx*0.15), int(nx*0.85)
+    image_mask[:, x1:x2] = True
+    #print('image_mask.shape', image_mask.shape)
+    #print('image_data.shape', image_data.shape)
     mean, med, sig = sigma_clipped_stats(image_data[image_mask])
     vmin = max(med+lsigma*sig, np.nanmin(image_data[image_mask]))
     vmax = min(mean+usigma*sig, np.nanmax(image_data[image_mask]))
